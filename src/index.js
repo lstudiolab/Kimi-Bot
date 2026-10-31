@@ -10,7 +10,7 @@ const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(c
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
 const foundation=LIBRARIES.Foundation.create(context);context.foundation=foundation;
-const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,definition.create(context)]));
+const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
 context.libraries=libraries;
 const rest=new REST({version:"10"}).setToken(config.token);
 async function syncGlobalCommands(){
