@@ -52,5 +52,4 @@ export class FoundationTools{
   if(message)await message.edit({embeds:[new EmbedBuilder().setColor(GREY).setTitle(poll.question).setDescription(poll.options.map((x,n)=>"**"+(n+1)+".** "+x+"\\n"+counts[n]+" votes").join("\\n"))]}).catch(()=>{});
   this.store.queueSave();return respond(i,"Vote recorded. You may change your vote at any time.");
  }
- }
 }
