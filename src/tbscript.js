@@ -3,7 +3,6 @@ import {
   ModalBuilder, TextInputBuilder, TextInputStyle
 } from "discord.js";
 import { renderTemplate } from "./utils.js";
-import { hasPro } from "./subscriptions.js";
 
 const MAX_SOURCE_LENGTH = 64 * 1024;
 const KEYWORDS = new Set([
@@ -409,7 +408,7 @@ export function buildTbScriptModal(compiled, customId) {
 }
 
 export function applyPanelTbScript(store, guildId, target, basePayload, context = {}) {
-  if (!hasPro(store,guildId) || !(store.data.installed_libraries[guildId] || []).includes("Developer")) return basePayload;
+  if (!(store.data.installed_libraries[guildId] || []).includes("Developer")) return basePayload;
   const scriptKey = ["ticket","verification","moderation","role-picker"].includes(target) ? target + "-panel" : target;
   const source = store.data.panel_scripts?.[guildId]?.[scriptKey];
   if (!source) return basePayload;
