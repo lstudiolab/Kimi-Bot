@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, Partials, REST, Routes } from "discord.js";
+import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits } from "discord.js";
 import { loadConfig, createLogger } from "./config.js";
 import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData } from "./commands.js";
 import { Store } from "./store.js";
@@ -90,10 +90,15 @@ async function handleInteraction(i){
  if(i.isChatInputCommand()){
   if(["install-library","uninstall-library","library-list","timi-plan"].includes(i.commandName))return coreCommand(i);
   const required=commandLibrary(i.commandName);if(!required)return;
+  if(!i.memberPermissions?.has(PermissionFlagsBits.Administrator))return respond(i,"Only server administrators can use commands from Timi libraries.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install-library.`);
   return libraries[required].handleInteraction(i);
  }
- const required=componentLibrary(i.customId||"");if(!required)return;
+ const id=i.customId||"",required=componentLibrary(id);if(!required)return;
+ const publicMemberControls=id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("foundation:poll:");
+ const ticketMemberFlow=id.startsWith("ticket:")&&!["ticket:confirm-close"].includes(id)&&!id.startsWith("ticket:edit-");
+ const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:")||(id.startsWith("ticket:")&&!ticketMemberFlow);
+ if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.Administrator))return respond(i,"Only server administrators can use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
 }

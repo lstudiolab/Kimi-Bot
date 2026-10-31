@@ -90,6 +90,8 @@ const commandGroups = Object.freeze({
   Foundation: ["verify-settings","verify-panel","setup-role-picker","create-embed","place-embed","edit-embed","ping","server-info","user-info","avatar","welcome-settings",...foundationCommandBuilders.map(command=>command.name)],
   Developer: ["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]
 });
+const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
+for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 const commandByName = new Map(allCommandBuilders.map(command => [command.name, command]));
 export const commandData = allCommandBuilders.map(command => command.toJSON());
 export const coreCommandData = commandGroups.Core.map(name => commandByName.get(name).toJSON());
