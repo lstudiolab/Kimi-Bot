@@ -96,8 +96,8 @@ async function handleInteraction(i){
  }
  const id=i.customId||"",required=componentLibrary(id);if(!required)return;
  const publicMemberControls=id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("foundation:poll:");
- const ticketMemberFlow=id.startsWith("ticket:")&&!["ticket:confirm-close"].includes(id)&&!id.startsWith("ticket:edit-");
- const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:")||(id.startsWith("ticket:")&&!ticketMemberFlow);
+ const ticketAdminControl=id.startsWith("ticket:edit-")||id==="ticket:priority"||id.startsWith("ticket:settings:")||id==="ticket:publish"||id.startsWith("ticket:priority-select:");
+ const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.Administrator))return respond(i,"Only server administrators can use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);

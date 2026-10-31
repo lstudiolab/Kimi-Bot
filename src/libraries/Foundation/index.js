@@ -2,30 +2,25 @@ import { Verification } from "../../systems/verification.js";
 import { RolePicker } from "../../systems/role-picker.js";
 import { Embeds } from "../../systems/embeds.js";
 import { Foundation } from "../../systems/foundation.js";
-import { FoundationTools } from "../../systems/foundation-tools.js";
+
 export function createFoundationLibrary({client,store,logger}){
-  const verification=new Verification(client,store,logger);
-  const rolePicker=new RolePicker(client,store,logger,verification);
+  const verificationHelper=new Verification(client,store,logger);
+  const rolePicker=new RolePicker(client,store,logger,verificationHelper);
   const embeds=new Embeds(client,store,logger);
-  const utilities=new Foundation(client,store,logger);
-  const tools=new FoundationTools(client,store,logger);
-  return {async handleInteraction(i){
-    if(i.isChatInputCommand()){
-      if(["verify-settings","verify-panel"].includes(i.commandName))return verification.handle(i);
-      if(i.commandName==="setup-role-picker")return rolePicker.handle(i);
-      if(["greet-settings","auto-role"].includes(i.commandName))return utilities.command(i);
-      if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
-      if(i.commandName)return tools.handle(i);
-    }
-    const id=i.customId||"";
-    if(id.startsWith("foundation:poll:"))return tools.component(i);
-    if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
-    if(id.startsWith("rolepicker:"))return rolePicker.handle(i);
-    if(id.startsWith("embed:"))return embeds.handle(i);
+  const greet=new Foundation(client,store,logger);
+  return {
+    async handleInteraction(i){
+      if(i.isChatInputCommand()){
+        if(i.commandName==="setup-role-picker")return rolePicker.handle(i);
+        if(["greet-settings","auto-role"].includes(i.commandName))return greet.command(i);
+        if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
+      }
+      const id=i.customId||"";
+      if(id.startsWith("rolepicker:"))return rolePicker.handle(i);
+      if(id.startsWith("embed:"))return embeds.handle(i);
     },
-    async guildMemberAdd(member){await utilities.memberAdd(member);},
-    async guildMemberRemove(member){await utilities.memberRemove(member);},
-    async refreshVerification(guild){await verification.refresh(guild);},
+    async guildMemberAdd(member){await greet.memberAdd(member);},
+    async guildMemberRemove(member){await greet.memberRemove(member);},
     async refreshRolePickers(guild){await rolePicker.refresh(guild);}
   };
 }
