@@ -89,9 +89,8 @@ test("legacy configuration files are imported without overwriting new data",()=>
 import { LibraryManager } from "../src/module-manager.js";
 import { LIBRARIES, normalizeLibraryName } from "../src/libraries/index.js";
 
-test("Timi exposes four concrete first-party libraries including Pro-only Developer",()=>{
+test("Timi exposes four concrete first-party libraries including Developer",()=>{
   assert.deepEqual(Object.keys(LIBRARIES),["Moderation","Support","Foundation","Developer"]);
-  assert.equal(LIBRARIES.Developer.requiresPro,true);
   for(const library of Object.values(LIBRARIES)){
     assert.equal(typeof library.create,"function");
     assert.ok(library.systems.length>0);
@@ -116,7 +115,7 @@ test("library installation is isolated per server and preserves data",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { commandData } from "../src/commands.js";
+import { commandData, libraryCommandsForLibraries } from "../src/commands.js";
 test("library management commands are registered with the intended option behavior",()=>{
   const install=commandData.find(command=>command.name==="install-library");
   const uninstall=commandData.find(command=>command.name==="uninstall-library");
@@ -126,7 +125,7 @@ test("library management commands are registered with the intended option behavi
   assert.equal(install.options[0].required,false);
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="automod-word"));
-  for(const name of ["timi-plan","timi-customize","code","code-edit","code-template","code-docs","code-validate","code-run","code-stop","code-undo","code-redo","code-import","code-export"]) {
+  for(const name of ["timi-plan","library-list","install-library","code","code-edit","code-template","code-docs","code-validate","code-run","code-stop","code-undo","code-redo","code-import","code-export"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }
 });
@@ -152,7 +151,7 @@ test("pending moderation jobs survive a process restart",()=>{
 });
 
 import { parseTbScript, compileTbScript, autoFixTbScript, renderTbScript } from "../src/tbscript.js";
-import { PLANS, getGuildPlan, getStorageReport, canStoreGuildState, setGuildSubscription } from "../src/subscriptions.js";
+import { PLANS, getGuildPlan, getStorageReport, canStoreGuildState } from "../src/subscriptions.js";
 
 test("TbScript keeps the nested brace-block syntax and transpiles each instruction",()=>{
   const source=[
@@ -208,23 +207,19 @@ test("TbScript structural auto-fix only adds missing closing braces",()=>{
   assert.equal(compileTbScript(fixed).ok,true);
 });
 
-test("Timi Free and Pro plans expose the agreed storage and pricing",()=>{
+test("Timi has one free plan with a 5 MB per-server storage limit",()=>{
   assert.equal(PLANS.free.storageBytes,5*1024*1024);
-  assert.equal(PLANS.pro.storageBytes,12*1024*1024);
-  assert.equal(PLANS.pro.priceMonthly,4.99);
-  assert.equal(PLANS.pro.priceAnnual,49.99);
+  assert.equal(PLANS.free.priceMonthly,0);
+  assert.equal(PLANS.pro,undefined);
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-plans-"));
   try{
     const store=new Store(dir,quiet);
     assert.equal(getGuildPlan(store,"guild-plan"),"free");
     assert.equal(getStorageReport(store,"guild-plan").limit,5*1024*1024);
-    setGuildSubscription(store,"guild-plan",{tier:"pro",period:"annual"});
-    assert.equal(getGuildPlan(store,"guild-plan"),"pro");
-    assert.equal(getStorageReport(store,"guild-plan").limit,12*1024*1024);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("storage allocation is evaluated per guild and by subscription tier",()=>{
+test("storage allocation is fixed at 5 MB for every server",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-storage-"));
   try{
     const store=new Store(dir,quiet);
@@ -232,19 +227,19 @@ test("storage allocation is evaluated per guild and by subscription tier",()=>{
     const projects={...(store.data.developer_projects||{}),["guild-free"]:{large:{source}}};
     const report=canStoreGuildState(store,"guild-free",{developer_projects:projects});
     assert.equal(report.ok,false);
-    setGuildSubscription(store,"guild-pro",{tier:"pro",period:"annual"});
-    const proProjects={...(store.data.developer_projects||{}),["guild-pro"]:{large:{source}}};
-    assert.equal(canStoreGuildState(store,"guild-pro",{developer_projects:proProjects}).ok,true);
+    assert.equal(report.limit,5*1024*1024);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Developer library is Pro-only and its commands are registered only as library commands",()=>{
+test("Developer library installs on the free plan and exposes its project commands",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-developer-lib-"));
   try{
     const store=new Store(dir,quiet),manager=new LibraryManager(store,quiet);
-    assert.equal(manager.install("guild-dev","Developer").code,"pro_required");
-    setGuildSubscription(store,"guild-dev",{tier:"pro",period:"annual"});
     assert.equal(manager.install("guild-dev","Developer").ok,true);
     assert.equal(manager.installed("guild-dev","Developer"),true);
+    assert.ok(manager.list().some(library=>library.name==="Developer"));
+    const developerCommands=libraryCommandsForLibraries(["Developer"]).map(command=>command.name);
+    for(const name of ["code","code-edit","code-kit","code-run","code-template","code-docs"])assert.ok(developerCommands.includes(name));
+    assert.equal(manager.install("guild-dev","Developer").ok,false);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

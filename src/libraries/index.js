@@ -24,8 +24,7 @@ export const LIBRARIES = Object.freeze({
   }),
   Developer: Object.freeze({
     name:"Developer",
-    description:"The Pro-only TbScript workbench for creating, editing, testing, and managing custom Discord features.",
-    requiresPro:true,
+    description:"The TbScript workbench for creating, editing, testing, and managing custom Discord features.",
     systems:["TbScript parser and block transpiler","Code editor and saved projects","Visual component kit","Panel code editing","Run and stop testing","Version history and .tdl import/export","Owner-only editor access","Automatic structural brace repair"],
     create:createDeveloperLibrary
   })

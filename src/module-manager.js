@@ -1,5 +1,4 @@
 import { LIBRARIES, normalizeLibraryName } from "./libraries/index.js";
-import { hasPro, proRequiredMessage } from "./subscriptions.js";
 export class LibraryManager{
   constructor(store,logger){this.store=store;this.logger=logger;}
   list(){return Object.values(LIBRARIES);}
@@ -8,7 +7,6 @@ export class LibraryManager{
   install(guildId,name){
     const library=this.get(name);
     if(!library)return {ok:false,error:"Library not found. Use /library-list to see available libraries."};
-    if(library.requiresPro&&!hasPro(this.store,guildId))return {ok:false,code:"pro_required",error:proRequiredMessage("installing the "+library.name+" library")};
     const installed=this.store.data.installed_libraries[guildId]||=[];
     if(installed.includes(library.name))return {ok:false,error:`${library.name} is already installed in this server.`};
     installed.push(library.name);this.store.save();

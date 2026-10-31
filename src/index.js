@@ -5,7 +5,7 @@ import { Store } from "./store.js";
 import { LibraryManager } from "./module-manager.js";
 import { LIBRARIES } from "./libraries/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
-import { getGuildPlan, getStorageReport, formatBytes, PLANS, hasPro } from "./subscriptions.js";
+import { getStorageReport, formatBytes } from "./subscriptions.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
@@ -18,7 +18,7 @@ async function syncGlobalCommands(){
  logger.info(`Synced ${registered.length} Timi core slash commands globally.`);
 }
 async function syncGuildCommands(guildId){
- const installed=(store.data.installed_libraries[guildId]||[]).filter(name=>name!=="Developer"||hasPro(store,guildId));
+ const installed=store.data.installed_libraries[guildId]||[];
  const body=libraryCommandsForLibraries(installed);
  const route=Routes.applicationGuildCommands(config.clientId,guildId);
  const registered=await rest.put(route,{body});
@@ -43,26 +43,20 @@ function opensModal(i){
  if(i.isChatInputCommand()){
   const file=i.commandName==="code"||i.commandName==="code-edit" ? i.options.getAttachment("file") : null;
   if(file)return false;
-  return ["create-embed","code","code-edit","timi-customize"].includes(i.commandName);
+  return ["create-embed","code","code-edit"].includes(i.commandName);
  }
  if(!i.isButton())return false;
  const id=i.customId;
  return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 async function coreCommand(i){
- if(i.commandName==="timi-customize"){
-  if(!hasPro(store,i.guildId))return respond(i,"Timi Pro is required to customize Timi's appearance. Use /timi-plan for details.");
-  return libraries.Developer.handleInteraction(i);
- }
  if(i.commandName==="timi-plan"){
-  const tier=getGuildPlan(store,i.guildId),report=getStorageReport(store,i.guildId);
-  const checkout=config.proCheckoutUrl?("\nSubscribe: "+config.proCheckoutUrl):"\nSubscription checkout is not configured yet.";
-  const plan="**Timi plans**\n\n**Timi Free — $0**\n5 MB storage. Standard feature configuration. No style customization or Developer library.\n\n**Timi Pro — $4.99/month or $49.99/year**\n12 MB storage. Full style and behavior customization, complete Developer library, TbScript projects, code editing, testing, and premium libraries.\n\n**Current plan:** "+(tier==="pro"?"Timi Pro":"Timi Free")+"\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+checkout;
-  return respond(i,plan);
+  const report=getStorageReport(store,i.guildId);
+  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Developer, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /library-list to browse libraries and /install-library to enable them.");
  }
  if(i.commandName==="library-list"){
   const lines=manager.list().map(l=>{
-   const state=l.requiresPro&&!hasPro(store,i.guildId)?"Pro required":manager.installed(i.guildId,l.name)?"Installed":"Available";
+   const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
   });
   return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nUse /install-library and enter a libraryname.");
@@ -78,7 +72,7 @@ async function coreCommand(i){
  if(i.commandName==="install-library"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Timi libraries.");
   const name=i.options.getString("libraryname");
-  if(!name)return respond(i,"Enter a library name in libraryname. Available: Moderation, Support, Foundation, Developer. Developer requires Timi Pro. Use /library-list for details.");
+  if(!name)return respond(i,"Enter a library name in libraryname. Available: Moderation, Support, Foundation, Developer. Use /library-list for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   try {
    await syncGuildCommands(i.guildId);
@@ -94,15 +88,13 @@ async function coreCommand(i){
 async function handleInteraction(i){
  if(i.isRepliable()&&!opensModal(i)&&i.customId!=="ticket:confirm-close")await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["install-library","uninstall-library","library-list","timi-plan","timi-customize"].includes(i.commandName))return coreCommand(i);
+  if(["install-library","uninstall-library","library-list","timi-plan"].includes(i.commandName))return coreCommand(i);
   const required=commandLibrary(i.commandName);if(!required)return;
-  if(required==="Developer"&&!hasPro(store,i.guildId))return respond(i,"Timi Pro is required to use the Developer library. Use /timi-plan for subscription details.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install-library.`);
   return libraries[required].handleInteraction(i);
  }
  const required=componentLibrary(i.customId||"");if(!required)return;
- if(required==="Developer"&&!hasPro(store,i.guildId))return respond(i,"Timi Pro is required. This Developer control is inactive.");
- if(!manager.installed(i.guildId,required)&&i.customId!=="developer:customize")return respond(i,`The **${required}** library is not installed. This control is inactive.`);
+ if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
 }
 client.on(Events.GuildCreate,guild=>{

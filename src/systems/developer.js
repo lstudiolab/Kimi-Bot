@@ -2,7 +2,7 @@ import {
   ActionRowBuilder, AttachmentBuilder, StringSelectMenuBuilder, TextInputStyle
 } from "discord.js";
 import { autoFixTbScript, buildTbScriptModal, compileTbScript, renderTbScript } from "../tbscript.js";
-import { getStorageReport, canStoreGuildState, formatBytes, hasPro, proRequiredMessage } from "../subscriptions.js";
+import { getStorageReport, canStoreGuildState, formatBytes } from "../subscriptions.js";
 import { textInput, modal, respond, deny, requireOwner } from "../ui.js";
 
 const STARTER = [
@@ -50,7 +50,7 @@ function errorsText(errors) {
 }
 function storageError(report) {
   return "This change would exceed your Timi storage allocation (" + formatBytes(report.bytes) + " / "
-    + formatBytes(report.limit) + "). Remove unused saved content or upgrade to Timi Pro.";
+    + formatBytes(report.limit) + "). Remove unused saved content to free storage.";
 }
 function panelTarget(target) {
   return ["ticket-panel","verification-panel","moderation-panel","role-picker-panel"].includes(target);
@@ -80,10 +80,6 @@ export class Developer {
   }
 
   async allowed(i) {
-    if (!hasPro(this.store, i.guildId)) {
-      await deny(i, proRequiredMessage("the Developer library"));
-      return false;
-    }
     return requireOwner(i);
   }
 
@@ -157,7 +153,6 @@ export class Developer {
     if (name === "code-undo") return this.undo(i, i.options.getString("name"));
     if (name === "code-redo") return this.redo(i, i.options.getString("name"));
     if (name === "code-kit") return this.kit(i);
-    if (name === "timi-customize") return this.customize(i);
   }
 
   async createProjectFromAttachment(i,slug,attachment){
@@ -513,40 +508,6 @@ export class Developer {
     return respond(i,"The "+key+" component was assembled into **"+project.name+"**. Version "+next.version+" is saved but not running.");
   }
 
-  async customize(i) {
-    const current = this.store.data.customizations[i.guildId] || {
-      color: "#808080", author: "", footer: "", image: "", button_style: "secondary"
-    };
-    return i.showModal(modal("developer:customize", "Timi appearance", [
-      textInput("color", "Embed color (#RRGGBB)", current.color, TextInputStyle.Short, true, 7),
-      textInput("author", "Default embed author", current.author, TextInputStyle.Short, false, 256),
-      textInput("footer", "Default embed footer", current.footer, TextInputStyle.Short, false, 2048),
-      textInput("image", "Default panel image URL", current.image, TextInputStyle.Short, false, 500),
-      textInput("button-style", "Button style: secondary, primary, success, danger", current.button_style, TextInputStyle.Short, true, 9)
-    ]));
-  }
-
-  async customizeSubmit(i) {
-    if (!await this.allowed(i)) return;
-    const values = Object.fromEntries(i.fields.fields.map(field => [field.customId, field.value.trim()]));
-    if (!/^#[0-9a-f]{6}$/i.test(values.color)) return deny(i, "Use a six-digit hex color such as #808080.");
-    if (values.image && !/^https:\/\//i.test(values.image)) return deny(i, "The panel image URL must use HTTPS.");
-    values["button-style"] = values["button-style"].toLowerCase();
-    if (!["secondary", "primary", "success", "danger"].includes(values["button-style"])) return deny(i, "Choose secondary, primary, success, or danger.");
-    const theme = {
-      color: values.color.toUpperCase(), author: values.author, footer: values.footer,
-      image: values.image, button_style: values["button-style"]
-    };
-    const customizations = { ...(this.store.data.customizations || {}), [i.guildId]: theme };
-    const report = canStoreGuildState(this.store, i.guildId, { customizations });
-    if (!report.ok) return deny(i, storageError(report));
-    this.store.data.customizations = customizations;
-    this.store.save();
-    await this.refreshPanel(i.guild, "ticket-panel");
-    await this.refreshPanel(i.guild, "verification-panel");
-    return respond(i, "Appearance settings saved. Existing ticket and verification panels were refreshed.");
-  }
-
   async handleScriptButton(i) {
     const match = i.customId.match(/^tbs:(ticket|verification|moderation|role-picker|p-[a-z0-9_-]{1,24}):(\d+)$/i);
     if (!match) return deny(i, "This TbScript control is invalid.");
@@ -556,10 +517,10 @@ export class Developer {
       const slug = scope.slice(2);
       const active = this.store.data.developer_active[i.guildId]?.[slug];
       const project = this.project(i.guildId, slug);
-      if (!hasPro(this.store, i.guildId) || !project || active?.status !== "running" || active.message_id !== i.message.id) return deny(i, "This project control is no longer active.");
+      if (!project || active?.status !== "running" || active.message_id !== i.message.id) return deny(i, "This project control is no longer active.");
       source = project.source;
     } else {
-      if (!hasPro(this.store, i.guildId) || !(this.store.data.installed_libraries[i.guildId] || []).includes("Developer")) return deny(i, "The Developer library is not active.");
+      if (!(this.store.data.installed_libraries[i.guildId] || []).includes("Developer")) return deny(i, "The Developer library is not active.");
       const panels = scope === "ticket" ? this.store.ticket(i.guildId).published_panels
         : scope === "verification" ? this.store.verify(i.guildId).published_panels
         : scope === "moderation" ? [{message_id:this.store.mods(i.guildId).panel_message_id}]
@@ -614,7 +575,6 @@ export class Developer {
       return respond(i, "Form submitted.\n" + values.join("\n"));
     }
     if (i.isModalSubmit() && i.customId.startsWith("developer:editor:")) return this.editorSubmit(i);
-    if (i.isModalSubmit() && i.customId === "developer:customize") return this.customizeSubmit(i);
     if (i.isStringSelectMenu() && i.customId === "developer:kit") {
       const key=i.values[0];
       const projects=Object.entries(this.projects(i.guildId));

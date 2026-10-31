@@ -138,7 +138,7 @@ export class Store{
     fs.renameSync(temp,this.file);
     if(rejected.length){
       for(const item of rejected)this.logger.warn("Storage quota rejected a guild data increase:",item.guildId,item.currentBytes,"/",item.limit);
-      throw new Error("Storage quota reached for one or more servers. Changes above the plan limit were discarded; upgrade to Timi Pro or remove saved content.");
+      throw new Error("Storage quota reached for one or more servers. Changes above the plan limit were discarded; remove saved content.");
     }
   }
   queueSave(){

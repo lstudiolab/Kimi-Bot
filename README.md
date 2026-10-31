@@ -84,15 +84,14 @@ Detach with `Ctrl+B`, then `D`. Reopen with `tmux attach -t timi`. Android may s
 
 ## Built-in libraries
 
-Timi is one integrated bot. Its four first-party libraries are included in the same codebase; they are not external plugins or third-party modules. Each server independently chooses which libraries to activate.
+Timi is free. Its first-party libraries are included in the same bot codebase, and each server can enable the libraries it needs. All four libraries are available without a subscription.
 
 - **Moderation** — moderation actions and cases, auto moderation, server protection, anti-raid and bot approval, activity archiving, and moderation logs.
 - **Support** — ticket setup, configurable panels, private tickets, staff threads, transcripts, permissions, and ticket logs.
-- **Foundation** — server utilities, message/embed builder, welcome and goodbye messages, role picker, and member verification.
-- **Developer** — Timi Pro-only TbScript editor, component kit, project workbench, panel source editing, testing, version history, and .tdl import/export.
-- **Developer** — Timi Pro-only TbScript editor, component kit, project workbench, panel source editing, testing, version history, and `.tdl` import/export.
+- **Foundation** — server utilities, message and embed builder, welcome and goodbye messages, role picker, and member verification.
+- **Developer** — TbScript block language, project editor, visual component kit, panel source editing, testing, version history, undo/redo, and .tdl import/export.
 
-Only the server owner can install a library. Use `/library-list` to inspect the libraries and `/install-library` with the optional `libraryname` field to activate one. A library is inactive until installed. Its data is kept when it is not installed.
+Only the server owner can install or uninstall a library. Use `/library-list` to see every available library, including Developer, and `/install-library` with the `libraryname` option to activate one. Uninstalling a library removes its commands and integrations but preserves its saved data and projects.
 
 ## Commands
 
@@ -100,30 +99,21 @@ Only the server owner can install a library. Use `/library-list` to inspect the 
 - Moderation: `/moderation-settings`, `/automod-word add`, `/automod-word remove`, `/automod-word list`.
 - Support: `/ticket-setup`, `/ticket-panel`, `/ticket-settings`.
 - Foundation: `/ping`, `/server-info`, `/user-info`, `/avatar`, `/welcome-settings`, `/verify-settings`, `/verify-panel`, `/setup-role-picker`, `/create-embed`, `/edit-embed`, `/place-embed`.
-- Developer (Timi Pro): `/code`, `/code-edit`, `/code-list`, `/code-kit`, `/code-run`, `/code-stop`, `/code-history`, `/code-validate`, `/code-undo`, `/code-redo`, `/code-import`, `/code-export`, `/code-delete`, `/code-docs`, and `/code-template`.
-- Developer (Timi Pro): `/code`, `/code-edit`, `/code-list`, `/code-kit`, `/code-run`, `/code-stop`, `/code-history`, `/code-undo`, `/code-redo`, `/code-import`, `/code-export`, `/code-delete`, and `/timi-customize`.
+- Developer: `/code`, `/code-edit`, `/code-list`, `/code-kit`, `/code-run`, `/code-stop`, `/code-history`, `/code-validate`, `/code-undo`, `/code-redo`, `/code-import`, `/code-export`, `/code-delete`, `/code-docs`, and `/code-template`.
 
+## Timi Free
 
-## Timi Free and Timi Pro
+Timi is free to use. There is no Pro subscription, paid tier, or payment setup. Every built-in library, including Developer, is available to every server.
 
-Timi has one free tier and one paid subscription:
+Each server has **5 MB** of saved configuration and project storage. The quota includes installed-library state, settings, customizations, TbScript projects, project history, and saved panel scripts. Message archives and recovery snapshots keep their existing retention limits and are not included. Timi rejects changes that would exceed the 5 MB allocation and preserves the server's last saved state.
 
-| Plan | Price | Saved configuration and project storage |
-|---|---:|---:|
-| Timi Free | $0 | 5 MB |
-| Timi Pro | $4.99/month or $49.99/year | 12 MB |
-
-Timi Free retains normal feature configuration but does not expose style customization or the Developer library. Timi Pro unlocks style and behavior customization, all Developer library capabilities, TbScript project creation and editing, the component kit, testing, history, and premium-library access. The default Timi visual identity remains the same on both plans.
-
-Use `/timi-plan` to see the current plan and storage usage. The optional `TIMI_PRO_CHECKOUT_URL` setting displays an external checkout link. A checkout URL alone does not activate a subscription: a payment provider and verified webhook must call the subscription entitlement code before a server is marked Pro. No payment provider or automatic billing webhook is included yet.
-
-Storage quotas cover saved per-server configuration, customization, library data, and Developer project source/history. Recovery snapshots and message archives use their existing retention limits and are not counted toward this configuration quota. When a saved change would increase a server beyond its quota, the store restores that server's prior saved state and reports the quota error.
+Use `/timi-plan` to check storage usage.
 
 ## Developer library and TbScript
 
-Developer is a separate library and can only be installed on a server with an active Timi Pro entitlement. The server owner is the only user allowed to create projects, edit source, customize global Timi styles, and manage the workbench.
+Developer is installed separately with `/install-library libraryname:Developer`. Only the server owner can create projects, edit panel source, run or stop projects, and manage the Developer workbench.
 
-TbScript keeps the brace-block structure:
+TbScript keeps the exact nested brace-block structure:
 
 ```text
 {
@@ -134,16 +124,19 @@ TbScript keeps the brace-block structure:
 }
 ```
 
-Each instruction is a `{}` block, nested blocks stay inside their parent block, `:` separates arguments, text values are quoted, and statements do not use semicolons. The transpiler parses nested blocks and validates them before creating Discord components. Supported blocks include `title`, `description`, `footer`, `author`, `imagelink`, `thumbnail`, `url`, `content`, `color`, `ephemeral`, `field`, `addbutton`, `onclick(button)`, `modal`, and nested `input`.
+Each instruction is a `{}` block, nested blocks stay inside their parent blocks, `:` separates arguments, text values are quoted, and statements do not use semicolons. The transpiler parses nested blocks and validates them before creating Discord components. Supported blocks include `title`, `description`, `footer`, `author`, `imagelink`, `thumbnail`, `url`, `content`, `color`, `ephemeral`, `field`, `addbutton`, `onclick(button)`, `modal`, and nested `input`.
 
 - `/code` creates a saved project. Saving never starts it automatically.
-- `/code-edit` edits a project or existing ticket/verification panel source. It is owner-only; Discord does not support hiding one button for different viewers on a shared public message.
-- `/code-kit` assembles selected component blocks into a selected project.
+- `/code-edit` edits a project or supported ticket, verification, moderation, and role-picker panel source.
+- `/code-kit` assembles component blocks into a selected project.
+- `/code-template` creates a project from a starter template.
+- `/code-validate` checks and transpiles a project without running it.
 - `/code-run` tests a project; `/code-stop` disables its controls.
-- `/code-undo` and `/code-redo` navigate recent source changes.
+- `/code-undo` and `/code-redo` navigate recent source changes; `/code-history` lists saved versions.
 - `/code-import` and `/code-export` exchange `.tdl` files (64 KB import limit).
+- `/code-docs` opens the language reference.
 
-TbScript does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Its runtime only performs whitelisted Discord operations and validates role assignment permissions and role hierarchy. Automatic repair currently adds missing closing braces; it does not rewrite application logic or silently change a script's behavior. Discord modals are used for short source edits; larger files should be imported as `.tdl` attachments.
+TbScript does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Only whitelisted Discord operations run. The current automatic repair adds missing closing braces; it does not invent or rewrite application logic. Discord modals are used for short source edits; larger files can be attached as `.tdl` files.
 
 ## Data and recovery
 

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 const manageGuild=PermissionFlagsBits.ManageGuild;
 const allCommandBuilders=[
-  new SlashCommandBuilder().setName("timi-plan").setDescription("View Timi Free and Pro features, pricing, and storage."),
+  new SlashCommandBuilder().setName("timi-plan").setDescription("View Timi's free features and storage usage."),
   new SlashCommandBuilder().setName("install-library").setDescription("Install a built-in Timi library.").addStringOption(o=>o.setName("libraryname").setDescription("Library name").setRequired(false).setMaxLength(50)),
   new SlashCommandBuilder().setName("library-list").setDescription("Show available Timi libraries."),
   new SlashCommandBuilder().setName("uninstall-library").setDescription("Disable a Timi library (server owner only).").addStringOption(o=>o.setName("libraryname").setDescription("Library name").setRequired(true).setMaxLength(50)),
@@ -31,7 +31,7 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("edit-embed").setDescription("Edit a saved embed.").setDefaultMemberPermissions(manageGuild)
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("code").setDescription("Create a TbScript project (Timi Pro).")
+  new SlashCommandBuilder().setName("code").setDescription("Create a TbScript project with the Developer library.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
     .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)").setRequired(false)),
   new SlashCommandBuilder().setName("code-edit").setDescription("Edit TbScript for a project or supported Timi panel.")
@@ -67,7 +67,6 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("name").setDescription("New project name").setRequired(true).setMaxLength(24))
     .addStringOption(o=>o.setName("template").setDescription("Starter template").setRequired(true)
       .addChoices({name:"Embed",value:"embed"},{name:"Button",value:"button"},{name:"Modal",value:"modal"},{name:"Welcome panel",value:"welcome"},{name:"Ticket panel",value:"ticket"},{name:"Verification panel",value:"verification"})),
-  new SlashCommandBuilder().setName("timi-customize").setDescription("Customize Timi's appearance (Timi Pro)."),
   new SlashCommandBuilder().setName("ping").setDescription("Show Timi gateway latency."),
   new SlashCommandBuilder().setName("server-info").setDescription("Show information about this server."),
   new SlashCommandBuilder().setName("user-info").setDescription("Show information about a server member.")
@@ -83,7 +82,7 @@ const allCommandBuilders=[
 ];
 
 const commandGroups = Object.freeze({
-  Core: ["timi-plan","timi-customize","install-library","library-list","uninstall-library"],
+  Core: ["timi-plan","install-library","library-list","uninstall-library"],
   Support: ["ticket-setup","ticket-panel","ticket-settings"],
   Moderation: ["automod-word","moderation-settings"],
   Foundation: ["verify-settings","verify-panel","setup-role-picker","create-embed","place-embed","edit-embed","ping","server-info","user-info","avatar","welcome-settings"],

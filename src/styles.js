@@ -1,5 +1,4 @@
 import { ButtonStyle } from "discord.js";
-import { hasPro } from "./subscriptions.js";
 
 const DEFAULT_THEME = Object.freeze({
   color: "#808080",
@@ -10,7 +9,7 @@ const DEFAULT_THEME = Object.freeze({
 });
 
 export function getGuildTheme(store, guildId) {
-  return hasPro(store,guildId) ? { ...DEFAULT_THEME, ...(store.data.customizations?.[guildId] || {}) } : { ...DEFAULT_THEME };
+  return { ...DEFAULT_THEME };
 }
 
 export function colorNumber(value) {
