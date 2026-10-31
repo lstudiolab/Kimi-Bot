@@ -41,6 +41,7 @@ export class FoundationTools{
  if(n==="invite"){const inv=await i.channel.createInvite({maxAge:86400,maxUses:0,unique:true});return respond(i,"Invite: "+inv.url+"\nExpires in 24 hours.");}
  if(n==="timestamp"){const v=i.options.getInteger("value");return respond(i,"<t:"+v+":F>\nRelative: <t:"+v+":R>\nUnix: "+v);}
  if(n==="calculator"){try{return respond(i,"Result: **"+calc(i.options.getString("expression"))+"**");}catch(e){return respond(i,e.message);}}
+ }
  async component(i){
   const match=(i.customId||"").match(/^foundation:poll:([a-z0-9]+):(\d+)$/);if(!match)return;
   const state=dataFor(this.store,i.guildId),poll=state.polls?.[match[1]],index=Number(match[2]);
