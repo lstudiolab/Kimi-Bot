@@ -243,3 +243,5 @@ test("Developer library installs on the free plan and exposes its project comman
     assert.equal(manager.install("guild-dev","Developer").ok,false);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test("Foundation expansion commands are included in its library registration",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["server-settings","server-stats","server-backup","channel-create","channel-edit","role-create","role-edit","member-info","member-count","role-add","role-remove","nickname","announce","poll","reminder","clear","slowmode","role-list","channel-list","permissions","invite","timestamp","calculator"])assert.ok(names.includes(name),"missing Foundation command: "+name);});

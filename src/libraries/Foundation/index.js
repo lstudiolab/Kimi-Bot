@@ -18,6 +18,7 @@ export function createFoundationLibrary({client,store,logger}){
       if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
     }
     const id=i.customId||"";
+    if(id.startsWith("foundation:poll:"))return tools.component(i);
     if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
     if(id.startsWith("rolepicker:"))return rolePicker.handle(i);
     if(id.startsWith("embed:"))return embeds.handle(i);

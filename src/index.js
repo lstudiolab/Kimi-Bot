@@ -28,14 +28,14 @@ async function syncGuildCommands(guildId){
 function commandLibrary(n){
  if(n.startsWith("ticket-"))return "Support";
  if(["moderation-settings","automod-word"].includes(n))return "Moderation";
- if(["verify-settings","verify-panel","setup-role-picker","create-embed","edit-embed","place-embed","ping","server-info","user-info","avatar","welcome-settings","server-settings","server-stats","server-backup","channel-create","channel-edit","role-create","role-edit","member-info","member-count","role-add","role-remove","nickname","announce","clear","slowmode","role-list","channel-list","permissions","invite","timestamp","calculator"].includes(n))return "Foundation";
+ if(["verify-settings","verify-panel","setup-role-picker","create-embed","edit-embed","place-embed","ping","server-info","user-info","avatar","welcome-settings","server-settings","server-stats","server-backup","channel-create","channel-edit","role-create","role-edit","member-info","member-count","role-add","role-remove","nickname","announce","clear","slowmode","role-list","channel-list","permissions","invite","timestamp","calculator","poll","reminder"].includes(n))return "Foundation";
  if(["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"].includes(n))return "Developer";
  return null;
 }
 function componentLibrary(id){
  if(id.startsWith("ticket:"))return "Support";
  if(id.startsWith("modpanel:")||id.startsWith("botguard:"))return "Moderation";
- if(id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("embed:"))return "Foundation";
+ if(id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("embed:")||id.startsWith("foundation:poll:"))return "Foundation";
  if(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:"))return "Developer";
  return null;
 }
