@@ -101,6 +101,10 @@ export class Store{
       this.data=fillDefaults(recovered,defaults());
     }
     let changed=migrateLegacy(this.data,dataDir);
+    for(const [guild,installed] of Object.entries(this.data.installed_libraries||{})){
+      const migrated=[...new Set((installed||[]).map(name=>name==="Moderation"?"Security":name==="Developer"?"Scratch":name).filter(name=>["Foundation","Security","Support","Scratch"].includes(name)))];
+      if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_libraries[guild]=migrated;changed=true;}
+    }
     if(normalizeData(this.data))changed=true;
     if(changed){this.save();this.logger.info("Imported or normalized legacy Timi settings and recovery data.");}
   }

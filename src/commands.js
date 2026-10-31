@@ -1,5 +1,4 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
-import { foundationCommandBuilders } from "./foundation-commands.js";
 const manageGuild=PermissionFlagsBits.ManageGuild;
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("timi-plan").setDescription("View Timi's free features and storage usage."),
@@ -17,6 +16,7 @@ const allCommandBuilders=[
       .addStringOption(o=>o.setName("phrase").setDescription("Exact phrase to remove").setRequired(true).setMaxLength(100)))
     .addSubcommand(s=>s.setName("list").setDescription("List blocked words and phrases.")),
   new SlashCommandBuilder().setName("moderation-settings").setDescription("Configure Timi moderation and anti-spam protection.").setDefaultMemberPermissions(manageGuild),
+  new SlashCommandBuilder().setName("auto-role").setDescription("Set the role automatically assigned to new members.").addRoleOption(o=>o.setName("role").setDescription("Role to assign; omit to disable")),
   new SlashCommandBuilder().setName("verify-settings").setDescription("Configure risk-based verification (server owner only).")
     .addRoleOption(o=>o.setName("role").setDescription("Role granted after passing"))
     .addRoleOption(o=>o.setName("required-role").setDescription("Role required before verifying"))
@@ -32,7 +32,6 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("edit-embed").setDescription("Edit a saved embed.").setDefaultMemberPermissions(manageGuild)
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
-  ...foundationCommandBuilders,
   new SlashCommandBuilder().setName("code").setDescription("Create a TbScript project with the Developer library.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
     .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)").setRequired(false)),
@@ -75,7 +74,7 @@ const allCommandBuilders=[
     .addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
   new SlashCommandBuilder().setName("avatar").setDescription("Show a user's avatar.")
     .addUserOption(o=>o.setName("user").setDescription("User whose avatar to show")),
-  new SlashCommandBuilder().setName("welcome-settings").setDescription("Configure welcome and goodbye messages.")
+  new SlashCommandBuilder().setName("greet-settings").setDescription("Configure welcome and goodbye messages.")
     .setDefaultMemberPermissions(manageGuild)
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member messages").addChannelTypes(ChannelType.GuildText))
     .addStringOption(o=>o.setName("welcome-message").setDescription("Welcome text; supports {user}, {username}, {server}, {member_count}").setMaxLength(1800))
@@ -85,10 +84,10 @@ const allCommandBuilders=[
 
 const commandGroups = Object.freeze({
   Core: ["timi-plan","install-library","library-list","uninstall-library"],
+  Foundation: ["greet-settings","auto-role","setup-role-picker","create-embed","place-embed","edit-embed"],
+  Security: ["verify-settings","verify-panel","automod-word","moderation-settings"],
   Support: ["ticket-setup","ticket-panel","ticket-settings"],
-  Moderation: ["automod-word","moderation-settings"],
-  Foundation: ["verify-settings","verify-panel","setup-role-picker","create-embed","place-embed","edit-embed","ping","server-info","user-info","avatar","welcome-settings",...foundationCommandBuilders.map(command=>command.name)],
-  Developer: ["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]
+  Scratch: ["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
 for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))command.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);

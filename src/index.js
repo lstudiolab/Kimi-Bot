@@ -27,16 +27,16 @@ async function syncGuildCommands(guildId){
 }
 function commandLibrary(n){
  if(n.startsWith("ticket-"))return "Support";
- if(["moderation-settings","automod-word"].includes(n))return "Moderation";
- if(["verify-settings","verify-panel","setup-role-picker","create-embed","edit-embed","place-embed","ping","server-info","user-info","avatar","welcome-settings","server-settings","server-stats","server-backup","channel-create","channel-edit","role-create","role-edit","member-info","member-count","role-add","role-remove","nickname","announce","clear","slowmode","role-list","channel-list","permissions","invite","timestamp","calculator","poll","reminder"].includes(n))return "Foundation";
- if(["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"].includes(n))return "Developer";
+ if(["moderation-settings","automod-word","verify-settings","verify-panel"].includes(n))return "Security";
+ if(["setup-role-picker","create-embed","edit-embed","place-embed","greet-settings","auto-role"].includes(n))return "Foundation";
+ if(["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"].includes(n))return "Scratch";
  return null;
 }
 function componentLibrary(id){
  if(id.startsWith("ticket:"))return "Support";
- if(id.startsWith("modpanel:")||id.startsWith("botguard:"))return "Moderation";
- if(id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("embed:")||id.startsWith("foundation:poll:"))return "Foundation";
- if(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:"))return "Developer";
+ if(id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("verify:"))return "Security";
+ if(id.startsWith("rolepicker:")||id.startsWith("embed:"))return "Foundation";
+ if(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:"))return "Scratch";
  return null;
 }
 function opensModal(i){
@@ -128,25 +128,25 @@ client.on(Events.InteractionCreate,async i=>{
   else await i.reply({...p,ephemeral:true}).catch(()=>{});
  }
 });
-client.on(Events.MessageCreate,m=>{if(manager.installed(m.guildId,"Moderation"))libraries.Moderation.messageCreate(m).catch(e=>logger.error("Moderation message processing failed:",e));});
-client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Moderation"))libraries.Moderation.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
-client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Moderation"))libraries.Moderation.messageUpdate(oldMessage,newMessage).catch(e=>logger.error("Message edit log failed:",e));});
-client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Moderation"))libraries.Moderation.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
-client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Moderation"))libraries.Moderation.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
-client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Moderation"))libraries.Moderation.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.MessageCreate,m=>{if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m).catch(e=>logger.error("Moderation message processing failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security"))libraries.Security.messageUpdate(oldMessage,newMessage).catch(e=>logger.error("Message edit log failed:",e));});
+client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
+client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
+client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
- if(manager.installed(m.guild.id,"Moderation"))libraries.Moderation.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
+ if(manager.installed(m.guild.id,"Security"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
  if(manager.installed(m.guild.id,"Foundation")){
-  if(!manager.installed(m.guild.id,"Moderation")){const r=store.member(m.guild.id,m.id);r.joins++;r.last_join=Date.now();store.save();}
+  if(!manager.installed(m.guild.id,"Security")){const r=store.member(m.guild.id,m.id);r.joins++;r.last_join=Date.now();store.save();}
   libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
  }
 });
 client.on(Events.GuildMemberRemove,m=>{
  if(manager.installed(m.guild.id,"Foundation")){const r=store.member(m.guild.id,m.id);r.leaves++;store.save();libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));}
 });
-client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Moderation"))libraries.Moderation.channelCreate(c);});
-client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Moderation"))libraries.Moderation.channelUpdate(o,c);});
-client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Moderation"))libraries.Moderation.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
+client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelCreate(c);});
+client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelUpdate(o,c);});
+client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Timi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));

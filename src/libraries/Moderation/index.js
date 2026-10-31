@@ -1,9 +1,11 @@
 import { Moderation } from "../../systems/moderation.js";
 import { Protection } from "../../systems/protection.js";
 import { Recovery } from "../../systems/recovery.js";
+import { Verification } from "../../systems/verification.js";
 
-export function createModerationLibrary({client,store,logger,foundation}){
+export function createSecurityLibrary({client,store,logger,foundation}){
   const moderation=new Moderation(client,store,logger);
+  const verification=new Verification(client,store,logger);
   const protection=new Protection(client,store,logger);
   const recovery=new Recovery(client,store,logger);
   return {
@@ -13,9 +15,11 @@ export function createModerationLibrary({client,store,logger,foundation}){
       for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
     },
     async handleInteraction(i){
-      if(i.isChatInputCommand()&&i.commandName==="moderation-settings")return moderation.handle(i);
+      if(i.isChatInputCommand()&&["moderation-settings","automod-word"].includes(i.commandName))return moderation.handle(i);
+      if(i.isChatInputCommand()&&["verify-settings","verify-panel"].includes(i.commandName))return verification.handle(i);
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);
+      if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
       if(id.startsWith("botguard:"))return foundation.handleInteraction(i);
     },
     async messageDelete(message){await moderation.onMessageDelete(message);},
