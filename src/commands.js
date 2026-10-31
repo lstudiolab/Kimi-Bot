@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
+import { foundationCommandBuilders } from "./foundation-commands.js";
 const manageGuild=PermissionFlagsBits.ManageGuild;
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("timi-plan").setDescription("View Timi's free features and storage usage."),
@@ -31,6 +32,7 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("edit-embed").setDescription("Edit a saved embed.").setDefaultMemberPermissions(manageGuild)
     .addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
+  ...foundationCommandBuilders,
   new SlashCommandBuilder().setName("code").setDescription("Create a TbScript project with the Developer library.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
     .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)").setRequired(false)),
@@ -85,7 +87,7 @@ const commandGroups = Object.freeze({
   Core: ["timi-plan","install-library","library-list","uninstall-library"],
   Support: ["ticket-setup","ticket-panel","ticket-settings"],
   Moderation: ["automod-word","moderation-settings"],
-  Foundation: ["verify-settings","verify-panel","setup-role-picker","create-embed","place-embed","edit-embed","ping","server-info","user-info","avatar","welcome-settings"],
+  Foundation: ["verify-settings","verify-panel","setup-role-picker","create-embed","place-embed","edit-embed","ping","server-info","user-info","avatar","welcome-settings",...foundationCommandBuilders.map(command=>command.name)],
   Developer: ["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]
 });
 const commandByName = new Map(allCommandBuilders.map(command => [command.name, command]));

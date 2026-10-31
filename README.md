@@ -98,7 +98,7 @@ Only the server owner can install or uninstall a library. Use `/library-list` to
 - Core: `/timi-plan`, `/library-list`, `/install-library`, `/uninstall-library`.
 - Moderation: `/moderation-settings`, `/automod-word add`, `/automod-word remove`, `/automod-word list`.
 - Support: `/ticket-setup`, `/ticket-panel`, `/ticket-settings`.
-- Foundation: `/ping`, `/server-info`, `/user-info`, `/avatar`, `/welcome-settings`, `/verify-settings`, `/verify-panel`, `/setup-role-picker`, `/create-embed`, `/edit-embed`, `/place-embed`.
+- Foundation: `/ping`, `/server-info`, `/server-settings`, `/server-stats`, `/server-backup`, `/user-info`, `/member-info`, `/member-count`, `/avatar`, `/welcome-settings`, `/channel-create`, `/channel-edit`, `/role-create`, `/role-edit`, `/role-add`, `/role-remove`, `/nickname`, `/role-list`, `/channel-list`, `/permissions`, `/invite`, `/announce`, `/clear`, `/slowmode`, `/timestamp`, `/calculator`, `/verify-settings`, `/verify-panel`, `/setup-role-picker`, `/create-embed`, `/edit-embed`, `/place-embed`.
 - Developer: `/code`, `/code-edit`, `/code-list`, `/code-kit`, `/code-run`, `/code-stop`, `/code-history`, `/code-validate`, `/code-undo`, `/code-redo`, `/code-import`, `/code-export`, `/code-delete`, `/code-docs`, and `/code-template`.
 
 ## Timi Free
