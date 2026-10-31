@@ -1,5 +1,5 @@
-import { createScratchLibrary as createDeveloperSystem } from "../../systems/developer.js";
+import { createDeveloperLibrary as createScratchSystem } from "../../systems/developer.js";
 
-export function createDeveloperLibrary(context) {
-  return createDeveloperSystem(context);
+export function createScratchLibrary(context) {
+  return createScratchSystem(context);
 }
