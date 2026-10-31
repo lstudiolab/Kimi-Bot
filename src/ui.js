@@ -16,7 +16,7 @@ export async function startWorking(interaction){
   await interaction.deferReply({ephemeral:true});
 }
 export async function finishWorking(interaction){
-  if(!interaction.deferred||interaction.replied)return false;
+  if(!interaction.deferred||interaction.replied||interaction.__timiDeletedReply)return false;
   await interaction.editReply({
     content:"Timi could not complete that action. The handler returned without a response. Please try again.",
     components:[],embeds:[],allowedMentions:{parse:[]}
