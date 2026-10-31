@@ -89,14 +89,15 @@ test("legacy configuration files are imported without overwriting new data",()=>
 import { LibraryManager } from "../src/module-manager.js";
 import { LIBRARIES, normalizeLibraryName } from "../src/libraries/index.js";
 
-test("Timi exposes four concrete first-party libraries including Developer",()=>{
-  assert.deepEqual(Object.keys(LIBRARIES),["Moderation","Support","Foundation","Developer"]);
+test("Timi exposes four focused first-party libraries",()=>{
+  assert.deepEqual(Object.keys(LIBRARIES),["Foundation","Security","Support","Scratch"]);
   for(const library of Object.values(LIBRARIES)){
     assert.equal(typeof library.create,"function");
     assert.ok(library.systems.length>0);
     assert.ok(library.description.length>20);
   }
-  assert.equal(normalizeLibraryName(" moderation "),"Moderation");
+  assert.equal(normalizeLibraryName(" moderation "),"Security");
+  assert.equal(normalizeLibraryName("Developer"),"Scratch");
   assert.equal(normalizeLibraryName("Support"),"Support");
   assert.equal(normalizeLibraryName("Unknown"),null);
 });
@@ -231,17 +232,17 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Developer library installs on the free plan and exposes its project commands",()=>{
+test("Scratch library installs on the free plan and exposes its project commands",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-developer-lib-"));
   try{
     const store=new Store(dir,quiet),manager=new LibraryManager(store,quiet);
-    assert.equal(manager.install("guild-dev","Developer").ok,true);
-    assert.equal(manager.installed("guild-dev","Developer"),true);
-    assert.ok(manager.list().some(library=>library.name==="Developer"));
-    const developerCommands=libraryCommandsForLibraries(["Developer"]).map(command=>command.name);
+    assert.equal(manager.install("guild-dev","Scratch").ok,true);
+    assert.equal(manager.installed("guild-dev","Scratch"),true);
+    assert.ok(manager.list().some(library=>library.name==="Scratch"));
+    const developerCommands=libraryCommandsForLibraries(["Scratch"]).map(command=>command.name);
     for(const name of ["code","code-edit","code-kit","code-run","code-template","code-docs"])assert.ok(developerCommands.includes(name));
-    assert.equal(manager.install("guild-dev","Developer").ok,false);
+    assert.equal(manager.install("guild-dev","Scratch").ok,false);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation expansion commands are included in its library registration",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["server-settings","server-stats","server-backup","channel-create","channel-edit","role-create","role-edit","member-info","member-count","role-add","role-remove","nickname","announce","poll","reminder","clear","slowmode","role-list","channel-list","permissions","invite","timestamp","calculator"])assert.ok(names.includes(name),"missing Foundation command: "+name);});
+test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});

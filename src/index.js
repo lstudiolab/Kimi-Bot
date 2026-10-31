@@ -134,6 +134,7 @@ client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&ma
 client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
 client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
 client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
  if(manager.installed(m.guild.id,"Security"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
  if(manager.installed(m.guild.id,"Foundation")){

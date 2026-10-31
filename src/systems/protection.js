@@ -4,7 +4,7 @@ import { button, row, greyEmbed } from "../ui.js";
 
 const P=PermissionFlagsBits;
 export class Protection {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();}
   async privateChannel(guild){
     const bot=await guild.members.fetchMe();
     let channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&c.name==="timi");
@@ -56,6 +56,25 @@ export class Protection {
       this.lastAlert.set(guild.id,now);const log=await this.privateChannel(guild);
       await log.send({content:`Security alert: ${list.length} members joined within 10 seconds. Possible raid; review the server. No automatic raid punishment was applied.`});
     }
+  }
+  async auditLog(entry,guild){
+    const destructive=new Set([12,22,32,50,52,92]);
+    if(!entry||!guild||!destructive.has(entry.action))return;
+    const actorId=entry.executorId||entry.executor?.id;
+    if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
+    const now=Date.now(),events=(this.nukeEvents.get(guild.id+":"+actorId)||[]).filter(v=>now-v.at<=10000);
+    events.push({at:now,action:entry.action});this.nukeEvents.set(guild.id+":"+actorId,events);
+    if(events.length<4||events.length===4&&events.some(v=>v.at<now-10000))return;
+    const key=guild.id+":"+actorId+":triggered",triggered=this.nukeEvents.get(key);
+    if(triggered)return;
+    this.nukeEvents.set(key,true);
+    const log=await this.privateChannel(guild);
+    let action="actor flagged for immediate owner review";
+    const member=await guild.members.fetch(actorId).catch(()=>null);
+    if(member&&member.id!==guild.ownerId&&member.moderatable){
+      await member.timeout(60*60*1000,"Timi anti-nuke: destructive audit actions exceeded the safety threshold").then(()=>{action="actor timed out for 60 minutes";}).catch(error=>this.logger.warn("Anti-nuke timeout failed:",error.message));
+    }
+    await log.send({content:"Anti-nuke alert: <@"+actorId+"> performed "+events.length+" destructive server actions within 10 seconds. "+action+". Review the audit log and restore affected resources where possible.",allowedMentions:{users:[actorId]}});
   }
   async ready(guild){
     try{await this.privateChannel(guild);}

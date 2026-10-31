@@ -91,7 +91,7 @@ Timi is free. Its first-party libraries are included in the same bot codebase, a
 - **Foundation** — server utilities, message and embed builder, welcome and goodbye messages, role picker, and member verification.
 - **Developer** — TbScript block language, project editor, visual component kit, panel source editing, testing, version history, undo/redo, and .tdl import/export.
 
-Only the server owner can install or uninstall a library. Use `/library-list` to see every available library, including Developer, and `/install-library` with the `libraryname` option to activate one. Uninstalling a library removes its commands and integrations but preserves its saved data and projects.
+Only the server owner can install or uninstall a library. Use `/library-list` to see every available library, including Scratch, and `/install-library` with the `libraryname` option to activate one. Uninstalling a library removes its commands and integrations but preserves its saved data and projects.
 
 ## Commands
 
@@ -103,7 +103,7 @@ Only the server owner can install or uninstall a library. Use `/library-list` to
 
 ## Timi Free
 
-Timi is free to use. There is no Pro subscription, paid tier, or payment setup. Every built-in library, including Developer, is available to every server.
+Timi is free to use. There is no Pro subscription, paid tier, or payment setup. Every built-in library, including Scratch, is available to every server.
 
 Each server has **5 MB** of saved configuration and project storage. The quota includes installed-library state, settings, customizations, TbScript projects, project history, and saved panel scripts. Message archives and recovery snapshots keep their existing retention limits and are not included. Timi rejects changes that would exceed the 5 MB allocation and preserves the server's last saved state.
 

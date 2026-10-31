@@ -31,6 +31,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       await moderation.onMessage(message);
     },
     async guildMemberAdd(member){await protection.memberJoin(member);},
+    async auditLog(entry,guild){await protection.auditLog(entry,guild);},
     channelCreate(channel){recovery.snapshot(channel);},
     channelUpdate(oldChannel,channel){recovery.snapshot(channel);},
     async channelDelete(channel){await recovery.onChannelDelete(channel);},

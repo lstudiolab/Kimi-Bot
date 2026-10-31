@@ -13,7 +13,7 @@ export function createFoundationLibrary({client,store,logger}){
     if(i.isChatInputCommand()){
       if(["verify-settings","verify-panel"].includes(i.commandName))return verification.handle(i);
       if(i.commandName==="setup-role-picker")return rolePicker.handle(i);
-      if(["ping","server-info","user-info","avatar","welcome-settings"].includes(i.commandName))return utilities.command(i);
+      if(["greet-settings","auto-role"].includes(i.commandName))return utilities.command(i);
       if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
       if(i.commandName)return tools.handle(i);
     }

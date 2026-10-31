@@ -10,7 +10,7 @@ export const LIBRARIES = Object.freeze({
   Scratch: Object.freeze({name:"Scratch",description:"The TbScript development environment.",systems:["TbScript projects","Editor and component kit","Panel scripting","Run and stop testing","Validation and documentation","Version history and import/export"],create:createScratchLibrary})
 });
 export function normalizeLibraryName(value){
-  const key=String(value||"").trim().toLowerCase().replace(/[\\s_-]/g,"");
+  const key=String(value||"").trim().toLowerCase().replace(/[\s_-]/g,"");
   const aliases={moderation:"Security",developer:"Scratch"};
   return aliases[key]||Object.keys(LIBRARIES).find(name=>name.toLowerCase()===key)||null;
 }
