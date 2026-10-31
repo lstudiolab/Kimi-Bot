@@ -129,11 +129,12 @@ export class Tickets {
   }
   async open(i) {
     const guild=i.guild,key=guild.id+":"+i.user.id,now=Date.now();
+    const channels=await guild.channels.fetch();
+    const already=channels.find(c=>c.type===ChannelType.GuildText&&c.topic===`timi-ticket-owner:${i.user.id}`);
+    if (already) return respond(i,`You already have a ticket open: <#${already.id}>`);
     if (now-(this.cooldowns.get(key)||0)<10000) return deny(i,"Please wait a few seconds before opening another ticket.");
     this.cooldowns.set(key,now);
     const x=this.store.ticket(guild.id);
-    const already=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&c.topic===`timi-ticket-owner:${i.user.id}`);
-    if (already) return deny(i,`You already have an open ticket: <#${already.id}>.`);
     let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()===x.category_name.toLowerCase());
     if (!category) category=await guild.channels.create({name:x.category_name,type:ChannelType.GuildCategory});
     let support=null;
@@ -155,7 +156,6 @@ export class Tickets {
       const emb=applyGuildTheme(greyEmbed(renderTemplate(x.panel_title,templateContext),renderTemplate(x.ticket_message,templateContext)),this.store,guild.id).addFields({name:"Priority",value:"Normal",inline:true});
       await ch.send({content:renderTemplate("{user}",templateContext),embeds:[emb],components:[row(button("ticket:close",renderTemplate(x.close_label,templateContext),ButtonStyle.Danger),button("ticket:priority","Set priority",ButtonStyle.Primary))],allowedMentions:{users:[i.user.id]}});
     } catch(e) { await ch.delete().catch(()=>{}); throw e; }
-    let note="";
     try {
       const thread=await ch.threads.create({name:"staff-"+cleanChannelName(i.user.username),type:ChannelType.PrivateThread,autoArchiveDuration:1440,invitable:false});
       await thread.send(`Private staff discussion for <#${ch.id}>. The ticket owner cannot see this thread.`);
@@ -173,10 +173,9 @@ export class Tickets {
           if(members.size<1000||!after)break;
         }
       }
-      note=` A private staff thread was created: <#${thread.id}>.`;
-    } catch(e) { note=" The ticket is open, but Timi could not create its private staff thread. Check thread permissions."; this.logger.warn("Ticket staff thread failed:",e.message); }
+    } catch(e) { this.logger.warn("Ticket staff thread failed:",e.message); }
     await this.log(guild,`Ticket opened. Member: <@${i.user.id}>. Channel: <#${ch.id}>.`);
-    return respond(i,`Your ticket is ready: <#${ch.id}>`);
+    return respond(i,`Your ticket is ready at: <#${ch.id}>`);
   }
   async log(guild,content) {
     const x=this.store.mods(guild.id);
@@ -245,27 +244,26 @@ export class Tickets {
       const ch=i.channel,owner=ch.topic?.match(/^timi-ticket-owner:(\d+)$/)?.[1];
       if(!owner) return deny(i,"This is not a Timi ticket channel.");
       if(i.user.id!==owner&&!i.memberPermissions?.has(P.ManageGuild)) return deny(i,"Only the ticket owner or a server manager can close this ticket.");
-      if(id==="ticket:close") return respond(i,"Are you sure you want to close this ticket?",[row(button("ticket:confirm-close","Yes, close it",ButtonStyle.Danger),button("ticket:cancel-close","Cancel"))]);
+      if(id==="ticket:close") return respond(i,"Are you sure you want to close this ticket? This will delete the channel.",[row(button("ticket:confirm-close","Yes, delete it",ButtonStyle.Danger),button("ticket:cancel-close","Cancel"))]);
       if(id==="ticket:cancel-close") return respond(i,"Ticket closure cancelled.");
       const key=g.id+":"+ch.id; if(this.closing.has(key)) return deny(i,"This ticket is already closing.");
       this.closing.add(key);
+      let publicNotice=null;
       try {
-        await i.update({
-          content:"Closing this ticket in 5 seconds…",
-          components:[row(button("ticket:confirm-close","Closing this ticket in 5 seconds…",ButtonStyle.Danger).setDisabled(true))],
-          allowedMentions:{parse:[]}
-        });
+        // The dispatcher has already deferred this interaction ephemerally. Post the
+        // visible countdown in the ticket channel instead of acknowledging it again.
+        publicNotice=await ch.send({content:"Closing this ticket in 5 seconds…",allowedMentions:{parse:[]}});
+        await i.deleteReply().catch(error=>this.logger.warn("Could not remove the ephemeral ticket confirmation:",error.message));
         await new Promise(resolve=>setTimeout(resolve,5000));
         try { await this.transcript(g,ch); } catch(e) { this.logger.warn("Ticket transcript failed:",e.message); }
         await this.log(g,`Ticket closed. Channel: <#${ch.id}>. Closed by <@${i.user.id}>.`);
         await ch.delete("Ticket closed");
       } catch(e) {
-        this.logger.error("Ticket close failed:",e);
-        if(i.deferred||i.replied) {
-          await i.editReply({content:"Timi could not close this ticket. Check the bot's channel permissions and try again.",components:[],allowedMentions:{parse:[]}}).catch(()=>{});
-        } else {
-          await deny(i,"Timi could not close this ticket. Check the bot's channel permissions and try again.").catch(()=>{});
-        }
+        this.logger.error("Ticket close failed:",{message:e.message,code:e.code,status:e.status,rawError:e.rawError});
+        const message="Timi could not delete this ticket. Check that the bot has Manage Channels permission in this category.";
+        if(publicNotice) await publicNotice.edit({content:message,allowedMentions:{parse:[]}}).catch(()=>{});
+        else if(i.deferred||i.replied) await i.editReply({content:message,components:[],allowedMentions:{parse:[]}}).catch(()=>{});
+        else await deny(i,message).catch(()=>{});
       } finally { this.closing.delete(key); }
       return;
     }
