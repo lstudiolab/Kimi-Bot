@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime } from "../src/utils.js";
+import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS } from "../src/utils.js";
 import { loadConfig } from "../src/config.js";
 import { Store } from "../src/store.js";
 
@@ -246,3 +246,29 @@ test("Scratch library installs on the free plan and exposes its project commands
 });
 
 test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+
+test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
+  const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
+    displayAvatarURL:()=> "https://cdn.example/avatar.png"};
+  const guild={id:"222222222222222222",name:"Test Server",memberCount:42,ownerId:"333333333333333333",
+    iconURL:()=> "https://cdn.example/server.png"};
+  const channel={id:"444444444444444444",name:"welcome"};
+  const client={user:{id:"555555555555555555",username:"Timi",displayAvatarURL:()=> "https://cdn.example/bot.png"}};
+  const result=renderTemplate(
+    "{user}|{member}|{user-mention}|{username}|{member-name}|{user-name}|{user_tag}|{user_id}|{member-id}|{user-avatar}|{server}|{server-name}|{server_id}|{server-icon}|{member_count}|{member-count}|{channel}|{channel-mention}|{channel_name}|{channel-name}|{owner}|{server-owner}|{owner_id}|{server-owner-id}|{bot}|{bot-mention}|{bot_name}|{bot-avatar}|{date}|{time}|{timestamp}",
+    {guild,member:{guild,user},user,channel,client}
+  );
+  for(const value of [
+    "<@111111111111111111>","Example","Example User","Example#1234","111111111111111111",
+    "https://cdn.example/avatar.png","Test Server","222222222222222222",
+    "https://cdn.example/server.png","42","<#444444444444444444>","welcome",
+    "<@333333333333333333>","333333333333333333","<@555555555555555555>","Timi",
+    "https://cdn.example/bot.png"
+  ]) assert.ok(result.includes(value), "missing rendered value: "+value);
+  assert.ok(!result.includes("{"),"known placeholders should not remain unresolved");
+  assert.ok(TEMPLATE_PLACEHOLDERS.includes("{user-avatar}"));
+  assert.ok(TEMPLATE_PLACEHOLDERS.includes("{member-count}"));
+});
+test("unknown template placeholders remain visible for correction",()=>{
+  assert.equal(renderTemplate("Hello {unknown-value}"),"Hello {unknown-value}");
+});

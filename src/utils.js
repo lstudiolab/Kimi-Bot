@@ -54,34 +54,52 @@ export function isOwner(member) {
 }
 
 
-// Render placeholders in any server-owner-authored message or embed text.
-// Missing context leaves the original placeholder intact instead of inserting "undefined".
+// Resolve template placeholders consistently in greetings and saved embeds.
+// Unknown placeholders remain untouched so configuration mistakes are visible.
 export function renderTemplate(template, context = {}) {
   const guild = context.guild || context.member?.guild || null;
   const member = context.member || null;
   const user = context.user || member?.user || null;
   const channel = context.channel || null;
   const botUser = context.client?.user || context.bot || null;
+  const avatar = user?.displayAvatarURL
+    ? user.displayAvatarURL({ extension: "png", size: 256 })
+    : null;
+  const botAvatar = botUser?.displayAvatarURL
+    ? botUser.displayAvatarURL({ extension: "png", size: 256 })
+    : null;
   const values = {
     user: user?.id ? `<@${user.id}>` : null,
+    member: user?.id ? `<@${user.id}>` : null,
+    user_mention: user?.id ? `<@${user.id}>` : null,
     username: user?.username ?? null,
+    member_name: user?.globalName ?? user?.username ?? null,
+    user_name: user?.globalName ?? user?.username ?? null,
     user_tag: user?.tag ?? (user?.username && user?.discriminator && user.discriminator !== "0" ? `${user.username}#${user.discriminator}` : user?.username ?? null),
     user_id: user?.id ?? null,
-    user_avatar: user?.displayAvatarURL ? user.displayAvatarURL({ extension: "png", size: 256 }) : null,
+    member_id: user?.id ?? null,
+    user_avatar: avatar,
     server: guild?.name ?? null,
+    server_name: guild?.name ?? null,
     server_id: guild?.id ?? null,
+    server_icon: guild?.iconURL?.({ extension: "png", size: 256 }) ?? null,
     member_count: guild?.memberCount ?? null,
     channel: channel?.id ? `<#${channel.id}>` : null,
+    channel_mention: channel?.id ? `<#${channel.id}>` : null,
     channel_name: channel?.name ?? null,
     owner: guild?.ownerId ? `<@${guild.ownerId}>` : null,
+    server_owner: guild?.ownerId ? `<@${guild.ownerId}>` : null,
     owner_id: guild?.ownerId ?? null,
+    server_owner_id: guild?.ownerId ?? null,
     bot: botUser?.id ? `<@${botUser.id}>` : null,
+    bot_mention: botUser?.id ? `<@${botUser.id}>` : null,
     bot_name: botUser?.username ?? null,
+    bot_avatar: botAvatar,
     date: new Date().toLocaleDateString("en-GB", { timeZone: "UTC" }),
     time: new Date().toLocaleTimeString("en-GB", { timeZone: "UTC" }),
     timestamp: Math.floor(Date.now() / 1000)
   };
-  return String(template ?? "").replace(new RegExp("[{]([a-z][a-z0-9_-]*)[}]", "gi"), (match, key) => {
+  return String(template ?? "").replace(/\{\s*([a-z][a-z0-9_-]*)\s*\}/gi, (match, key) => {
     const normalized = key.toLowerCase().replace(/-/g, "_");
     const value = values[normalized];
     return value === null || value === undefined ? match : String(value);
@@ -89,7 +107,10 @@ export function renderTemplate(template, context = {}) {
 }
 
 export const TEMPLATE_PLACEHOLDERS = Object.freeze([
-  "{user}", "{username}", "{user_tag}", "{user_id}", "{user-avatar}", "{user_avatar}", "{server}", "{server_id}",
-  "{member_count}", "{member-count}", "{channel}", "{channel_name}", "{owner}", "{owner_id}",
-  "{bot}", "{bot_name}", "{date}", "{time}", "{timestamp}"
+  "{user}", "{member}", "{user-mention}", "{username}", "{member-name}", "{user-name}",
+  "{user_tag}", "{user_id}", "{member-id}", "{user-avatar}", "{server}", "{server-name}",
+  "{server_id}", "{server-icon}", "{member_count}", "{member-count}", "{channel}",
+  "{channel-mention}", "{channel_name}", "{channel-name}", "{owner}", "{server-owner}",
+  "{owner_id}", "{server-owner-id}", "{bot}", "{bot-mention}", "{bot_name}", "{bot-avatar}",
+  "{date}", "{time}", "{timestamp}"
 ]);

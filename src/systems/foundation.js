@@ -47,23 +47,40 @@ export class Foundation {
   render(template,member){
     return renderTemplate(template,{guild:member.guild,member,user:member.user,client:this.client});
   }
+  async sendWelcome(member,channel){
+    const template=String(this.settings(member.guild.id).welcome_message||"");
+    // Saved embeds are inserted with {embed: name}; remove directives from message text.
+    const embedPattern=/\{\s*embed\s*:\s*([a-z0-9_-]+)\s*\}/gi;
+    const embedNames=[...template.matchAll(embedPattern)].map(match=>match[1].toLowerCase());
+    const contentTemplate=template.replace(embedPattern,"").trim();
+    const context={guild:member.guild,member,user:member.user,channel,client:this.client};
+    const embeds=[];
+    for(const name of embedNames){
+      const saved=this.store.embed(member.guild.id,name);
+      if(!saved){
+        this.logger.warn('Welcome message references missing embed "'+name+'" in guild '+member.guild.id+'.');
+        continue;
+      }
+      try{
+        embeds.push(this.embeds.payload(saved,context));
+      }catch(error){
+        this.logger.warn('Could not render welcome embed "'+name+'":',error.message);
+      }
+    }
+    const content=this.render(contentTemplate,member,channel);
+    if(!content&&!embeds.length)return null;
+    return channel.send({
+      ...(content?{content}:{}),
+      ...(embeds.length?{embeds:embeds.slice(0,10)}:{}),
+      allowedMentions:{users:[member.id]}
+    });
+  }
   async testGreet(member){
     const s=this.settings(member.guild.id);
     if(!s.welcome_channel_id)return null;
     const channel=await member.guild.channels.fetch(s.welcome_channel_id).catch(()=>null);
     if(channel?.type!==ChannelType.GuildText)return null;
-    const template=String(s.welcome_message||"");
-    const embedNames=[...template.matchAll(/\\{embed\\s*:\\s*([a-z0-9_-]+)\\s*\\}/gi)].map(match=>match[1].toLowerCase());
-    const contentTemplate=template.replace(/\\{embed\\s*:\\s*[a-z0-9_-]+\\s*\\}/gi,"").trim();
-    const embeds=[];
-    for(const name of embedNames){
-      const saved=this.store.embed(member.guild.id,name);
-      if(!saved){this.logger.warn('Welcome message references missing embed "'+name+'" in guild '+member.guild.id+'.');continue;}
-      embeds.push(this.embeds.payload(saved,{guild:member.guild,member,user:member.user,channel,client:this.client}));
-    }
-    const content=this.render(contentTemplate,member);
-    if(!content&&!embeds.length)return null;
-    return channel.send({...(content?{content}:{}),...(embeds.length?{embeds:embeds.slice(0,10)}:{}),allowedMentions:{users:[member.id]}});
+    return this.sendWelcome(member,channel);
   }
   async memberAdd(member){
     const s=this.settings(member.guild.id);
@@ -75,20 +92,8 @@ export class Foundation {
     }
     if(!s.welcome_channel_id)return;
     const channel=await member.guild.channels.fetch(s.welcome_channel_id).catch(()=>null);
-    if(channel?.type===ChannelType.GuildText){
-      const template=String(s.welcome_message||"");
-      const embedNames=[...template.matchAll(/\{embed\s*:\s*([a-z0-9_-]+)\s*\}/gi)].map(match=>match[1].toLowerCase());
-      const contentTemplate=template.replace(/\{embed\s*:\s*[a-z0-9_-]+\s*\}/gi,"").trim();
-      const embeds=[];
-      for(const name of embedNames){
-        const saved=this.store.embed(member.guild.id,name);
-        if(!saved){this.logger.warn('Welcome message references missing embed "'+name+'" in guild '+member.guild.id+'.');continue;}
-        embeds.push(this.embeds.payload(saved,{guild:member.guild,member,user:member.user,channel,client:this.client}));
-      }
-      const content=this.render(contentTemplate,member);
-      if(content||embeds.length)
-        await channel.send({...(content?{content}:{}),...(embeds.length?{embeds:embeds.slice(0,10)}:{}),allowedMentions:{users:[member.id]}});
-    }
+    if(channel?.type===ChannelType.GuildText)
+      await this.sendWelcome(member,channel);
   }
   async memberRemove(member){
     const s=this.settings(member.guild.id);
