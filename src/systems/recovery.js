@@ -17,6 +17,18 @@ export class Recovery {
     };
     this.store.queueSave();
   }
+  prune(guildId){
+    const list=this.store.data.messages[guildId]||[];
+    const cutoff=nowMs()-WEEK,sizeOf=value=>Buffer.byteLength(JSON.stringify(value),"utf8");
+    const retained=list.filter(item=>(item.timestamp_ms||0)>=cutoff)
+      .sort((a,b)=>(a.timestamp_ms||0)-(b.timestamp_ms||0));
+    let bytes=retained.reduce((total,item)=>total+sizeOf(item),0);
+    while(retained.length&&(retained.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(retained.shift());
+    const changed=retained.length!==list.length;
+    if(changed){this.store.data.messages[guildId]=retained;this.store.queueSave();}
+    this.archiveBytes.set(guildId,Math.max(0,bytes));
+    return {removed:list.length-retained.length,bytes:Math.max(0,bytes),messages:retained.length};
+  }
   backupMessage(message) {
     if(!message.guild||message.author.bot||(!message.content&&message.attachments.size===0))return;
     const guild=message.guild.id;
