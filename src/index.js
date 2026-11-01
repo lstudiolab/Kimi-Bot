@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits } from "discord.js";
 import { loadConfig, createLogger } from "./config.js";
-import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData } from "./commands.js";
+import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData, libraryForCommand } from "./commands.js";
 import { Store } from "./store.js";
 import { LibraryManager } from "./module-manager.js";
 import { LIBRARIES } from "./libraries/index.js";
@@ -25,13 +25,6 @@ async function syncGuildCommands(guildId){
  logger.info(`Synced ${registered.length} slash commands for guild ${guildId}.`);
  return registered;
 }
-function commandLibrary(n){
- if(n.startsWith("ticket-"))return "Support";
- if(["moderation-settings","automod-word","verify-settings","verify-panel","security-scan"].includes(n))return "Security";
- if(["timi-setup","setup-role-picker","create-embed","edit-embed","place-embed","greet-settings","auto-role"].includes(n))return "Foundation";
- if(["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"].includes(n))return "Scratch";
- return null;
-}
 function componentLibrary(id){
  if(id.startsWith("ticket:"))return "Support";
  if(id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("verify:"))return "Security";
@@ -41,27 +34,27 @@ function componentLibrary(id){
 }
 function opensModal(i){
  if(i.isChatInputCommand()){
-  const file=i.commandName==="code"||i.commandName==="code-edit" ? i.options.getAttachment("file") : null;
+  const file=i.commandName==="script"||i.commandName==="script-edit" ? i.options.getAttachment("file") : null;
   if(file)return false;
-  return ["create-embed","code","code-edit"].includes(i.commandName);
+  return ["embed-new","script","script-edit"].includes(i.commandName);
  }
  if(!i.isButton())return false;
  const id=i.customId;
  return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 async function coreCommand(i){
- if(i.commandName==="timi-plan"){
+ if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Developer, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /library-list to browse libraries and /install-library to enable them.");
+  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Developer, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /libraries to browse libraries and /install to enable them.");
  }
- if(i.commandName==="library-list"){
+ if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
   });
-  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nUse /install-library and enter a libraryname.");
+  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nUse /install and enter a libraryname.");
  }
- if(i.commandName==="uninstall-library"){
+ if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Timi libraries.");
   const result=manager.uninstall(i.guildId,i.options.getString("libraryname"));
   if(!result.ok)return respond(i,result.error);
@@ -69,10 +62,10 @@ async function coreCommand(i){
   await syncGuildCommands(i.guildId);
   return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
- if(i.commandName==="install-library"){
+ if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Timi libraries.");
   const name=i.options.getString("libraryname");
-  if(!name)return respond(i,"Enter a library name in libraryname. Available: Moderation, Support, Foundation, Developer. Use /library-list for details.");
+  if(!name)return respond(i,"Enter a library name in libraryname. Available: Moderation, Support, Foundation, Developer. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   try {
    await syncGuildCommands(i.guildId);
@@ -88,17 +81,16 @@ async function coreCommand(i){
 async function handleInteraction(i){
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["install-library","uninstall-library","library-list","timi-plan"].includes(i.commandName))return coreCommand(i);
-  const required=commandLibrary(i.commandName);if(!required)return;
-  if(!i.memberPermissions?.has(PermissionFlagsBits.Administrator))return respond(i,"Only server administrators can use commands from Timi libraries.");
-  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install-library.`);
+  if(["install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
+  const required=libraryForCommand(i.commandName);if(!required)return;
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Timi library commands.");
+  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
   return libraries[required].handleInteraction(i);
  }
  const id=i.customId||"",required=componentLibrary(id);if(!required)return;
- const publicMemberControls=id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("verify:")||id.startsWith("rolepicker:")||id.startsWith("foundation:poll:");
  const ticketAdminControl=id.startsWith("ticket:edit-")||id==="ticket:priority"||id.startsWith("ticket:settings:")||id==="ticket:publish"||id.startsWith("ticket:priority-select:");
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:")||ticketAdminControl;
- if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.Administrator))return respond(i,"Only server administrators can use this control.");
+ if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
 }
