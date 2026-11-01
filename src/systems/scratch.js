@@ -382,7 +382,9 @@ export class Scratch {
     for(const action of actions||[]){
       if(action.type==="if"){
         const branch=this.scriptCondition(action.condition,state)?action.then:action.else;
-        await this.executeActions(interaction,branch,{...state,lastChannel:state.lastChannel});
+        const branchState=await this.executeActions(interaction,branch,{...state,lastChannel:state.lastChannel});
+        state.lastChannel=branchState.lastChannel;
+        state.replied=branchState.replied;
         continue;
       }
       if(action.type==="create_channel"){
