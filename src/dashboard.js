@@ -219,7 +219,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
         sessions.set(sessionId, {
           user: { id: user.id, username: user.username, globalName: user.global_name || user.username, avatar: user.avatar },
           accessToken: token.access_token,
-          scope: String(token.scope || ""),
+          scope: String(token.scope || (pending.next === "/verify" ? "identify" : "identify guilds")),
           expiresAt: Date.now() + Math.min(SESSION_TTL, Number(token.expires_in || 3600) * 1000),
           guilds: null,
           guildsExpiresAt: 0
