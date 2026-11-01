@@ -154,3 +154,39 @@ test("TBScript rejects onclick handlers that reference missing buttons", () => {
   ].join("\n");
   assert.equal(compileTbScript(source).ok, false);
 });
+
+
+test("TBScript compiles every published panel property and action keyword", () => {
+  const source = [
+    "panel:",
+    '    title "Complete panel"',
+    '    description "Description"',
+    '    footer "Footer"',
+    '    author "Timi"',
+    '    color "#808080"',
+    '    image "https://example.com/image.png"',
+    '    thumbnail "https://example.com/thumb.png"',
+    '    url "https://example.com"',
+    '    content "Panel content"',
+    '    field "Status" "Ready"',
+    "    ephemeral true",
+    '    button "Run" : run',
+    "",
+    "onclick run:",
+    '    send #logs "Action started by @authorID"',
+    '    create channel "private-room"',
+    "    make private",
+    "    allow @author",
+    '    give role "Member"',
+    '    remove role "Visitor"',
+    '    reply "Complete"',
+    "end"
+  ].join("\n");
+  const compiled = compileTbScript(source);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.errors));
+  assert.equal(compiled.output.ephemeral, true);
+  assert.equal(compiled.output.fields.length, 1);
+  assert.deepEqual(compiled.output.buttons[0].action.map(action => action.type), [
+    "send", "create_channel", "make_private", "allow", "give_role", "remove_role", "reply"
+  ]);
+});
