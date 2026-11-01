@@ -59,6 +59,7 @@ export class Moderation {
         const x=this.store.mods(guild.id);
         let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
         if(!isPrivateTextChannel(channel,guild))channel=await this.protection?.privateChannel(guild);
+    if(!isPrivateTextChannel(channel,guild))channel=await this.foundation?.ensureSetup?.(guild).then(result=>guild.channels.fetch(result?.saved?.log_channel_id).catch(()=>null)).catch(error=>{this.logger.warn("Could not initialize Kimi log channel:",error.message);return null;});
         if(!isPrivateTextChannel(channel,guild))throw new Error("A private Timi log channel is unavailable; moderation job will retry.");
         await channel.send({content:"Anti-spam action: "+job.action_result+". Automatic warning #"+job.warning_id+" issued to <@"+job.user_id+">. Channel: <#"+job.channel_id+">. Reason: "+job.reason+".",allowedMentions:{parse:[]}});
         job.steps.logged=true;job.updated_at=Date.now();this.store.save();
