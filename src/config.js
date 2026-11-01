@@ -33,6 +33,7 @@ export function loadConfig(root = process.cwd()) {
   const dashboardPort = Number(get("DASHBOARD_PORT").trim() || "8787");
   const oauthClientSecret = get("DISCORD_OAUTH_CLIENT_SECRET").trim();
   const oauthRedirectUri = get("DISCORD_OAUTH_REDIRECT_URI").trim();
+  const dashboardOwnerId = get("DASHBOARD_OWNER_ID").trim();
   const dashboardCookieSecure = get("DASHBOARD_COOKIE_SECURE").trim() ? get("DASHBOARD_COOKIE_SECURE").trim().toLowerCase() === "true" : oauthRedirectUri.startsWith("https://");
 
   if (!token || token === "your_discord_bot_token") {
@@ -49,7 +50,7 @@ export function loadConfig(root = process.cwd()) {
   }
   if (oauthClientSecret && !oauthRedirectUri) throw new Error("DISCORD_OAUTH_REDIRECT_URI is required when Discord OAuth is enabled.");
   fs.mkdirSync(dataDir, { recursive: true });
-  return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, oauthClientSecret, oauthRedirectUri, dashboardCookieSecure };
+  return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, oauthClientSecret, oauthRedirectUri, dashboardCookieSecure, dashboardOwnerId };
 }
 
 export function createLogger(level = "info") {
