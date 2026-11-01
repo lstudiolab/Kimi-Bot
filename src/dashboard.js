@@ -311,6 +311,23 @@ export function startDashboardServer({ config, client, store, manager, libraries
           }
           return send(res, 200, { logs: logger.getRecent ? logger.getRecent(200) : [] });
         }
+        const commandsMatch=url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/commands(?:\\/([a-z0-9-]+))?$/);
+        if(commandsMatch){
+          const commandContext=await requireGuild(req,res,session,commandsMatch[1]);
+          if(!commandContext)return;
+          const settings=store.data.command_settings?.[commandsMatch[1]]||{};
+          if(method==="GET"&&!commandsMatch[2])return send(res,200,{commands:COMMAND_NAMES.map(item=>({...item,enabled:settings[item.name]!==false,installed:(store.data.installed_libraries[commandsMatch[1]]||[]).includes(item.bundle)}))});
+          if(method==="POST"&&commandsMatch[2]){
+            const body=await parseBody(req);
+            if(!COMMAND_NAMES.some(item=>item.name===commandsMatch[2])||typeof body.enabled!=="boolean")return send(res,400,{error:"Invalid command setting."});
+            store.data.command_settings||={};
+            store.data.command_settings[commandsMatch[1]]||={};
+            store.data.command_settings[commandsMatch[1]][commandsMatch[2]]=body.enabled;
+            store.save();
+            logger.info("Dashboard "+(body.enabled?"enabled":"disabled")+" /"+commandsMatch[2]+" in guild "+commandsMatch[1]);
+            return send(res,200,{ok:true,name:commandsMatch[2],enabled:body.enabled});
+          }
+        }
         const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|libraries)\/([a-zA-Z-]+))?$/);
         if (guildMatch) {
           const guildId = guildMatch[1];
