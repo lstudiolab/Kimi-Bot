@@ -48,7 +48,7 @@ export class RolePicker {
       const channel=await i.guild.channels.fetch(menu.channel_id),sent=await channel.send(this.publicPayload(menu,{guild:i.guild,user:i.user,member:i.member,channel,client:this.client}));
       menu.message_id=sent.id;this.store.data.role_picker_menus[menuId]=menu;
       delete this.store.data.role_picker_drafts[id];this.store.save();
-      return respond(i,`Role picker menu published in <#${channel.id}>. You can create another menu with /setup-role-picker.`);
+      return respond(i,`Role picker menu published in <#${channel.id}>. You can create another menu with /roles.`);
     }
   }
   publicPayload(menu,context={}){
@@ -94,7 +94,7 @@ export class RolePicker {
   async setupRoles(i){
     if(!await requireOwner(i))return;
     const id=i.customId.slice("rolepicker:setup-roles:".length),draft=this.store.data.role_picker_drafts[id];
-    if(!draft||draft.guild_id!==i.guildId)return deny(i,"This setup has expired. Run /setup-role-picker again.");
+    if(!draft||draft.guild_id!==i.guildId)return deny(i,"This setup has expired. Run /roles again.");
     draft.roles=[...i.values];this.store.save();
     return respond(i,`**${draft.title}**\n${draft.description}\n\n**Roles included:** ${draft.roles.length}\n\nChange the selection or publish this menu.`,
       [row(button("rolepicker:publish:"+id,"Publish role menu",ButtonStyle.Primary))]);
@@ -115,7 +115,7 @@ export class RolePicker {
     return respond(i,selected.size?"Your role selections have been updated.":"Your role selections have been cleared.");
   }
   async handle(i){
-    if(i.isChatInputCommand()&&i.commandName==="setup-role-picker")return this.command(i);
+    if(i.isChatInputCommand()&&i.commandName==="roles")return this.command(i);
     if(i.isButton()&&i.customId.startsWith("rolepicker:"))return this.button(i);
     if(i.isModalSubmit()&&i.customId==="rolepicker:details")return this.modalSubmit(i);
     if(i.isRoleSelectMenu()&&i.customId.startsWith("rolepicker:setup-roles:"))return this.setupRoles(i);
