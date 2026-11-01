@@ -21,7 +21,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async handleInteraction(i){
       if(i.isChatInputCommand()&&i.commandName==="security")return respond(i,await protection.scan(i.guild));
       if(i.isChatInputCommand()&&["moderation","filter"].includes(i.commandName))return moderation.handle(i);
-      if(i.isChatInputCommand()&&["verify-settings","verify"].includes(i.commandName))return verification.handle(i);
+      if(i.isChatInputCommand()&&["verify-config","verify"].includes(i.commandName))return verification.handle(i);
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
