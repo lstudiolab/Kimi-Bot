@@ -30,7 +30,7 @@ const LANGUAGES = [
 const button = (id,label,style=ButtonStyle.Secondary) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style);
 const row = (...items) => new ActionRowBuilder().addComponents(...items);
 const embed = (title,description) => new EmbedBuilder().setColor(GREY).setTitle(title).setDescription(description);
-const hasAccess = i => i.guild?.ownerId===i.user.id || i.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
+const hasAccess = i => Boolean(i.guild && i.guild.ownerId === i.user.id);
 const installed = (store,guildId,name) => (store.data.installed_libraries[guildId]||[]).includes(name);
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
 const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
@@ -43,7 +43,7 @@ export class TimiSettings {
     const language=this.store.data.languages?.[id]||"en-US";
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
-      return i.editReply({embeds:[embed(tr("title"),`Manage Timi's systems and server preferences.\n\nChoose a section below.`)],components:[
+      return i.editReply({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
         row(button("settings:configure","Configure")),
@@ -108,7 +108,7 @@ ${mods}
 ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(page==="permissions"){
-      return i.editReply({embeds:[embed(tr("permissions"),"Only the server owner and members with Manage Server can use Timi Settings. Library installation and removal remain server-owner-only.")],components:[row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("permissions"),"Only this server's owner can open or change Kimi Settings. Other administrators cannot modify these settings.")],components:[row(button("settings:home","Back"))]});
     }
     if(page==="advanced"){
       return i.editReply({embeds:[embed(tr("advanced"),"Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
