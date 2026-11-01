@@ -6,12 +6,49 @@ import { applyGuildTheme } from "../styles.js";
 export class Embeds {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;}
   payload(x,context={}){
-    const e=applyGuildTheme(new EmbedBuilder().setColor(0x808080),this.store,context.guild?.id);
-    if(x.title)e.setTitle(renderTemplate(x.title,context));if(x.description)e.setDescription(renderTemplate(x.description,context));if(x.url)e.setURL(renderTemplate(x.url,context));
-    if(x.author)e.setAuthor({name:renderTemplate(x.author,context)});if(x.footer)e.setFooter({text:renderTemplate(x.footer,context)});
-    if(x.thumbnail)e.setThumbnail(renderTemplate(x.thumbnail,context));if(x.image)e.setImage(renderTemplate(x.image,context));
-    if(x.fields?.length)e.addFields(x.fields.map(f=>({name:renderTemplate(f.name,context),value:renderTemplate(f.value,context),inline:!!f.inline})));
-    return e;
+    const embed=applyGuildTheme(new EmbedBuilder().setColor(0x808080),this.store,context.guild?.id);
+    const budget={remaining:6000};
+    const take=(value,limit)=>{
+      const text=renderTemplate(value,context);
+      const size=Math.max(0,Math.min(limit,budget.remaining));
+      const output=text.slice(0,size);
+      budget.remaining-=output.length;
+      return output;
+    };
+    const title=take(x.title||"",256);
+    const description=take(x.description||"",4096);
+    const author=take(x.author||"",256);
+    const footer=take(x.footer||"",2048);
+    if(title)embed.setTitle(title);
+    if(description)embed.setDescription(description);
+    if(author)embed.setAuthor({name:author});
+    if(footer)embed.setFooter({text:footer});
+    const fields=[];
+    for(const field of (Array.isArray(x.fields)?x.fields:[]).slice(0,25)){
+      if(budget.remaining<2)break;
+      const name=take(field.name||"",256);
+      const value=take(field.value||"",1024);
+      if(!name.trim()||!value.trim())continue;
+      fields.push({name,value,inline:!!field.inline});
+    }
+    if(fields.length)embed.addFields(fields);
+    const safeUrl=(value,label)=>{
+      if(!value)return null;
+      const rendered=renderTemplate(value,context);
+      try{
+        const url=new URL(rendered);
+        if(url.protocol!=="https:"||!url.hostname)throw new Error("URL must use HTTPS.");
+        return url.toString();
+      }catch(error){
+        this.logger.warn("Skipped invalid embed "+label+":",error.message);
+        return null;
+      }
+    };
+    const url=safeUrl(x.url,"link"),thumbnail=safeUrl(x.thumbnail,"thumbnail"),image=safeUrl(x.image,"image");
+    if(url)embed.setURL(url);
+    if(thumbnail)embed.setThumbnail(thumbnail);
+    if(image)embed.setImage(image);
+    return embed;
   }
   editorPreview(x){
     const preview=new EmbedBuilder().setColor(0x808080)
