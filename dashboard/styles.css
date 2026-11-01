@@ -129,3 +129,26 @@ td{color:#c6c9ce}
 .kimi-language-option p{font-size:10px;color:#92979e;line-height:1.55;margin:5px 0 9px}
 @media(max-width:1050px){.kimi-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.kimi-module-grid{grid-template-columns:1fr}.kimi-summary-row{align-items:flex-start;flex-direction:column}.kimi-module-card{min-height:0}}
+
+
+/* Activity logs */
+.kimi-log-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+.kimi-log-filters,.kimi-log-actions{display:flex;align-items:center;gap:7px;min-width:0}
+.kimi-log-filters input{width:210px}
+.kimi-log-filters input,.kimi-log-filters select{background:#17191c;border:1px solid #30343a;color:#e4e6e9;border-radius:7px;padding:8px 10px;font:inherit;font-size:10px;min-height:34px}
+.kimi-log-summary{display:flex;justify-content:space-between;gap:10px;color:#858b93;font-size:9px;margin:0 2px 9px}
+.kimi-log-summary strong{color:#e1e3e6;font-weight:650}
+.kimi-log-card{padding:0;overflow:hidden}
+.kimi-log-table-wrap{width:100%;overflow-x:auto}
+.kimi-log-table{width:100%;border-collapse:collapse;text-align:left;min-width:590px}
+.kimi-log-table th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#777e87;font-weight:600;background:#191b1f;padding:12px 14px;border-bottom:1px solid #2b2e33}
+.kimi-log-table td{font-size:10px;color:#c4c8ce;padding:12px 14px;border-bottom:1px solid #25282d;vertical-align:top}
+.kimi-log-table tbody tr:last-child td{border-bottom:0}
+.kimi-log-time{white-space:nowrap;color:#9298a0!important;font-variant-numeric:tabular-nums}
+.kimi-log-message{min-width:220px;line-height:1.5}
+.kimi-log-level{display:inline-flex;border-radius:4px;padding:3px 6px;font-size:8px;font-weight:650;letter-spacing:.04em;background:#292d32;color:#c3c8ce}
+.kimi-log-level.warn{background:#3a3020;color:#e2c58f}
+.kimi-log-level.error{background:#3b2527;color:#e6a5a8}
+.kimi-log-level.info{background:#252e37;color:#b4c7d9}
+.kimi-log-empty{text-align:center!important;padding:38px 15px!important;color:#858b93!important}
+@media(max-width:760px){.kimi-log-toolbar{align-items:stretch;flex-direction:column}.kimi-log-filters{display:grid;grid-template-columns:1fr 1fr}.kimi-log-filters input{width:100%;grid-column:1/-1}.kimi-log-actions{flex-wrap:wrap}.kimi-log-summary{flex-direction:column;gap:3px}}
