@@ -48,7 +48,7 @@ export function restoreGuildStorage(target, source, guildId) {
     for (const [key, value] of Object.entries(target[collection])) if (value?.guild_id === guildId) delete target[collection][key];
     for (const [key, value] of Object.entries(source[collection] || {})) if (value?.guild_id === guildId) target[collection][key] = structuredClone(value);
   }
-  for (const collection of ["embeds", "members"]) {
+  for (const collection of ["embeds", "members", "pending_bots"]) {
     target[collection] ||= {};
     for (const key of Object.keys(target[collection])) if (key.startsWith(guildId + ":")) delete target[collection][key];
     for (const [key, value] of Object.entries(source[collection] || {})) if (key.startsWith(guildId + ":")) target[collection][key] = structuredClone(value);
