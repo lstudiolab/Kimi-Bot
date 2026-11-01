@@ -157,6 +157,8 @@ export class ImageAnalysis{
   async analyzeOne(message,attachment){
     const bytes=await downloadAttachment(attachment),meta=imageMetadata(bytes);
     if(!meta)throw new Error("Image format could not be identified.");
+    if(meta.width&&meta.height&&(meta.width>12000||meta.height>12000||meta.width*meta.height>40_000_000))
+      throw new Error("Image dimensions exceed the 40-megapixel processing limit.");
     const sha=crypto.createHash("sha256").update(bytes).digest("hex");
     const temp=await fs.mkdtemp(path.join(os.tmpdir(),"timi-image-"));
     const file=path.join(temp,"image."+meta.type);
