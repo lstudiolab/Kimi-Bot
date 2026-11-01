@@ -190,7 +190,7 @@ function parseSimpleLine(raw,lineNumber,column) {
     const head=block[1].trim();
     if(/^panel$/i.test(head))return {name:"panel",args:[],children:[],alternate:[],line:lineNumber,column};
     if(/^onclick\s+/i.test(head))return {name:"onclick",args:[{type:"atom",value:head.replace(/^onclick\s+/i,"")}],children:[],alternate:[],line:lineNumber,column};
-    if(/^on\s+/i.test(head))return {name:"on",args:[{type:"atom",value:head.replace(/^on\s+/i,"").toLowerCase()}],children:[],alternate:[],line:lineNumber,column};
+    if(/^on\s+/i.test(head))return {name:"on",args:[{type:"atom",value:head.replace(/^on\s+/i,"").toLowerCase().replace(/\s+/g," ")}],children:[],alternate:[],line:lineNumber,column};
     if(/^if\s+/i.test(head))return {name:"if",condition:head.slice(3).trim(),args:[],children:[],alternate:[],line:lineNumber,column};
     return {name:"else",args:[],children:[],alternate:[],line:lineNumber,column};
   }
@@ -200,7 +200,7 @@ function parseSimpleLine(raw,lineNumber,column) {
   if(!match)throw new TbScriptSyntaxError("Expected a TBScript keyword.",lineNumber,column);
   const keyword=match[1].trim().toLowerCase().replace(/\s+/g,"_");
   const rest=match[2].trim();
-  const args=simpleTokenize(rest,lineNumber,column+raw.indexOf(rest));
+  const args=simpleTokenize(rest,lineNumber,column+raw.indexOf(rest)).filter(token=>token.type!=="separator");
   const node={name:keyword,args,children:[],line:lineNumber,column};
   return node;
 }
