@@ -1,4 +1,4 @@
-name: Deploy Timi Dashboard
+name: Deploy Kimi Dashboard
 
 on:
   push:
