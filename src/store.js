@@ -4,7 +4,7 @@ import { fillDefaults } from "./utils.js";
 import { getGuildStorageBytes, getPlanForData, restoreGuildStorage, PLANS } from "./subscriptions.js";
 
 const defaults=()=>({
-  installed_libraries:{},modules:{},command_settings:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},
+  installed_libraries:{},modules:{},command_settings:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},verification_logs:{},
   role_picker_menus:{},role_picker_drafts:{},embeds:{},moderation_cases:{},moderation_jobs:{},automod_words:{},pending_bots:{},
   developer_projects:{},developer_history:{},developer_redo:{},developer_active:{},panel_scripts:{},customizations:{},library_data:{}
 });
@@ -111,7 +111,7 @@ export class Store{
   save(){
     const previous=readJson(this.file),baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
-    const collections=["installed_libraries","welcome","tickets","moderation","verification","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
+    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
     for(const collection of collections){
       for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
       for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);
@@ -174,7 +174,7 @@ export class Store{
   member(guild,user){
     const key=guild+":"+user;this.data.members[key]||={};
     return fillDefaults(this.data.members[key],{joins:0,leaves:0,attempts:[],failed:0,suspicious:0,last_join:0,
-      last_verified:0,last_suspicious:0,last_reason:""});
+      last_verified:0,last_suspicious:0,last_reason:"",last_join_audited:0});
   }
   embed(guild,name){
     const value=this.data.embeds[guild+":"+name];if(!value)return null;
