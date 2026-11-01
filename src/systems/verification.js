@@ -7,7 +7,7 @@ import { isSafeAssignableRole } from "../permissions.js";
 
 const P=PermissionFlagsBits;
 export class Verification {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.reviewing=new Set();}
   async validateRole(guild,role,assignable){
     if(!isSafeAssignableRole(role,guild.id))return [false,"Choose a normal role without administrator, moderation, or channel-management permissions."];
     if(!assignable)return [true];
@@ -129,28 +129,33 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     if(i.guildId!==guildId)return deny(i,"This review belongs to a different server.");
     const guild=i.guild||await this.client.guilds.fetch(guildId);
     if(guild.ownerId!==i.user.id&&!isManager(i))return deny(i,"Only server managers can decide verification reviews.");
-    const record=this.store.member(guildId,userId);
-    if(record.last_verified>0)return deny(i,"This member has already been approved.");
-    const member=await guild.members.fetch(userId).catch(()=>null);
-    if(!member)return deny(i,"This member is no longer in the server.");
-    if(decision==="approve"){
-      const settings=this.store.verify(guildId);
-      if(!settings.role_id)return deny(i,"Configure the verified role with /verify-config before approving members.");
-      const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
-      const [safe,error]=await this.validateRole(guild,role,true);
-      if(!safe)return deny(i,"The verified role cannot be assigned. "+error);
-      await member.roles.add(role,"Timi manual verification approval");
-      record.last_verified=Date.now();
-      record.last_reason="Manual verification approval";
-      this.store.save();
-    }else{
-      await member.kick("Timi verification manually rejected");
-      record.failed++;
-      record.last_reason="Manual verification rejection";
-      this.store.save();
-    }
-    await i.message.edit({components:[]}).catch(error=>this.logger.warn("Could not close verification review controls:",error.message));
-    return respond(i,decision==="approve"?"Member approved and verified role assigned.":"Member rejected and removed from the server.");
+    const key=guildId+":"+userId;
+    if(this.reviewing.has(key))return deny(i,"A verification decision for this member is already being processed.");
+    this.reviewing.add(key);
+    try{
+      const record=this.store.member(guildId,userId);
+      if(record.last_verified>0)return deny(i,"This member has already been approved.");
+      const member=await guild.members.fetch(userId).catch(()=>null);
+      if(!member)return deny(i,"This member is no longer in the server.");
+      if(decision==="approve"){
+        const settings=this.store.verify(guildId);
+        if(!settings.role_id)return deny(i,"Configure the verified role with /verify-config before approving members.");
+        const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
+        const [safe,error]=await this.validateRole(guild,role,true);
+        if(!safe)return deny(i,"The verified role cannot be assigned. "+error);
+        await member.roles.add(role,"Timi manual verification approval");
+        record.last_verified=Date.now();
+        record.last_reason="Manual verification approval";
+        this.store.save();
+      }else{
+        await member.kick("Timi verification manually rejected");
+        record.failed++;
+        record.last_reason="Manual verification rejection";
+        this.store.save();
+      }
+      await i.message.edit({components:[]}).catch(error=>this.logger.warn("Could not close verification review controls:",error.message));
+      return respond(i,decision==="approve"?"Member approved and verified role assigned.":"Member rejected and removed from the server.");
+    }finally{this.reviewing.delete(key);}
   }
   async botDecision(i){
     const match=i.customId.match(/^botguard:(yes|no):(\d+):(\d+)$/);
