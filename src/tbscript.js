@@ -196,12 +196,13 @@ function parseSimpleLine(raw,lineNumber,column) {
   }
   const lower=raw.toLowerCase();
   if(lower==="end")return {name:"$end",args:[],children:[],line:lineNumber,column};
-  const match=raw.match(/^([a-z][a-z ]*[a-z]|[a-z]+)\b(.*)$/i);
-  if(!match)throw new TbScriptSyntaxError("Expected a TBScript keyword.",lineNumber,column);
-  const keyword=match[1].trim().toLowerCase().replace(/\s+/g,"_");
-  const rest=match[2].trim();
+  const known=["create channel","make private","give role","remove role","title","description","footer","author","image","thumbnail","url","content","color","field","button","ephemeral","reply","send","allow"];
+  const lower=raw.toLowerCase();
+  const keyword=known.find(value=>lower===value||lower.startsWith(value+" "));
+  if(!keyword)throw new TbScriptSyntaxError("Unknown TBScript keyword.",lineNumber,column);
+  const rest=raw.slice(keyword.length).trim();
   const args=simpleTokenize(rest,lineNumber,column+raw.indexOf(rest)).filter(token=>token.type!=="separator");
-  const node={name:keyword,args,children:[],line:lineNumber,column};
+  const node={name:keyword.replace(/\s+/g,"_"),args,children:[],line:lineNumber,column};
   return node;
 }
 
