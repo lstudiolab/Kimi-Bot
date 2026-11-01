@@ -3,7 +3,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("timi-settings").setDescription("Open Timi built-in server settings panel."),
   new SlashCommandBuilder().setName("plan").setDescription("View Timi's free features and storage usage."),
-  new SlashCommandBuilder().setName("dashboard-link").setDescription("Link this Discord account to your Kimi dashboard account.").addStringOption(o=>o.setName("code").setDescription("Six-digit code from your Kimi dashboard").setRequired(true).setMinLength(6).setMaxLength(6)),
+  new SlashCommandBuilder().setName("dashboard-link").setDescription("Link this Discord account to your Kimi dashboard account.").addStringOption(o=>o.setName("code").setDescription("Eight-digit code from your Kimi dashboard").setRequired(true).setMinLength(8).setMaxLength(8)),
   new SlashCommandBuilder().setName("install").setDescription("Install a Timi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
   new SlashCommandBuilder().setName("libraries").setDescription("Show Timi's four libraries."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Timi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
