@@ -36,8 +36,10 @@ function opensModal(i){
  const id=i.customId;
  return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
+const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries});
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
+ if(i.commandName==="timi-settings")return settings.show(i,"home");
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /libraries to browse libraries and /install to enable them.");
@@ -76,13 +78,15 @@ async function coreCommand(i){
 async function handleInteraction(i){
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
+  if(["timi-settings","install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
   const required=libraryForCommand(i.commandName);if(!required)return;
   if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Timi library commands.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
   return libraries[required].handleInteraction(i);
  }
- const id=i.customId||"",required=libraryForComponent(id);if(!required)return;
+ const id=i.customId||"";
+ if(id.startsWith("settings:"))return settings.handle(i);
+ const required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
