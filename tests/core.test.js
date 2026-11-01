@@ -405,7 +405,8 @@ test("Timi storage accounting includes setup channels and AutoMod phrases",()=>{
   const empty=getGuildStorageBytes({}, "guild-storage");
   const populated=getGuildStorageBytes({
     timi_setup:{"guild-storage":{log_channel_id:"123456789012345678"}},
-    automod_words:{"guild-storage":["blocked phrase"]}
+    automod_words:{"guild-storage":["blocked phrase"]},
+    pending_bots:{"guild-storage:bot-id":{message_id:"message-id"}}
   },"guild-storage");
   assert.ok(populated>empty);
   const otherGuild=getGuildStorageBytes({
