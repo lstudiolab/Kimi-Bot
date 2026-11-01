@@ -128,7 +128,22 @@ client.on(Events.InteractionCreate,async i=>{
   else await i.reply({...p,ephemeral:true}).catch(()=>{});
  }
 });
-client.on(Events.MessageCreate,m=>{if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m).catch(e=>logger.error("Moderation message processing failed:",e));});
+client.on(Events.MessageCreate,async m=>{
+ if(m.author.bot||!m.guild)return;
+ if(m.content.trim().toLowerCase()==="&testgreet"){
+  if(!m.member?.permissions.has(PermissionFlagsBits.Administrator))return m.reply("Only server administrators can run the greet test.").catch(()=>{});
+  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation library is not installed in this server.").catch(()=>{});
+  try{
+   const sent=await foundation.testGreet(m.member);
+   if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Timi can view and send messages there.").catch(()=>{});
+   return m.reply("Test greeting sent to <#"+sent.channelId+">.").catch(()=>{});
+  }catch(error){
+   logger.error("Greet test failed:",error);
+   return m.reply("Timi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
+  }
+ }
+ if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m).catch(e=>logger.error("Moderation message processing failed:",e));
+});
 client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
 client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security"))libraries.Security.messageUpdate(oldMessage,newMessage).catch(e=>logger.error("Message edit log failed:",e));});
 client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
