@@ -4,6 +4,7 @@ import {
 import { autoFixTbScript, buildTbScriptModal, compileTbScript, renderTbScript } from "../tbscript.js";
 import { getStorageReport, canStoreGuildState, formatBytes } from "../subscriptions.js";
 import { textInput, modal, respond, deny, requireOwner } from "../ui.js";
+import { isSafeAssignableRole } from "../permissions.js";
 
 const STARTER = [
   "{",
@@ -533,7 +534,7 @@ export class Scratch {
     const action = compiled.output.buttons[index]?.action;
     if (!action) return deny(i, "No action is configured for this button.");
     const role = i.guild.roles.cache.find(candidate => candidate.id === action.role || candidate.name.toLowerCase() === action.role.toLowerCase());
-    if (!role || role.id === i.guild.id || role.managed) return deny(i, "The configured role no longer exists or cannot be assigned.");
+    if (!isSafeAssignableRole(role,i.guild.id)) return deny(i, "The configured role is missing or has administrator, moderation, or channel-management permissions.");
     const member = await i.guild.members.fetch(i.user.id);
     if (member.roles.cache.has(role.id)) return deny(i, "You already have that role.");
     const bot = await i.guild.members.fetchMe();
