@@ -46,7 +46,7 @@ export class TimiSettings {
       return i.editReply({embeds:[embed(tr("title"),`Manage Timi's systems and server preferences.\n\nChoose a section below.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
-        row(button("settings:configure",tr("configure")||"Configure")),
+        row(button("settings:configure","Configure")),
         row(button("settings:advanced",tr("advanced")))
       ]});
     }
@@ -119,6 +119,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
+      if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
       const phrase=i.fields.getTextInputValue("phrase").trim();
       if(!phrase||phrase.length>100)return i.editReply({content:"Enter a phrase between 1 and 100 characters.",components:[],embeds:[]});
       const words=this.store.data.automod_words[i.guildId]||[];
@@ -135,6 +136,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.editReply({content:id.endsWith("add-modal")?"Blocked phrase added.":"Blocked phrase removed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
+      if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
       const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
@@ -158,6 +160,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.editReply({content:"Verification settings saved. Existing verification panels have been refreshed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
+      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation library is no longer installed.",components:[],embeds:[]});
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
       const channelId=key=>read(key).replace(/[<#>]/g,"");
@@ -184,6 +187,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(!i.isButton())return;
     if(id==="settings:filter-add"||id==="settings:filter-remove"){
+      if(!installed(this.store,i.guildId,"Security"))return i.reply({content:"The Security library is no longer installed.",ephemeral:true});
       const add=id==="settings:filter-add";
       const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
       return i.showModal(modal);
@@ -194,7 +198,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
-      if(!installed(this.store,i.guildId,library))return this.show(i,"configure");
+      if(!installed(this.store,i.guildId,library))return i.reply({content:"That library is no longer installed. Reopen Timi Settings to refresh the panel.",ephemeral:true});
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         const value=this.store.verify(i.guildId);
