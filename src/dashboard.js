@@ -246,7 +246,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           });
         }
         if (method === "GET" && url.pathname === "/api/guilds") {
-          if (!session.scope.split(/\\s+/).includes("guilds")) return send(res, 403, { error: "Dashboard access requires Discord server-list permission.", reauth: true });
+          if (!session.scope.split(/\s+/).includes("guilds")) return send(res, 403, { error: "Dashboard access requires Discord server-list permission.", reauth: true });
           const userGuilds = await discordUserGuilds(session);
           const available = userGuilds.filter(g => {
             const p = BigInt(g.permissions || "0");
