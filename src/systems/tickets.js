@@ -196,8 +196,9 @@ export class Tickets {
   async log(guild,content) {
     const x=this.store.mods(guild.id);
     const setup=this.store.data.timi_setup?.[guild.id]||{};
-    const id=x.log_channel_id||setup.log_channel_id||guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.type===ChannelType.GuildText)?.id;
-    const channel=id?await guild.channels.fetch(id).catch(()=>null):null;
+    const id=x.log_channel_id||setup.log_channel_id;
+    let channel=id?await guild.channels.fetch(id).catch(()=>null):null;
+    if(!channel?.isTextBased())channel=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.type===ChannelType.GuildText)||null;
     if(channel?.isTextBased()) await channel.send({content,allowedMentions:{parse:[]}}).catch(e=>this.logger.warn("Ticket log failed:",e.message));
   }
   async transcript(guild,channel) {
