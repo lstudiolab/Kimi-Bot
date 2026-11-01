@@ -88,7 +88,17 @@ export class Protection {
     const record=this.store.member(guild.id,user.id);record.joins++;record.last_join=nowMs();this.store.save();
     if(user.bot)return this.botJoin(guild,member);
     if(user.id===guild.ownerId)return;
-    const now=Date.now(),activeUntil=this.activeRaids.get(guild.id)||0;
+    const now=Date.now();
+    if(this.joins.size>1000){
+      for(const [guildId,items] of this.joins){
+        const fresh=items.filter(item=>now-item.at<=10000);
+        if(fresh.length)this.joins.set(guildId,fresh);else this.joins.delete(guildId);
+      }
+    }
+    if(this.activeRaids.size>1000)for(const [guildId,until] of this.activeRaids)if(until<=now)this.activeRaids.delete(guildId);
+    if(this.lastAlert.size>1000)for(const [guildId,at] of this.lastAlert)if(now-at>60*60*1000)this.lastAlert.delete(guildId);
+    const activeUntil=this.activeRaids.get(guild.id)||0;
+    if(activeUntil&&activeUntil<=now)this.activeRaids.delete(guild.id);
     const age=nowMs()-snowflakeTime(user.id);
     if(age<7*DAY){
       const log=await this.privateChannel(guild);let action="flagged for moderator review";
@@ -172,13 +182,25 @@ export class Protection {
     if(entry.action===25&&!(entry.changes||[]).some(change=>["$add","$remove"].includes(change.key)))return;
     const actorId=entry.executorId||entry.executor?.id;
     if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
-    if([25,31].includes(entry.action))await this.alertPrivilegeEscalation(entry,guild,actorId).catch(error=>this.logger.warn("Privilege escalation alert failed:",error.message));
+    let privilegeEscalation=false;
+    if([25,31].includes(entry.action)){
+      privilegeEscalation=await this.alertPrivilegeEscalation(entry,guild,actorId).catch(error=>{
+        this.logger.warn("Privilege escalation alert failed:",error.message);return false;
+      });
+    }
     const now=Date.now();
-    for(const [storedKey,until] of this.nukeEvents)if(storedKey.endsWith(":triggered")&&typeof until==="number"&&until<=now)this.nukeEvents.delete(storedKey);
+    for(const [storedKey,value] of this.nukeEvents){
+      if(storedKey.endsWith(":triggered")){
+        if(typeof value==="number"&&value<=now)this.nukeEvents.delete(storedKey);
+      }else if(Array.isArray(value)){
+        const fresh=value.filter(item=>now-item.at<=10000);
+        if(fresh.length)this.nukeEvents.set(storedKey,fresh);else this.nukeEvents.delete(storedKey);
+      }
+    }
     const baseKey=guild.id+":"+actorId,events=(this.nukeEvents.get(baseKey)||[]).filter(v=>now-v.at<=10000);
-    events.push({at:now,action:entry.action});this.nukeEvents.set(baseKey,events);
-    const critical=new Set([13,14,15,25,31,51]);
-    const threshold=events.some(v=>critical.has(v.action))?3:4;
+    const criticalAction=[13,14,15,51].includes(entry.action)||privilegeEscalation;
+    events.push({at:now,action:entry.action,critical:criticalAction});this.nukeEvents.set(baseKey,events);
+    const threshold=events.some(v=>v.critical)?3:4;
     if(events.length<threshold)return;
     const key=baseKey+":triggered",triggered=this.nukeEvents.get(key)||0;
     if(triggered>now)return;
