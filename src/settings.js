@@ -42,9 +42,7 @@ export class TimiSettings {
     const language=this.store.data.languages?.[id]||"en-US";
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
-      return i.editReply({embeds:[embed(tr("title"),"Manage Timi's systems, libraries and server preferences.
-
-Choose a section below.")],components:[
+      return i.editReply({embeds:[embed(tr("title"),`Manage Timi's systems and server preferences.\n\nChoose a section below.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
         row(button("settings:configure",tr("configure")||"Configure")),
@@ -56,14 +54,14 @@ Choose a section below.")],components:[
       if(installed(this.store,id,"Security"))sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets","Tickets")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:welcome","Welcome")));
-      if(installed(this.store,id,"Scratch"))sections.push(row(button("settings:config:scratch","TbScript")));
       sections.push(row(button("settings:home",tr("back"))));
       return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
     }
     if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("
 ");
-      const availableModules=MODULES.filter(m=>installed(this.store,id,m.library));\n      const options=availableModules.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
+      const availableModules=MODULES.filter(m=>installed(this.store,id,m.library));
+      const options=availableModules.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
       const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose")).addOptions(options);
       const components=[row(menu)];
       if(selected){
@@ -71,9 +69,7 @@ Choose a section below.")],components:[
         if(m&&installed(this.store,id,m.library))components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
       }
       components.push(row(button("settings:home",tr("back"))));
-      return i.editReply({embeds:[embed(tr("modules"),lines+"
-
-Select a system to manage it. Disabling a system preserves its saved configuration.")],components});
+      return i.editReply({embeds:[embed(tr("modules"),lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
     }
     if(page==="install"||page==="uninstall"){
       const choices=Object.values(LIBRARIES).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
