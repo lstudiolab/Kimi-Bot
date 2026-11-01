@@ -97,9 +97,16 @@ export class Recovery {
     if(log)await log.send({content:`Security alert: a moderator or member deleted #${channel.name||"unknown"} (${id}). ${entries.length} channel deletion(s) in 60 seconds.`});
     if(entries.length<3||this.recovering.has(key))return;
     this.recovering.add(key);
+    const recoveryStartedAt=Date.now();
     try{
     let restored=0;
-    for(const item of entries) {
+    const restoredChannelIds=new Map();
+    const orderedEntries=entries.slice().sort((left,right)=>{
+      const a=this.store.data.channels[guild.id+":"+left.id],b=this.store.data.channels[guild.id+":"+right.id];
+      const aCategory=a?.type===ChannelType.GuildCategory?0:1,bCategory=b?.type===ChannelType.GuildCategory?0:1;
+      return aCategory-bCategory||(a?.position||0)-(b?.position||0);
+    });
+    for(const item of orderedEntries) {
       const snapshot=this.store.data.channels[guild.id+":"+item.id];
       if(snapshot?.deletedAt)continue;
       if(!snapshot) {
@@ -109,15 +116,20 @@ export class Recovery {
       const overwrites=(snapshot.permission_overwrites||[]).map(o=>({
         id:o.id,allow:BigInt(o.allow||"0"),deny:BigInt(o.deny||"0"),type:o.type
       }));
+      let parentId=snapshot.parent_id?restoredChannelIds.get(snapshot.parent_id)||null:null;
+      if(snapshot.parent_id&&!parentId){
+        const parent=await guild.channels.fetch(snapshot.parent_id).catch(()=>null);
+        if(parent?.type===ChannelType.GuildCategory)parentId=parent.id;
+      }
       const options={
         name:snapshot.name,type:snapshot.type,topic:snapshot.topic??undefined,
-        parent:snapshot.parent_id??undefined,position:snapshot.position,
-        nsfw:snapshot.nsfw,rateLimitPerUser:snapshot.rate_limit_per_user,
+        position:snapshot.position,nsfw:snapshot.nsfw,rateLimitPerUser:snapshot.rate_limit_per_user,
         permissionOverwrites:overwrites,reason:"Timi anti-nuke channel recovery"
       };
+      if(parentId)options.parent=parentId;
       if(snapshot.type===ChannelType.GuildVoice){options.bitrate=snapshot.bitrate;options.userLimit=snapshot.user_limit;}
       try {
-        const created=await guild.channels.create(options);restored++;
+        const created=await guild.channels.create(options);restored++;restoredChannelIds.set(item.id,created.id);
         const archive=(this.store.data.messages[guild.id]||[])
           .filter(m=>m.channel_id===item.id&&m.timestamp_ms>=nowMs()-WEEK)
           .sort((a,b)=>a.timestamp_ms-b.timestamp_ms);
@@ -132,24 +144,31 @@ export class Recovery {
 
     const actorMember=await guild.members.fetch(actor.id).catch(()=>null);
     const botMember=await guild.members.fetchMe();
-    if(!actorMember||actorMember.user.bot){this.deletions.delete(key);return;}
+    if(!actorMember||actorMember.user.bot)return;
     const botTop=botMember.roles.highest.position,actorTop=actorMember.roles.highest.position;
-    const canModerate=botMember.permissions.has(P.ModerateMembers)||botMember.permissions.has(P.Administrator);
-    const canManage=botMember.permissions.has(P.ManageRoles)||botMember.permissions.has(P.Administrator);
-    if(!canModerate||!canManage||actorTop>=botTop) {
-      if(log)await log.send({content:`Critical anti-nuke alert: channel recovery recreated ${restored} of ${entries.length} deleted channel(s), but Timi could not quarantine <@${actor.id}>. Permissions or role hierarchy are insufficient. Manually review the audit log.`});
-      this.deletions.delete(key);return;
+    const hierarchyAllows=actorTop<botTop;
+    const canModerate=(botMember.permissions.has(P.ModerateMembers)||botMember.permissions.has(P.Administrator))
+      &&hierarchyAllows&&actorMember.moderatable;
+    const canManage=(botMember.permissions.has(P.ManageRoles)||botMember.permissions.has(P.Administrator))
+      &&hierarchyAllows;
+    let timeoutStatus="not attempted (missing Moderate Members permission or role hierarchy)";
+    if(canModerate){
+      try{await actorMember.timeout(60*60*1000,"Timi anti-nuke: deleted multiple channels within 60 seconds");timeoutStatus="timed out for 60 minutes";}
+      catch(error){timeoutStatus="timeout failed: "+error.message.slice(0,120);}
     }
-    let timeoutOk=true;
-    try { await actorMember.timeout(60*60*1000,"Timi anti-nuke: deleted multiple channels within 60 seconds"); }
-    catch { timeoutOk=false; }
-    let removed=0;
-    for(const role of actorMember.roles.cache.values()) {
-      if(role.id===guild.id||role.managed||role.position>=botTop)continue;
-      if(await actorMember.roles.remove(role).then(()=>true).catch(()=>false))removed++;
+    let removed=0,roleFailures=0;
+    if(canManage){
+      for(const role of actorMember.roles.cache.values()){
+        if(role.id===guild.id||role.managed||role.position>=botTop)continue;
+        if(await actorMember.roles.remove(role).then(()=>true).catch(()=>false))removed++;
+        else roleFailures++;
+      }
     }
-    if(log)await log.send({content:`Anti-nuke recovery finished: recreated ${restored} of ${entries.length} deleted channel(s). <@${actor.id}> ${timeoutOk?"timed out for 60 minutes":"could not be timed out"}; removed ${removed} manageable role(s). Reposted archives are copies with new message IDs; attachment source links may expire.`});
-    this.deletions.delete(key);
-    }finally{this.recovering.delete(key);}
+    if(log)await log.send({content:`Anti-nuke recovery finished: recreated ${restored} of ${entries.length} deleted channel(s). <@${actor.id}>: ${timeoutStatus}; removed ${removed} manageable role(s)${roleFailures?"; "+roleFailures+" role removal(s) failed":""}. Reposted archives are copies with new message IDs; attachment source links may expire.`});
+    }finally{
+      const pending=(this.deletions.get(key)||[]).filter(item=>item.at>recoveryStartedAt);
+      if(pending.length)this.deletions.set(key,pending);else this.deletions.delete(key);
+      this.recovering.delete(key);
+    }
   }
 }
