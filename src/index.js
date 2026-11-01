@@ -5,6 +5,7 @@ import { Store } from "./store.js";
 import { LibraryManager } from "./module-manager.js";
 import { LIBRARIES } from "./libraries/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
+import { libraryForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
@@ -24,13 +25,6 @@ async function syncGuildCommands(guildId){
  const registered=await rest.put(route,{body});
  logger.info(`Synced ${registered.length} slash commands for guild ${guildId}.`);
  return registered;
-}
-function componentLibrary(id){
- if(id.startsWith("ticket:"))return "Support";
- if(id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("verify:"))return "Security";
- if(id.startsWith("rolepicker:")||id.startsWith("embed:"))return "Foundation";
- if(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("tbm-submit:")||id.startsWith("developer:"))return "Scratch";
- return null;
 }
 function opensModal(i){
  if(i.isChatInputCommand()){
@@ -88,7 +82,7 @@ async function handleInteraction(i){
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
   return libraries[required].handleInteraction(i);
  }
- const id=i.customId||"",required=componentLibrary(id);if(!required)return;
+ const id=i.customId||"",required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
