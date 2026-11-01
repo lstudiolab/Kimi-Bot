@@ -608,7 +608,7 @@ export class Scratch {
 }
 
 export function createScratchLibrary(context) {
-  const developer = new Scratch(context);
+  const scratch = new Scratch(context);
   return {
     async handleInteraction(i) { return scratch.handleInteraction(i); },
     async onInstall(guild) { return scratch.onInstall(guild); },
