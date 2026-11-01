@@ -273,8 +273,11 @@ function simpleActionNodes(nodes,errors){
       continue;
     }
     if(node.name==="if"){
-      if(!node.condition)errors.push({message:"if needs a condition.",line:node.line,column:node.column});
-      output.push({type:"if",condition:node.condition,then:simpleActionNodes(node.children,errors),else:simpleActionNodes(node.alternate,errors),line:node.line});
+      const condition=String(node.condition||"").trim();
+      const valid=/^(true|false|author\.is_admin|author\.is_owner|author\.bot|member\.is_admin)$/.test(condition)
+        || /^(message\.content|author\.id)\s*(==|!=)\s*("(?:\\.|[^"\\])*"|true|false|[a-zA-Z0-9_-]+)$/.test(condition);
+      if(!valid)errors.push({message:"Unsupported if condition. Use message.content or author.id comparisons, author.is_admin, author.is_owner, author.bot, member.is_admin, true, or false.",line:node.line,column:node.column});
+      output.push({type:"if",condition,then:simpleActionNodes(node.children,errors),else:simpleActionNodes(node.alternate,errors),line:node.line});
       continue;
     }
     const count=node.args.length;
