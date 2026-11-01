@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const LINK_TTL = 10 * 60 * 1000;
+const WEB_TOKEN_TTL = 10 * 60 * 1000;
 
 function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); }
@@ -24,12 +25,15 @@ export class AuthStore {
     this.accountsFile = path.join(this.dir, "accounts.json");
     this.sessionsFile = path.join(this.dir, "sessions.json");
     this.linksFile = path.join(this.dir, "link-codes.json");
+    this.webTokensFile = path.join(this.dir, "web-tokens.json");
     this.accounts = readJson(this.accountsFile, { accounts: [] });
     this.sessions = readJson(this.sessionsFile, {});
     this.links = readJson(this.linksFile, {});
+    this.webTokens = readJson(this.webTokensFile, {});
     if (!this.accounts || typeof this.accounts !== "object" || !Array.isArray(this.accounts.accounts)) this.accounts = { accounts: [] };
     if (!this.sessions || typeof this.sessions !== "object" || Array.isArray(this.sessions)) this.sessions = {};
     if (!this.links || typeof this.links !== "object" || Array.isArray(this.links)) this.links = {};
+    if (!this.webTokens || typeof this.webTokens !== "object" || Array.isArray(this.webTokens)) this.webTokens = {};
     this.logger = logger;
     this.linkFailures = new Map();
     this.prune();
@@ -37,13 +41,16 @@ export class AuthStore {
   saveAccounts() { writeJson(this.accountsFile, this.accounts); }
   saveSessions() { writeJson(this.sessionsFile, this.sessions); }
   saveLinks() { writeJson(this.linksFile, this.links); }
+  saveWebTokens() { writeJson(this.webTokensFile, this.webTokens); }
   prune() {
     const now = Date.now();
-    let sessionsChanged = false, linksChanged = false;
+    let sessionsChanged = false, linksChanged = false, webTokensChanged = false;
     for (const [key, value] of Object.entries(this.sessions)) if (!value || value.expiresAt <= now) { delete this.sessions[key]; sessionsChanged = true; }
     for (const [key, value] of Object.entries(this.links)) if (!value || value.expiresAt <= now) { delete this.links[key]; linksChanged = true; }
     if (sessionsChanged) this.saveSessions();
+    for (const [key, value] of Object.entries(this.webTokens)) if (!value || value.expiresAt <= now) { delete this.webTokens[key]; webTokensChanged = true; }
     if (linksChanged) this.saveLinks();
+    if (webTokensChanged) this.saveWebTokens();
   }
   normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
   createAccount({ email, password, displayName }) {
@@ -108,6 +115,51 @@ export class AuthStore {
     this.links[code] = { accountId, expiresAt: Date.now() + LINK_TTL };
     this.saveLinks();
     return { code, expiresAt: this.links[code].expiresAt };
+  }
+
+  createWebToken(accountId) {
+    const now = Date.now();
+    for (const [key, value] of Object.entries(this.webTokens)) {
+      if (!value || value.expiresAt <= now || (value.accountId === accountId && !value.usedAt)) delete this.webTokens[key];
+    }
+    const token = crypto.randomBytes(18).toString("base64url");
+    const key = crypto.createHash("sha256").update(token).digest("hex");
+    this.webTokens[key] = { accountId, createdAt: now, expiresAt: now + WEB_TOKEN_TTL, usedAt: null, guildId: null, guildName: null, userId: null };
+    this.saveWebTokens();
+    return { token, expiresAt: this.webTokens[key].expiresAt };
+  }
+  completeWebToken(token, guild, discordUser) {
+    const normalized = String(token || "").trim();
+    if (normalized.length < 20 || normalized.length > 64 || !/^[A-Za-z0-9_-]+$/.test(normalized)) return { error: "That token is invalid or expired. Generate a new token in the Kimi dashboard." };
+    const key = crypto.createHash("sha256").update(normalized).digest("hex");
+    const pending = this.webTokens[key];
+    const now = Date.now();
+    if (!pending || pending.expiresAt <= now || pending.usedAt) return { error: "That token is invalid, expired, or already used. Generate a new token in the Kimi dashboard." };
+    const account = this.accounts.accounts.find(item => item.id === pending.accountId);
+    if (!account) return { error: "The Kimi account for this token no longer exists." };
+    account.guilds = Array.isArray(account.guilds) ? account.guilds : [];
+    const linked = { id: guild.id, name: guild.name, linkedBy: discordUser.id, linkedAt: new Date().toISOString() };
+    const existing = account.guilds.findIndex(item => item.id === guild.id);
+    if (existing >= 0) account.guilds[existing] = linked;
+    else account.guilds.push(linked);
+    pending.usedAt = now;
+    pending.guildId = guild.id;
+    pending.guildName = guild.name;
+    pending.userId = discordUser.id;
+    this.saveAccounts();
+    this.saveWebTokens();
+    this.logger?.info("A Discord server was linked to a Kimi account.");
+    return { guild: linked };
+  }
+  getWebTokenStatus(accountId, token) {
+    const normalized = String(token || "").trim();
+    if (!/^[A-Za-z0-9_-]{20,64}$/.test(normalized)) return { status: "invalid" };
+    const key = crypto.createHash("sha256").update(normalized).digest("hex");
+    const record = this.webTokens[key];
+    if (!record || record.accountId !== accountId) return { status: "invalid" };
+    if (record.expiresAt <= Date.now()) return { status: "expired" };
+    if (!record.usedAt) return { status: "pending", expiresAt: record.expiresAt };
+    return { status: "linked", guild: { id: record.guildId, name: record.guildName }, linkedAt: new Date(record.usedAt).toISOString() };
   }
   completeLinkCode(code, discordUser) {
     const normalized = String(code || "").trim();
