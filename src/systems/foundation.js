@@ -76,7 +76,7 @@ export class Foundation {
     const settings=channels[2];
     const existing=await settings.messages.fetch({limit:10}).catch(()=>null);
     if(!existing?.some(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"))){
-      await settings.send({content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-settings for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
+      await settings.send({content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-config for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
     }
     return {saved,channels};
   }
