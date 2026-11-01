@@ -1,4 +1,4 @@
-import { ChannelType } from "discord.js";
+import { ChannelType, PermissionFlagsBits } from "discord.js";
 import { Embeds } from "./embeds.js";
 import { respond, requireManager } from "../ui.js";
 import { renderTemplate, TEMPLATE_PLACEHOLDERS } from "../utils.js";
@@ -18,6 +18,7 @@ export class Foundation {
   async command(i){
     if(!await requireManager(i))return;
     const s=this.settings(i.guildId);
+    if(i.commandName==="timi-setup")return this.setup(i);
     if(i.commandName==="auto-role"){
       const role=i.options.getRole("role");
       if(role){
@@ -43,6 +44,38 @@ export class Foundation {
         ". Goodbye: "+(s.goodbye_channel_id?"<#"+s.goodbye_channel_id+">":"Disabled")+
         ". Placeholders: "+TEMPLATE_PLACEHOLDERS.join(", ")+".");
     }
+  }
+  async setup(i){
+    const guild=i.guild,bot=await guild.members.fetchMe();
+    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(PermissionFlagsBits.ManageGuild));
+    const definitions=[
+      {key:"log_channel_id",name:"timi-log",topic:"Private Timi event and security logs."},
+      {key:"confirmation_channel_id",name:"timi-confirmations",topic:"Private Timi approval requests, including newly invited bots."},
+      {key:"settings_channel_id",name:"timi-settings",topic:"Private Timi setup and configuration reference."}
+    ];
+    const overwrites=[
+      {id:guild.id,deny:[PermissionFlagsBits.ViewChannel]},
+      {id:guild.ownerId,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]},
+      {id:bot.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.EmbedLinks,PermissionFlagsBits.ManageMessages]},
+      ...adminRoles.map(role=>({id:role.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}))
+    ];
+    const saved=this.store.data.timi_setup[guild.id]||{},result=[];
+    for(const definition of definitions){
+      let channel=saved[definition.key]?await guild.channels.fetch(saved[definition.key]).catch(()=>null):null;
+      if(!channel)channel=guild.channels.cache.find(value=>value.type===ChannelType.GuildText&&value.name===definition.name)||null;
+      if(channel){
+        await channel.permissionOverwrites.set(overwrites,"Apply Timi private channel permissions");
+        if(channel.name!==definition.name||channel.topic!==definition.topic)await channel.edit({name:definition.name,topic:definition.topic});
+      }else channel=await guild.channels.create({name:definition.name,type:ChannelType.GuildText,topic:definition.topic,permissionOverwrites:overwrites,reason:"Create Timi setup channel"});
+      saved[definition.key]=channel.id;result.push("<#"+channel.id+">");
+    }
+    this.store.data.timi_setup[guild.id]=saved;this.store.save();
+    const settings=await guild.channels.fetch(saved.settings_channel_id);
+    const existing=await settings.messages.fetch({limit:10}).catch(()=>null);
+    if(!existing?.some(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"))){
+      await settings.send({content:"**Timi setup reference**\n\nUse /greet-settings for welcome and goodbye messages, /auto-role for automatic roles, /verify-settings for verification, /moderation-settings for Security, and /ticket-settings for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
+    }
+    return respond(i,"Timi setup is complete. The required private channels are ready:\n**Log:** "+result[0]+"\n**Confirmation:** "+result[1]+"\n**Settings:** "+result[2]+"\n\nNewly invited bots will receive an approval request in the confirmation channel before Timi applies temporary access restrictions.");
   }
   render(template,member,channel=null){
     return renderTemplate(template,{guild:member.guild,member,user:member.user,channel,client:this.client});
@@ -83,6 +116,7 @@ export class Foundation {
     return this.sendWelcome(member,channel);
   }
   async memberAdd(member){
+    if(member.user.bot)return;
     const s=this.settings(member.guild.id);
     if(s.auto_role_id){
       const role=await member.guild.roles.fetch(s.auto_role_id).catch(()=>null);

@@ -245,7 +245,7 @@ test("Scratch library installs on the free plan and exposes its project commands
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["timi-setup","greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",

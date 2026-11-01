@@ -20,7 +20,6 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
-      if(id.startsWith("botguard:"))return foundation.handleInteraction(i);
     },
     async messageDelete(message){await moderation.onMessageDelete(message);},
     async messageUpdate(oldMessage,newMessage){await moderation.onMessageUpdate(oldMessage,newMessage);},

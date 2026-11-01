@@ -7,33 +7,45 @@ export class Protection {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();}
   async privateChannel(guild){
     const bot=await guild.members.fetchMe();
-    let channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&c.name==="timi");
+    const setup=this.store.data.timi_setup?.[guild.id]||{};
+    let channel=setup.log_channel_id?await guild.channels.fetch(setup.log_channel_id).catch(()=>null):null;
+    if(!channel)channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&(c.name==="timi-log"||c.name==="timi"));
     const permissions=[
       {id:guild.id,deny:[P.ViewChannel]},
       {id:guild.ownerId,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]},
       {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.EmbedLinks,P.ManageMessages]}
     ];
     if(channel){await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(()=>{});return channel;}
-    return guild.channels.create({name:"timi",type:ChannelType.GuildText,
+    return guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
       topic:"Private Timi security alerts and bot approval requests. Only the server owner and Timi can view this channel.",
       permissionOverwrites:permissions,reason:"Create private Timi security channel"});
   }
   async restrictBot(guild,botId,privateId){
-    for(const channel of guild.channels.cache.values()){
-      if(!channel.permissionOverwrites||channel.id===privateId)continue;
+    const fetched=await guild.channels.fetch();
+    for(const channel of fetched.values()){
+      if(!channel.permissionOverwrites||channel.id===privateId||["timi-log","timi-confirmations","timi-settings","timi"].includes(channel.name))continue;
       await channel.permissionOverwrites.edit(botId,{ViewChannel:false,SendMessages:false,ReadMessageHistory:false,Connect:false,Speak:false},
         {reason:"Timi temporary bot approval restriction"}).catch(error=>this.logger.warn("Could not restrict bot in channel",channel.id,error.message));
     }
   }
   async botJoin(guild,member){
     const log=await this.privateChannel(guild);
-    await this.restrictBot(guild,member.id,log.id);
-    const msg=await log.send({
-      embeds:[greyEmbed("Bot approval required",`Do you agree on giving this bot permission to serve this server?\n\nBot: <@${member.id}> (${member.user.username})\n\nAccess is temporarily restricted while approval is pending.`)],
+    const setup=this.store.data.timi_setup?.[guild.id]||{};
+    const confirmation=setup.confirmation_channel_id?await guild.channels.fetch(setup.confirmation_channel_id).catch(()=>null):null;
+    const requestChannel=confirmation?.isTextBased()?confirmation:log;
+    const msg=await requestChannel.send({
+      embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\n\nBot: <@${member.id}> (${member.user.username})\n\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
       components:[row(button(`botguard:yes:${guild.id}:${member.id}`,"Yes",ButtonStyle.Success),button(`botguard:no:${guild.id}:${member.id}`,"No",ButtonStyle.Danger))],
       allowedMentions:{parse:[]}
     });
     this.store.data.pending_bots[guild.id+":"+member.id]=msg.id;this.store.save();
+    try{
+      await this.restrictBot(guild,member.id,log.id);
+      await msg.edit({embeds:[greyEmbed("Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot has joined successfully and is temporarily restricted while you review this request.`)]});
+    }catch(error){
+      this.logger.error("Could not apply temporary bot restrictions:",error);
+      await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply temporary restrictions. Review its access manually.`)],components:[]}).catch(()=>{});
+    }
   }
   async memberJoin(member){
     const guild=member.guild,user=member.user;if(!guild||!user)return;

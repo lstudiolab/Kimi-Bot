@@ -36,8 +36,10 @@ export class Verification {
     this.store.save();return {score:agePoints+historyPoints+attemptPoints+behaviorPoints+avatarPoints,checks,ageFailed};
   }
   async log(guild,channelId,content){
+    const setup=this.store.data.timi_setup?.[guild.id]||{};
     let ch=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
-    if(!ch)ch=guild.channels.cache.find(c=>c.name==="timi"&&c.isTextBased());
+    if(!ch&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
+    if(!ch)ch=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.isTextBased());
     if(ch?.isTextBased())await ch.send({content,allowedMentions:{parse:[]}}).catch(()=>{});
   }
   settingsText(s){

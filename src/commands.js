@@ -10,6 +10,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
   new SlashCommandBuilder().setName("ticket-settings").setDescription("Edit ticket system settings."),
 
+  new SlashCommandBuilder().setName("timi-setup").setDescription("Create Timi log, confirmation and settings channels."),
   new SlashCommandBuilder().setName("greet-settings").setDescription("Configure welcome and goodbye messages.")
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Welcome channel").addChannelTypes(ChannelType.GuildText))
     .addStringOption(o=>o.setName("welcome-message").setDescription("Welcome text; supports {user}, {username}, {server}, {member_count}").setMaxLength(1800))
@@ -65,7 +66,7 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["timi-plan","install-library","library-list","uninstall-library"],
-  Foundation:["greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"],
+  Foundation:["timi-setup","greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"],
   Security:["verify-settings","verify-panel","moderation-settings","automod-word"],
   Support:["ticket-setup","ticket-panel","ticket-settings"],
   Scratch:["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]

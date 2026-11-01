@@ -12,7 +12,7 @@ export function createFoundationLibrary({client,store,logger}){
     async handleInteraction(i){
       if(i.isChatInputCommand()){
         if(i.commandName==="setup-role-picker")return rolePicker.handle(i);
-        if(["greet-settings","auto-role"].includes(i.commandName))return greet.command(i);
+        if(["timi-setup","greet-settings","auto-role"].includes(i.commandName))return greet.command(i);
         if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
       }
       const id=i.customId||"";
