@@ -25,46 +25,38 @@ cp .env.example .env
 nano .env
 ```
 
-Set:
-
-- `DISCORD_TOKEN`: the bot token.
-- `CLIENT_ID`: the Discord application ID.
-- `DISCORD_OAUTH_CLIENT_SECRET`: the OAuth2 client secret from the same Discord application.
-- `DISCORD_OAUTH_REDIRECT_URI`: the public HTTPS URL ending in `/auth/discord/callback`.
-- `DASHBOARD_HOST=127.0.0.1` and `DASHBOARD_PORT=8787`: keep the backend bound to localhost. The tunnel connects to it locally.
+Set `DISCORD_TOKEN` and `CLIENT_ID` first. Also keep `DASHBOARD_HOST=127.0.0.1` and `DASHBOARD_PORT=8787`; the tunnel connects to the backend locally. You can add the OAuth secret and callback after you have a public tunnel URL.
 
 Leave `DASHBOARD_OWNER_ID` blank or remove it if you do not need the developer-only process Logs page. It is not required for dashboard sign-in or server configuration.
 
-In Discord Developer Portal → OAuth2, add the exact same redirect URI from `.env`. OAuth scopes are `identify` and `guilds`.
+## 3. Start the local backend
 
-## 3. Expose the backend securely
-
-Keep the Node server on localhost. Use a HTTPS tunnel to make the Termux-hosted site reachable from your phone or other devices.
-
-With Cloudflare Tunnel installed in Termux, run this in a second Termux session:
-
-```sh
-bash scripts/termux-tunnel.sh
-```
-
-For a quick test, Cloudflare prints a temporary `https://…trycloudflare.com` address. Set:
-
-```env
-DISCORD_OAUTH_REDIRECT_URI=https://YOUR-TUNNEL-HOST/auth/discord/callback
-DASHBOARD_COOKIE_SECURE=true
-```
-
-Add that exact callback URL in Discord Developer Portal, then restart Kimi. A Quick Tunnel address changes when recreated, so it is suitable for testing only. For a permanent public dashboard URL, use a named Cloudflare Tunnel connected to a domain you control and keep that hostname fixed.
-
-## 4. Start Kimi
-
-In the project directory:
+Start Kimi in your first Termux session:
 
 ```sh
 bash scripts/termux-start.sh
 ```
 
-The dashboard is served by the same backend at `http://127.0.0.1:8787`. Open the public HTTPS tunnel URL to sign in and configure servers. The public login page, dashboard pages, OAuth callback and API all use the same origin and session cookie.
+The bot and dashboard backend now run at `http://127.0.0.1:8787`. OAuth login will remain disabled until its secret and public callback URL are configured; the local service can start before those values are known.
+
+## 4. Expose the backend securely
+
+Keep the Node server on localhost. With Cloudflare Tunnel installed in Termux, open a second Termux session and run:
+
+```sh
+cd ~/Kimi-Bot
+bash scripts/termux-tunnel.sh
+```
+
+For a quick test, Cloudflare prints a temporary `https://…trycloudflare.com` address. In `.env`, set:
+
+```env
+DISCORD_OAUTH_CLIENT_SECRET=YOUR_DISCORD_OAUTH_CLIENT_SECRET
+DISCORD_OAUTH_REDIRECT_URI=https://YOUR-TUNNEL-HOST/auth/discord/callback
+DASHBOARD_COOKIE_SECURE=true
+```
+
+Add that exact callback URL in Discord Developer Portal → OAuth2 Redirects. Then restart Kimi in the first session; leave the tunnel running. Open the public HTTPS tunnel URL to sign in. The login page, dashboard, OAuth callback and API all use the same origin and session cookie. A Quick Tunnel address changes when recreated, so it is suitable for testing only. For a permanent public dashboard URL, use a named Cloudflare Tunnel connected to a domain you control and keep that hostname fixed.
 
 Keep the Termux process and tunnel process running. Android battery optimization can stop background processes; exempt Termux from battery optimization and keep the device powered when hosting continuously.
 
