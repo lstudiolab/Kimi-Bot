@@ -65,7 +65,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
   async command(i){
     if(!await requireOwner(i))return;
     const guild=i.guild,s=this.store.verify(guild.id);
-    if(i.commandName==="verify-panel"){
+    if(i.commandName==="verify"){
       const existing=s.published_panels.find(p=>p.channel_id===i.channelId);
       const payload=this.panelPayload(guild,i.channel,i.user,i.member);
       if(existing){
@@ -138,7 +138,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     return respond(i,"Bot approved. Temporary restrictions were removed; private Timi channels remain inaccessible.");
   }
   async handle(i){
-    if(i.isChatInputCommand()&&["verify-settings","verify-panel"].includes(i.commandName))return this.command(i);
+    if(i.isChatInputCommand()&&["verify-settings","verify"].includes(i.commandName))return this.command(i);
     if(i.isButton()&&i.customId==="verify:start")return this.verify(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
