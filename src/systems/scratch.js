@@ -355,10 +355,10 @@ export class Scratch {
     const guild=context.guild||message?.guild||member?.guild;
     const properties={
       "true":true,"false":false,
-      "author.is_admin":Boolean(member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
+      "author.is_admin":Boolean(context.interaction?.memberPermissions?.has?.(PermissionFlagsBits.ManageGuild)||member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
       "author.is_owner":Boolean(guild?.ownerId&&user?.id===guild.ownerId),
       "author.bot":Boolean(user?.bot),
-      "member.is_admin":Boolean(member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
+      "member.is_admin":Boolean(context.interaction?.memberPermissions?.has?.(PermissionFlagsBits.ManageGuild)||member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
       "message.content":String(message?.content||"")
     };
     const comparison=source.match(/^(message\.content|author\.id|author\.is_admin|author\.is_owner|author\.bot|member\.is_admin)\s*(==|!=)\s*("(?:\\.|[^"\\])*"|true|false|[a-zA-Z0-9_-]+)$/);
@@ -426,7 +426,7 @@ export class Scratch {
         if(!isSafeAssignableRole(role,state.guild?.id))throw new Error("The configured role is missing or has privileged permissions.");
         const bot=await state.guild.members.fetchMe();
         if(!bot.permissions.has(PermissionFlagsBits.ManageRoles)||role.position>=bot.roles.highest.position)throw new Error("Timi cannot manage that role. Check Manage Roles and role hierarchy.");
-        const member=state.member?.roles?state.member:await state.guild.members.fetch(state.user.id);
+        const member=state.member?.roles?.add?state.member:await state.guild.members.fetch(state.user.id);
         if(action.type==="give_role")await member.roles.add(role,"TBScript role action");
         else await member.roles.remove(role,"TBScript role action");
         continue;
