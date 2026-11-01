@@ -85,11 +85,29 @@ function panelTarget(target) {
 function insertKitBlock(source, snippet) {
   const base=String(source||"").trim();
   const addition=String(snippet||"").trim();
-  if(!base.startsWith("{")||!base.endsWith("}")||!addition.startsWith("{")||!addition.endsWith("}")) {
-    throw new Error("A component can only be assembled into a complete TbScript block.");
+  if(!base||!addition)throw new Error("A component needs a source file and a valid TBScript snippet.");
+  if(base.startsWith("{")||addition.startsWith("{"))throw new Error("The component kit uses the new TBScript syntax. Create or convert this project before assembling components.");
+  const extra=addition.split("\n");
+  if(extra[0]?.trim()!=="panel:")return base+"\n\n"+addition;
+  const panelIndex=base.split("\n").findIndex(line=>line.trim()==="panel:");
+  if(panelIndex<0)return base+"\n\n"+addition;
+  const baseLines=base.split("\n");
+  let panelEnd=baseLines.length;
+  for(let index=panelIndex+1;index<baseLines.length;index++){
+    if(baseLines[index].trim()&&!/^\s/.test(baseLines[index])){panelEnd=index;break;}
   }
-  const inner=addition.slice(1,-1).trim();
-  return base.slice(0,-1).trimEnd()+"\n   "+inner.replace(/\n/g,"\n   ")+"\n}";
+  let additionEnd=extra.length;
+  for(let index=1;index<extra.length;index++){
+    if(extra[index].trim()&&!/^\s/.test(extra[index])){additionEnd=index;break;}
+  }
+  const panelProperties=extra.slice(1,additionEnd).filter(line=>line.trim());
+  const handlers=extra.slice(additionEnd).join("\n").trim();
+  const merged=[
+    ...baseLines.slice(0,panelEnd),
+    ...panelProperties,
+    ...baseLines.slice(panelEnd)
+  ].join("\n");
+  return handlers?merged+"\n\n"+handlers:merged;
 }
 function stopRuntime(store,guildId,slug) {
   const active=store.data.developer_active[guildId]?.[slug];
