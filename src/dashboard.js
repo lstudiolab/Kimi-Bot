@@ -1,7 +1,6 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { LOCALE_NAMES } from "./i18n.js";
 
@@ -160,7 +159,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
         "Cache-Control": file.endsWith(".html") ? "no-cache" : "public, max-age=300",
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; base-uri 'self'; form-action 'self' https://discord.com; frame-ancestors 'none'"
+        "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
       });
       res.end(data);
     } catch {
@@ -181,12 +180,13 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "POST" && ["/auth/register", "/auth/login"].includes(url.pathname)) {
         const body = await parseBody(req);
         const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
+        for (const [key, value] of authAttempts) if (value.resetAt <= Date.now()) authAttempts.delete(key);
         const attempt = authAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
         if (attempt.resetAt <= Date.now()) { attempt.count = 0; attempt.resetAt = Date.now() + 15 * 60 * 1000; }
         if (attempt.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
         if (url.pathname === "/auth/register") {
           const result = authStore.createAccount({ email: body.email, password: body.password, displayName: body.displayName });
-          if (result.error) return send(res, 400, { error: result.error });
+          if (result.error) { attempt.count++; authAttempts.set(ip, attempt); return send(res, 400, { error: result.error }); }
           const token = authStore.createSession(result.account.id);
           setSessionCookie(res, token);
           authAttempts.delete(ip);
