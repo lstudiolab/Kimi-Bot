@@ -18,8 +18,8 @@ export class Foundation {
   async command(i){
     if(!await requireManager(i))return;
     const s=this.settings(i.guildId);
-    if(i.commandName==="timi-setup")return this.setup(i);
-    if(i.commandName==="auto-role"){
+    if(i.commandName==="setup")return this.setup(i);
+    if(i.commandName==="autorole"){
       const role=i.options.getRole("role");
       if(role){
         const me=await i.guild.members.fetchMe();
@@ -30,7 +30,7 @@ export class Foundation {
       this.store.save();
       return respond(i,s.auto_role_id?"Automatic role set to <@&"+s.auto_role_id+">.":"Automatic role assignment disabled.");
     }
-    if(i.commandName==="greet-settings"){
+    if(i.commandName==="welcome"){
       const welcomeChannel=i.options.getChannel("welcome-channel");
       const goodbyeChannel=i.options.getChannel("goodbye-channel");
       const welcomeMessage=i.options.getString("welcome-message");
