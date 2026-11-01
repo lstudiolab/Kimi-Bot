@@ -87,7 +87,7 @@ export class Moderation {
     catch(e){this.logger.warn("Could not update moderation panel:",e.message);}
   }
   async command(i){
-    if(i.commandName!=="moderation-settings")return;
+    if(i.commandName!=="moderation")return;
     if(!await requireManager(i))return;
     const x=this.store.mods(i.guildId);
     if(x.panel_channel_id&&x.panel_message_id){
@@ -247,8 +247,8 @@ export class Moderation {
     }
   }
   async handle(i){
-    if(i.isChatInputCommand()&&i.commandName==="moderation-settings")return this.command(i);
-    if(i.isChatInputCommand()&&i.commandName==="automod-word")return this.wordCommand(i);
+    if(i.isChatInputCommand()&&i.commandName==="moderation")return this.command(i);
+    if(i.isChatInputCommand()&&i.commandName==="filter")return this.wordCommand(i);
     if(i.isButton()&&i.customId.startsWith("modpanel:"))return this.component(i);
     if(i.isChannelSelectMenu()&&i.customId==="modpanel:log-select")return this.component(i);
     if(i.isModalSubmit()&&i.customId.startsWith("modpanel:"))return this.modalSubmit(i);
