@@ -57,7 +57,7 @@ function normalizeData(data){
 }
 function migrateLegacy(data,dir){
   let changed=false;
-  for(const [file,key] of [["ticket-settings.json","tickets"],["moderation-settings.json","moderation"]]){
+  for(const [file,key] of [["ticket-settings.json","tickets"],["ticket-config.json","tickets"],["moderation-settings.json","moderation"]]){
     const old=readJson(path.join(dir,file));if(!old)continue;
     for(const [guild,value] of Object.entries(old))if(data[key][guild]===undefined){data[key][guild]=value;changed=true;}
   }
