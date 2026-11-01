@@ -41,13 +41,7 @@ bash scripts/termux-start.sh
 
 The bot and dashboard backend run together at `http://127.0.0.1:8787`.
 
-On first visit to the dashboard, create a Kimi account. Then choose **Generate linking code** and copy the eight-digit code. In a Discord server where Kimi is installed, run:
-
-```
-/dashboard-link code:12345678
-```
-
-Replace `123456` with the code displayed by your dashboard. The code expires after 10 minutes. This links your Discord identity to your Kimi account without Discord OAuth. Kimi uses the linked identity only to check server membership and Manage Server or Administrator permissions.
+On first visit to the dashboard, create a Kimi account. Open **Connect a server** and generate a one-time token. In a Discord server where Kimi is installed, run `/web-token` and paste the token into the modal. The token expires after 10 minutes and can only be used once. Kimi checks that the Discord user has Manage Server or Administrator permission, then links the detected server to the Kimi account that generated the token. No Discord account-wide linking or Discord OAuth is required.
 
 ## 4. Expose the dashboard securely
 
@@ -68,7 +62,8 @@ Kimi creates these files automatically on the Android phone:
 
 - `data/auth/accounts.json` — account email, display name, password salt/hash and linked Discord identity.
 - `data/auth/sessions.json` — hashed session-token records and expiration times.
-- `data/auth/link-codes.json` — temporary Discord linking codes.
+- `data/auth/link-codes.json` — legacy account-link codes (not used by server linking).
+- `data/auth/web-tokens.json` — hashed, temporary one-time server-link tokens and their result.
 
 The auth directory is created with restricted permissions. These files are excluded from Git by the existing `.gitignore`. Back up the `data/` directory securely; losing it means losing local accounts and stored sessions.
 
@@ -76,7 +71,7 @@ The auth directory is created with restricted permissions. These files are exclu
 
 - Visitors must sign in with a Kimi account before opening dashboard pages or APIs.
 - Discord OAuth is not used.
-- A Discord identity must be linked with a one-time `/dashboard-link` code before server selection.
+- A server is linked with a one-time `/web-token` modal submission from a user with Manage Server or Administrator permission.
 - Only servers where Kimi is installed and the linked Discord user has Manage Server or Administrator permission are listed.
 - A server must be explicitly selected before its settings load.
 - Each guild API request checks membership and permission again; settings are scoped to that guild.
