@@ -331,6 +331,152 @@ export class Scratch {
     }
   }
 
+
+  scriptText(value, context = {}) {
+    const user=context.user||context.member?.user||context.member||context.message?.author;
+    const guild=context.guild||context.message?.guild||context.member?.guild;
+    const channel=context.channel||context.message?.channel;
+    const values={
+      "@authorID":user?.id||"",
+      "@author":user?.id?"<@"+user.id+">":user?.username||user?.displayName||"member",
+      "@serverID":guild?.id||"",
+      "@server":guild?.name||"",
+      "@channel":channel?.id?"<#"+channel.id+">":channel?.name||"",
+      "@memberCount":String(guild?.memberCount??"")
+    };
+    return String(value??"").replace(/@authorID|@author|@serverID|@server|@channel|@memberCount/g,key=>values[key]??key);
+  }
+
+  scriptCondition(condition, context = {}) {
+    const source=String(condition||"").trim();
+    const user=context.user||context.member?.user||context.member||context.message?.author;
+    const member=context.member||context.message?.member;
+    const message=context.message;
+    const guild=context.guild||message?.guild||member?.guild;
+    const properties={
+      "true":true,"false":false,
+      "author.is_admin":Boolean(member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
+      "author.is_owner":Boolean(guild?.ownerId&&user?.id===guild.ownerId),
+      "author.bot":Boolean(user?.bot),
+      "member.is_admin":Boolean(member?.permissions?.has?.(PermissionFlagsBits.ManageGuild)),
+      "message.content":String(message?.content||"")
+    };
+    const comparison=source.match(/^(message\.content|author\.id|author\.is_admin|author\.is_owner|author\.bot|member\.is_admin)\s*(==|!=)\s*("(?:\\.|[^"\\])*"|true|false|[a-zA-Z0-9_-]+)$/);
+    if(comparison){
+      let expected=comparison[3];
+      if(expected.startsWith('"')){try{expected=JSON.parse(expected);}catch{return false;}}
+      else if(expected==="true")expected=true;
+      else if(expected==="false")expected=false;
+      const actual=comparison[1]==="author.id"?String(user?.id||""):properties[comparison[1]];
+      return comparison[2]==="=="?actual===expected:actual!==expected;
+    }
+    return Boolean(properties[source]);
+  }
+
+  async executeActions(interaction, actions, context = {}) {
+    const state={...context,guild:context.guild||interaction?.guild||context.message?.guild,
+      user:context.user||interaction?.user||context.member?.user||context.message?.author,
+      member:context.member||interaction?.member||context.message?.member,
+      channel:context.channel||interaction?.channel||context.message?.channel,
+      interaction,lastChannel:null,replied:false};
+    for(const action of actions||[]){
+      if(action.type==="if"){
+        const branch=this.scriptCondition(action.condition,state)?action.then:action.else;
+        await this.executeActions(interaction,branch,{...state,lastChannel:state.lastChannel});
+        continue;
+      }
+      if(action.type==="create_channel"){
+        const raw=this.scriptText(action.args[0],state).replace(/^#/, "");
+        const name=slugify(raw)||"ticket";
+        const guild=state.guild;
+        if(!guild)throw new Error("A server is required to create a channel.");
+        const bot=await guild.members.fetchMe();
+        if(!bot.permissions.has(PermissionFlagsBits.ManageChannels))throw new Error("Timi needs Manage Channels to create a private channel.");
+        const overwrites=[
+          {id:guild.roles.everyone.id,deny:[PermissionFlagsBits.ViewChannel]},
+          {id:bot.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.ManageChannels]}
+        ];
+        if(state.user?.id)overwrites.push({id:state.user.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]});
+        state.lastChannel=await guild.channels.create({name,type:ChannelType.GuildText,permissionOverwrites:overwrites,reason:"Created by a Timi TBScript"});
+        continue;
+      }
+      if(action.type==="make_private"){
+        if(!state.lastChannel)throw new Error("make private must follow create channel.");
+        await state.lastChannel.permissionOverwrites.edit(state.guild.roles.everyone.id,{ViewChannel:false});
+        continue;
+      }
+      if(action.type==="allow"){
+        if(!state.lastChannel)throw new Error("allow must follow create channel.");
+        const target=String(action.args[0]||"");
+        if(target==="@author"||target==="author"){
+          if(!state.user?.id)throw new Error("There is no author to grant access to.");
+          await state.lastChannel.permissionOverwrites.edit(state.user.id,{ViewChannel:true,SendMessages:true,ReadMessageHistory:true});
+        }else{
+          const roleId=target.match(/^<@&(\d+)>$/)?.[1]||target;
+          const role=state.guild.roles.cache.find(item=>item.id===roleId||item.name.toLowerCase()===target.replace(/^@/,"").toLowerCase());
+          if(!role)throw new Error("The requested access role could not be found.");
+          await state.lastChannel.permissionOverwrites.edit(role.id,{ViewChannel:true,SendMessages:true,ReadMessageHistory:true});
+        }
+        continue;
+      }
+      if(action.type==="give_role"||action.type==="remove_role"){
+        const target=String(action.args[0]||"");
+        const roleId=target.match(/^<@&(\d+)>$/)?.[1]||target;
+        const role=state.guild?.roles.cache.find(item=>item.id===roleId||item.name.toLowerCase()===target.toLowerCase());
+        if(!isSafeAssignableRole(role,state.guild?.id))throw new Error("The configured role is missing or has privileged permissions.");
+        const bot=await state.guild.members.fetchMe();
+        if(!bot.permissions.has(PermissionFlagsBits.ManageRoles)||role.position>=bot.roles.highest.position)throw new Error("Timi cannot manage that role. Check Manage Roles and role hierarchy.");
+        const member=state.member?.roles?state.member:await state.guild.members.fetch(state.user.id);
+        if(action.type==="give_role")await member.roles.add(role,"TBScript role action");
+        else await member.roles.remove(role,"TBScript role action");
+        continue;
+      }
+      if(action.type==="send"){
+        const destination=String(action.args[0]||"");
+        const channelId=destination.match(/^<#(\d+)>$/)?.[1]||destination.replace(/^#/,"");
+        let target=state.guild?.channels.cache.get(channelId)||null;
+        if(!target)target=state.guild?.channels.cache.find(item=>item.name?.toLowerCase()===channelId.toLowerCase())||null;
+        if(!target&&/^\d{17,20}$/.test(channelId))target=await state.guild.channels.fetch(channelId).catch(()=>null);
+        if(!target?.isTextBased?.())throw new Error("The send destination is not a text channel.");
+        await target.send({content:this.scriptText(action.args[1],state).slice(0,2000),allowedMentions:{parse:[]}});
+        continue;
+      }
+      if(action.type==="reply"){
+        const text=this.scriptText(action.args[0],state).slice(0,2000);
+        if(interaction&&!state.replied){await respond(interaction,text);state.replied=true;}
+        else if(state.message)await state.message.reply({content:text,allowedMentions:{parse:[]}});
+        else if(state.channel?.isTextBased?.())await state.channel.send({content:text,allowedMentions:{parse:[]}});
+      }
+    }
+    return state;
+  }
+
+  async runEvent(guildId, eventName, context) {
+    const active=this.store.data.developer_active?.[guildId]||{};
+    for(const [slug,record] of Object.entries(active)){
+      if(record.status!=="running")continue;
+      const project=this.project(guildId,slug);
+      if(!project)continue;
+      const compiled=compileTbScript(project.source);
+      if(!compiled.ok)continue;
+      for(const event of compiled.output.handlers?.events||[]){
+        if(event.event!==eventName)continue;
+        try{await this.executeActions(null,event.actions,{...context,guild:context.guild});}
+        catch(error){this.logger.warn("TBScript event failed ("+slug+"):",error.message);}
+      }
+    }
+  }
+
+  async onMessageCreate(message) {
+    if(!message?.guild||message.author?.bot)return;
+    return this.runEvent(message.guild.id,"message create",{guild:message.guild,message,user:message.author,member:message.member,channel:message.channel});
+  }
+
+  async onMemberJoin(member) {
+    if(!member?.guild)return;
+    return this.runEvent(member.guild.id,"member join",{guild:member.guild,member,user:member.user,channel:null});
+  }
+
   async run(i, rawName) {
     const slug = slugify(rawName);
     const project = this.project(i.guildId, slug);
@@ -338,22 +484,20 @@ export class Scratch {
     const compiled = compileTbScript(project.source);
     if (!compiled.ok) return deny(i, "This saved project has errors:\n" + errorsText(compiled.errors));
     const rendered = renderTbScript(compiled, { scope: "p-" + slug, context: { guild: i.guild, user: i.user, member: i.member, channel: i.channel, client: this.client } });
-    let message;
-    if (rendered.ephemeral) {
-      message = await i.editReply({
-        content: rendered.content || (rendered.embeds.length ? null : "TbScript test output"),
-        embeds: rendered.embeds, components: rendered.components, allowedMentions: { parse: [] }
-      });
-    } else {
-      message = await i.channel.send({
-        content: rendered.content, embeds: rendered.embeds, components: rendered.components, allowedMentions: { parse: [] }
-      });
-      await respond(i, "Project " + project.name + " is running in this channel. Use /script-stop to disable its controls.");
+    let message=null;
+    const hasPanel=Boolean(rendered.content||rendered.embeds.length||rendered.components.length);
+    if(hasPanel&&rendered.ephemeral){
+      message=await i.editReply({content:rendered.content||null,embeds:rendered.embeds,components:rendered.components,allowedMentions:{parse:[]}});
+    }else if(hasPanel){
+      message=await i.channel.send({content:rendered.content,embeds:rendered.embeds,components:rendered.components,allowedMentions:{parse:[]}});
+      await respond(i,"Project "+project.name+" is running. Use /script-stop to disable its controls and event handlers.");
+    }else{
+      await respond(i,"Project "+project.name+" is running. Its event handlers are active. Use /script-stop to disable them.");
     }
     this.store.data.developer_active[i.guildId] ||= {};
     this.store.data.developer_active[i.guildId][slug] = {
-      status: "running", channel_id: i.channelId, message_id: message.id,
-      ephemeral: rendered.ephemeral, started_at: Date.now()
+      status:"running",channel_id:i.channelId,message_id:message?.id||null,
+      ephemeral:rendered.ephemeral,started_at:Date.now()
     };
     project.status = "running";
     project.active = true;
@@ -368,7 +512,7 @@ export class Scratch {
     active.status = "stopped";
     const project = this.project(i.guildId, slug);
     if (project) { project.status = "saved"; project.active = false; }
-    if (!active.ephemeral) {
+    if (!active.ephemeral && active.message_id) {
       const channel = await i.guild.channels.fetch(active.channel_id).catch(() => null);
       const message = await channel?.messages.fetch(active.message_id).catch(() => null);
       await message?.edit({ components: [] }).catch(() => {});
@@ -547,6 +691,10 @@ export class Scratch {
     if (!compiled.ok) return deny(i, "This saved TbScript is no longer valid.");
     const action = compiled.output.buttons[index]?.action;
     if (!action) return deny(i, "No action is configured for this button.");
+    if(Array.isArray(action)){
+      await this.executeActions(i,action,{guild:i.guild,user:i.user,member:i.member,channel:i.channel});
+      return;
+    }
     const role = i.guild.roles.cache.find(candidate => candidate.id === action.role || candidate.name.toLowerCase() === action.role.toLowerCase());
     if (!isSafeAssignableRole(role,i.guild.id)) return deny(i, "The configured role is missing or has administrator, moderation, or channel-management permissions.");
     const member = await i.guild.members.fetch(i.user.id);
