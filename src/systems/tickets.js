@@ -9,7 +9,7 @@ import { applyGuildTheme, applyButtonTheme } from "../styles.js";
 
 const P = PermissionFlagsBits;
 export class Tickets {
-  constructor(client, store, logger) { this.client=client; this.store=store; this.logger=logger; this.cooldowns=new Map(); this.closing=new Set(); }
+  constructor(client, store, logger, foundation=null) { this.client=client; this.store=store; this.logger=logger; this.foundation=foundation; this.cooldowns=new Map(); this.opening=new Set(); this.closing=new Set(); }
   text(x) {
     return ["**Ticket Panel Configuration**","",`**Panel title:** ${x.panel_title}`,`**Panel description:** ${x.panel_description}`,
       `**Open button:** ${x.open_label}`,`**Ticket message:** ${x.ticket_message}`,`**Close button:** ${x.close_label}`,
@@ -33,24 +33,13 @@ export class Tickets {
     if (!await requireManager(i)) return;
     const guild=i.guild, name=i.commandName;
     if (name==="tickets") {
-      const category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()==="ticket")
-        || await guild.channels.create({name:"ticket",type:ChannelType.GuildCategory});
-      for (const n of ["timi-logs","timi-confirmations"]) {
-        if (guild.channels.cache.some(c=>c.type===ChannelType.GuildText&&c.name===n))
-          return deny(i,`A channel named #${n} already exists. Rename or remove it, then retry. Existing permissions were not changed.`);
-      }
-      const bot=await guild.members.fetchMe();
-      const permissionOverwrites=[
-        {id:guild.id,deny:[P.ViewChannel]},
-        {id:guild.ownerId,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]},
-        {id:i.user.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]},
-        {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.EmbedLinks,P.AttachFiles,P.ManageMessages]}
-      ];
-      const logs=await guild.channels.create({name:"timi-logs",type:ChannelType.GuildText,topic:"Private moderation logs for Timi.",permissionOverwrites});
-      const confirm=await guild.channels.create({name:"timi-confirmations",type:ChannelType.GuildText,topic:"Private setup confirmations for Timi.",permissionOverwrites});
-      this.store.mods(guild.id).log_channel_id=logs.id; this.store.save();
-      await confirm.send({content:`Timi setup completed by <@${i.user.id}>. Private log channel: <#${logs.id}>.`,allowedMentions:{users:[i.user.id]}});
-      return respond(i,`Setup complete. Created <#${logs.id}>, <#${confirm.id}>, and the ticket category. Configure your ticket system next.`,[row(button("ticket:wizard-start","Configure ticket system",ButtonStyle.Primary))]);
+      if(!this.foundation?.ensureSetup)return deny(i,"Timi setup is unavailable. Install Foundation and run /setup first.");
+      const setup=await this.foundation.ensureSetup(guild);
+      let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()==="ticket");
+      if(!category)category=await guild.channels.create({name:"ticket",type:ChannelType.GuildCategory,reason:"Create Timi ticket category"});
+      this.store.mods(guild.id).log_channel_id=setup.saved.log_channel_id;
+      this.store.save();
+      return respond(i,"Ticket infrastructure is ready.\n**Log:** <#"+setup.saved.log_channel_id+">\n**Confirmations:** <#"+setup.saved.confirmation_channel_id+">\n**Category:** <#"+category.id+">\n\nConfigure the panel and support role next.",[row(button("ticket:wizard-start","Configure tickets",ButtonStyle.Primary))]);
     }
     const settings=this.store.ticket(guild.id);
     if (name==="ticket-settings") return respond(i,this.text(settings),this.settingsRows());
@@ -128,58 +117,77 @@ export class Tickets {
     }
   }
   async open(i) {
-    const guild=i.guild,key=guild.id+":"+i.user.id,now=Date.now();
-    const channels=await guild.channels.fetch();
-    const already=channels.find(c=>c.type===ChannelType.GuildText&&c.topic===`timi-ticket-owner:${i.user.id}`);
-    if (already) return respond(i,`You already have a ticket open: <#${already.id}>`);
-    if (now-(this.cooldowns.get(key)||0)<10000) return deny(i,"Please wait a few seconds before opening another ticket.");
-    this.cooldowns.set(key,now);
-    const x=this.store.ticket(guild.id);
-    let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()===x.category_name.toLowerCase());
-    if (!category) category=await guild.channels.create({name:x.category_name,type:ChannelType.GuildCategory});
+    const key=i.guildId+":"+i.user.id,now=Date.now();
+    if(this.opening.has(key))return deny(i,"Your ticket request is already being processed.");
+    this.opening.add(key);
+    try{
+      const channels=await i.guild.channels.fetch();
+      const already=channels.find(c=>c.type===ChannelType.GuildText&&c.topic===`timi-ticket-owner:${i.user.id}`);
+      if(already)return respond(i,`You already have a ticket open: <#${already.id}>`);
+      if(now-(this.cooldowns.get(key)||0)<10000)return deny(i,"Please wait a few seconds before opening another ticket.");
+      this.cooldowns.set(key,now);
+      return await this.createTicket(i,channels);
+    }finally{
+      this.opening.delete(key);
+      if(this.cooldowns.size>5000)for(const [id,at] of this.cooldowns)if(now-at>60*60*1000)this.cooldowns.delete(id);
+    }
+  }
+  async createTicket(i,channels) {
+    const guild=i.guild,x=this.store.ticket(guild.id);
+    let category=channels.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()===x.category_name.toLowerCase());
+    if(!category)category=await guild.channels.create({name:cleanChannelName(x.category_name),type:ChannelType.GuildCategory,reason:"Create Timi ticket category"});
     let support=null;
-    if (x.support_role_id) {
+    if(x.support_role_id){
       support=await guild.roles.fetch(x.support_role_id).catch(()=>null);
-      if (!support||support.managed) return deny(i,"The configured support role no longer exists or is managed. Update /ticket-settings first.");
+      if(!support||support.managed)return deny(i,"The configured support role no longer exists or is managed. Update /ticket-settings first.");
     }
     const bot=await guild.members.fetchMe();
+    if(!bot.permissions.has(P.ManageChannels))return deny(i,"Timi needs Manage Channels permission to create private tickets.");
     const permissionOverwrites=[
       {id:guild.id,deny:[P.ViewChannel]},
       {id:i.user.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks]},
       {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.ManageChannels,P.ManageMessages,P.ManageThreads,P.CreatePrivateThreads,P.SendMessagesInThreads]}
     ];
-    if(support) permissionOverwrites.push({id:support.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.SendMessagesInThreads]});
-    const ch=await guild.channels.create({name:"ticket-"+cleanChannelName(i.user.username).slice(0,90),type:ChannelType.GuildText,parent:category.id,
-      topic:`timi-ticket-owner:${i.user.id}`,permissionOverwrites});
-    try {
-      const templateContext={guild,user:i.user,member:i.member,channel:ch,client:this.client};
-      const emb=applyGuildTheme(greyEmbed(renderTemplate(x.panel_title,templateContext),renderTemplate(x.ticket_message,templateContext)),this.store,guild.id).addFields({name:"Priority",value:"Normal",inline:true});
-      await ch.send({content:renderTemplate("{user}",templateContext),embeds:[emb],components:[row(button("ticket:close",renderTemplate(x.close_label,templateContext),ButtonStyle.Danger),button("ticket:priority","Set priority",ButtonStyle.Primary))],allowedMentions:{users:[i.user.id]}});
-    } catch(e) { await ch.delete().catch(()=>{}); throw e; }
-    try {
-      const thread=await ch.threads.create({name:"staff-"+cleanChannelName(i.user.username),type:ChannelType.PrivateThread,autoArchiveDuration:1440,invitable:false});
-      await thread.send(`Private staff discussion for <#${ch.id}>. The ticket owner cannot see this thread.`);
-      if(support) {
+    if(support)permissionOverwrites.push({id:support.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.SendMessagesInThreads]});
+    const channelName="ticket-"+cleanChannelName(i.user.username).slice(0,84);
+    const channel=await guild.channels.create({name:channelName,type:ChannelType.GuildText,parent:category.id,
+      topic:`timi-ticket-owner:${i.user.id}`,permissionOverwrites,reason:"Create private support ticket for "+i.user.tag});
+    try{
+      const context={guild,user:i.user,member:i.member,channel,client:this.client};
+      const embed=applyGuildTheme(greyEmbed(renderTemplate(x.panel_title,context),renderTemplate(x.ticket_message,context)),this.store,guild.id)
+        .addFields({name:"Priority",value:"Normal",inline:true});
+      await channel.send({content:renderTemplate("{user}",context),embeds:[embed],
+        components:[row(button("ticket:close",renderTemplate(x.close_label,context)),button("ticket:priority","Set priority"))],
+        allowedMentions:{users:[i.user.id]}});
+    }catch(error){
+      await channel.delete("Ticket setup failed; clean up incomplete channel").catch(()=>{});
+      throw error;
+    }
+    try{
+      const thread=await channel.threads.create({name:"staff-"+cleanChannelName(i.user.username).slice(0,80),
+        type:ChannelType.PrivateThread,autoArchiveDuration:1440,invitable:false,reason:"Private staff discussion for support ticket"});
+      await thread.send("Private staff discussion for <#"+channel.id+">. The ticket owner cannot see this thread.");
+      if(support){
         let after;
-        while(true) {
+        do{
           const members=await guild.members.list({limit:1000,...(after?{after}:{})});
           if(!members.size)break;
-          for(const member of members.values()) {
-            if(member.roles.cache.has(support.id)&&!member.user.bot) {
-              await thread.members.add(member.id).catch(error=>this.logger.warn("Could not add support member to ticket thread:",member.id,error.message));
-            }
+          const staff=[...members.values()].filter(member=>member.roles.cache.has(support.id)&&!member.user.bot);
+          for(let offset=0;offset<staff.length;offset+=10){
+            await Promise.allSettled(staff.slice(offset,offset+10).map(member=>thread.members.add(member.id)));
           }
           after=members.last()?.id;
           if(members.size<1000||!after)break;
-        }
+        }while(true);
       }
-    } catch(e) { this.logger.warn("Ticket staff thread failed:",e.message); }
-    await this.log(guild,`Ticket opened. Member: <@${i.user.id}>. Channel: <#${ch.id}>.`);
-    return respond(i,`Your ticket is ready at: <#${ch.id}>`);
+    }catch(error){this.logger.warn("Ticket staff thread could not be created or populated:",error.message);}
+    await this.log(guild,"Ticket opened. Member: <@"+i.user.id+">. Channel: <#"+channel.id+">.");
+    return respond(i,"Your ticket is ready at: <#"+channel.id+">");
   }
   async log(guild,content) {
     const x=this.store.mods(guild.id);
-    const id=x.log_channel_id||guild.channels.cache.find(c=>c.name==="timi"&&c.type===ChannelType.GuildText)?.id;
+    const setup=this.store.data.timi_setup?.[guild.id]||{};
+    const id=x.log_channel_id||setup.log_channel_id||guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.type===ChannelType.GuildText)?.id;
     const channel=id?await guild.channels.fetch(id).catch(()=>null):null;
     if(channel?.isTextBased()) await channel.send({content,allowedMentions:{parse:[]}}).catch(e=>this.logger.warn("Ticket log failed:",e.message));
   }
@@ -290,12 +298,26 @@ export class Tickets {
     }
     return respond(i,`Ticket priority changed to **${chosen[0]}**.`);
   }
+  async validateTargets(guild,settings){
+    if(settings.support_role_id){
+      const role=await guild.roles.fetch(settings.support_role_id).catch(()=>null);
+      if(!role||role.id===guild.id||role.managed)return {ok:false,error:"The support role must be a normal role in this server."};
+    }
+    for(const [label,id] of [["Transcript",settings.transcript_channel_id],["Panel",settings.panel_channel_id]]){
+      if(!id)continue;
+      const channel=await guild.channels.fetch(id).catch(()=>null);
+      if(!channel||channel.guildId!==guild.id||![ChannelType.GuildText,ChannelType.GuildAnnouncement].includes(channel.type))
+        return {ok:false,error:label+" destination must be a text or announcement channel in this server."};
+    }
+    return {ok:true};
+  }
   async handleModal(i) {
     if(!await requireManager(i)) return;
-    const x=this.store.ticket(i.guildId),f=Object.fromEntries(i.fields.fields.map(v=>[v.customId,v.value.trim()]));
+    const x=structuredClone(this.store.ticket(i.guildId)),f=Object.fromEntries(i.fields.fields.map(v=>[v.customId,v.value.trim()]));
     if(i.customId==="ticket:wizard:stage1") {
       Object.assign(x,{panel_title:f["ticket-name"],support_role_id:f["support-role"],panel_description:f.description,open_label:f["button-label"],category_name:f.category});
       if(!x.panel_title||!x.panel_description||!x.open_label||!x.category_name||(x.support_role_id&&!/^\d{15,22}$/.test(x.support_role_id))) return deny(i,"Complete all required fields and enter a valid support role ID.");
+      const valid=await this.validateTargets(i.guild,x);if(!valid.ok)return deny(i,valid.error);
       this.store.data.tickets[i.guildId]=x; this.store.save();
       return respond(i,"First part saved. Continue with transcript and panel destinations.",[row(button("ticket:wizard-continue","Continue setup",ButtonStyle.Primary))]);
     }
