@@ -82,6 +82,24 @@ export function startDashboardServer({ config, client, store, manager, libraries
   const sessions = new Map();
   const pendingStates = new Map();
   const oauthReady = Boolean(config.oauthClientSecret && config.oauthRedirectUri);
+  function recordAnalytics(guildId,metric,commandName=""){
+    if(!guildId)return;
+    const day=new Date().toISOString().slice(0,10);
+    const all=store.data.analytics_requests||(store.data.analytics_requests={});
+    const days=all[guildId]||(all[guildId]={});
+    const row=days[day]||(days[day]={requests:0,commands:0,components:0,messages:0,joins:0,leaves:0,commandCounts:{}});
+    if(metric==="request"){
+      row.requests++;
+      if(commandName){row.commands++;row.commandCounts[commandName]=(row.commandCounts[commandName]||0)+1;}
+      else row.components++;
+    }else if(Object.hasOwn(row,metric))row[metric]++;
+    for(const key of Object.keys(days))if(Date.now()-Date.parse(key+"T00:00:00Z")>90*86400000)delete days[key];
+    store.queueSave();
+  }
+  client.on("interactionCreate",interaction=>recordAnalytics(interaction.guildId,"request",interaction.isChatInputCommand()?interaction.commandName:""));
+  client.on("messageCreate",message=>{if(message.guild&&!message.author.bot)recordAnalytics(message.guild.id,"messages");});
+  client.on("guildMemberAdd",member=>recordAnalytics(member.guild.id,"joins"));
+  client.on("guildMemberRemove",member=>recordAnalytics(member.guild.id,"leaves"));
 
   function sessionFor(req) {
     const id = cookieValue(req, COOKIE);
@@ -257,6 +275,26 @@ export function startDashboardServer({ config, client, store, manager, libraries
             const guild = client.guilds.cache.get(g.id);
             return { id: guild.id, name: guild.name, icon: guild.iconURL({ size: 64 }), owner: g.owner === true };
           }) });
+        }
+        const analyticsMatch = url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/analytics$/);
+        if (method === "GET" && analyticsMatch) {
+          const context = await requireGuild(req, res, session, analyticsMatch[1]);
+          if (!context) return;
+          const stored = store.data.analytics_requests?.[analyticsMatch[1]] || {};
+          const now = new Date();
+          const days = Array.from({length:14},(_,index)=>{
+            const date=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-(13-index)));
+            const key=date.toISOString().slice(0,10);
+            const row=stored[key]||{};
+            return {date:key,requests:row.requests||0,commands:row.commands||0,components:row.components||0,messages:row.messages||0,joins:row.joins||0,leaves:row.leaves||0};
+          });
+          const since=Date.now()-30*86400000;
+          const recent=Object.entries(stored).filter(([day])=>Date.parse(day+"T00:00:00Z")>=since).map(([,row])=>row);
+          const totals=recent.reduce((sum,row)=>{for(const key of ["requests","commands","components","messages","joins","leaves"])sum[key]+=row[key]||0;return sum;},{requests:0,commands:0,components:0,messages:0,joins:0,leaves:0});
+          const commandCounts={};
+          for(const row of recent)for(const [name,count] of Object.entries(row.commandCounts||{}))commandCounts[name]=(commandCounts[name]||0)+count;
+          const topCommands=Object.entries(commandCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name,count])=>({name,count}));
+          return send(res,200,{days,totals,topCommands,activeLibraries:(store.data.installed_libraries?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
         }
         if (method === "GET" && url.pathname === "/api/logs") {
           if (!config.dashboardOwnerId || session.user.id !== config.dashboardOwnerId) {
