@@ -50,7 +50,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("script-template").setDescription("Create a TbScript starter project.")
     .addStringOption(o=>o.setName("name").setDescription("New project name").setRequired(true).setMaxLength(24))
     .addStringOption(o=>o.setName("template").setDescription("Starter template").setRequired(true)
-      .addChoices({name:"Embed",value:"embed"},{name:"Button",value:"button"},{name:"Modal",value:"modal"},{name:"Welcome panel",value:"welcome"},{name:"Ticket panel",value:"ticket"},{name:"Verification panel",value:"verification"}))
+      .addChoices({name:"Basic panel",value:"panel"},{name:"Button panel",value:"button"},{name:"Welcome event",value:"welcome"},{name:"Message event",value:"message"},{name:"Ticket panel",value:"ticket"},{name:"Verification panel",value:"verification"}))
 ];
 
 const commandGroups=Object.freeze({
