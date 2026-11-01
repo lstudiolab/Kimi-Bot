@@ -11,9 +11,9 @@ export function createFoundationLibrary({client,store,logger}){
   return {
     async handleInteraction(i){
       if(i.isChatInputCommand()){
-        if(i.commandName==="setup-role-picker")return rolePicker.handle(i);
-        if(["timi-setup","greet-settings","auto-role"].includes(i.commandName))return greet.command(i);
-        if(["create-embed","edit-embed","place-embed"].includes(i.commandName))return embeds.handle(i);
+        if(i.commandName==="roles")return rolePicker.handle(i);
+        if(["setup","welcome","autorole"].includes(i.commandName))return greet.command(i);
+        if(["embed-new","embed-edit","embed-post"].includes(i.commandName))return embeds.handle(i);
       }
       const id=i.customId||"";
       if(id.startsWith("rolepicker:"))return rolePicker.handle(i);
