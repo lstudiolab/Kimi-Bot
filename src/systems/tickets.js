@@ -332,6 +332,7 @@ export class Tickets {
     }
     for(const value of [x.support_role_id,x.transcript_channel_id,x.panel_channel_id]) if(value&&!/^\d{15,22}$/.test(value)) return deny(i,"Role and channel IDs must be valid Discord IDs.");
     if(!x.panel_title||!x.panel_description||!x.open_label||!x.ticket_message||!x.close_label||!x.category_name) return deny(i,"Ticket settings must contain text.");
+    const valid=await this.validateTargets(i.guild,x);if(!valid.ok)return deny(i,valid.error);
     this.store.data.tickets[i.guildId]=x; this.store.save(); await this.refresh(x);
     return respond(i,this.text(x),this.settingsRows());
   }
