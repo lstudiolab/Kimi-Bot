@@ -2,7 +2,7 @@ import { LIBRARIES, normalizeLibraryName } from "./libraries/index.js";
 export class LibraryManager{
   constructor(store,logger){this.store=store;this.logger=logger;}
   list(){return Object.values(LIBRARIES);}
-  get(name){const key=normalizeLibraryName(name);return key?LIBRARIES[key]:null;}
+  get(name){const key=normalizeLibraryName(name);return key?LIBRARIES[key]||Object.values(LIBRARIES).find(value=>value.name===key)||null:null;}
   installed(guildId,name){const canonical=normalizeLibraryName(name);return Boolean(canonical&&(this.store.data.installed_libraries[guildId]||[]).includes(canonical));}
   install(guildId,name){
     const library=this.get(name);
