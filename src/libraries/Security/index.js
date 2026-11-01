@@ -15,6 +15,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async ready(guild){
       await moderation.resumeJobs(guild);
       await protection.ready(guild);
+      recovery.prune(guild.id);
       for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
     },
     async handleInteraction(i){
