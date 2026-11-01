@@ -81,4 +81,4 @@ $("#mobile-menu").addEventListener("click",()=>{const open=!$("#sidebar").classL
 $("#sidebar-backdrop").addEventListener("click",closeSidebar);
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeSidebar();});
 document.querySelectorAll(".nav-link").forEach(button=>{if(button.classList.contains("active"))button.setAttribute("aria-current","page");});
-boot().catch(e=>{$("#content").innerHTML='<div class="empty"><strong>Kimi sign-in required</strong><p>'+esc(e.message)+'</p><a class="button primary" href="/login">Sign in to Kimi</a></div>';});
+boot().catch(e=>{$("#content").innerHTML='<section class="empty connection-error"><strong>Cannot connect to Kimi</strong><p>'+esc(e.message)+'</p><a class="button primary" href="/login">Open sign in</a></section>';});
