@@ -112,6 +112,24 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(!i.inGuild())return i.editReply({content:"Use Timi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
+    if(i.isModalSubmit()&&id==="settings:verification:modal"){
+      const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
+      const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
+      const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
+      const thresholds=read("thresholds").split(",").map(part=>Number(part.trim()));
+      if(!Number.isInteger(age)||age<0||age>3650)return i.reply({content:"Minimum account age must be between 0 and 3650 days.",ephemeral:true});
+      if(thresholds.length!==2||thresholds.some(n=>!Number.isInteger(n)||n<0||n>100)||thresholds[1]>thresholds[0])return i.reply({content:"Enter valid thresholds as pass,review (for example: 80,60).",ephemeral:true});
+      for(const id of [roleId,requiredRoleId])if(id&&!/^\\d{15,22}$/.test(id))return i.reply({content:"Enter valid role IDs or leave them blank.",ephemeral:true});
+      if(reviewId&&!/^\\d{15,22}$/.test(reviewId))return i.reply({content:"Enter a valid review channel ID or leave it blank.",ephemeral:true});
+      if(roleId&&!i.guild.roles.cache.has(roleId)||requiredRoleId&&!i.guild.roles.cache.has(requiredRoleId))return i.reply({content:"One of the role IDs does not belong to this server.",ephemeral:true});
+      if(reviewId&&!i.guild.channels.cache.has(reviewId))return i.reply({content:"The review channel ID does not belong to this server.",ephemeral:true});
+      const bot=await i.guild.members.fetchMe();
+      for(const id of [roleId,requiredRoleId])if(id&&i.guild.roles.cache.get(id).position>=bot.roles.highest.position)return i.reply({content:"Timi must have a higher role than the configured verification roles.",ephemeral:true});
+      Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
+      this.store.data.verification[i.guildId]=value;this.store.save();
+      await this.hooks.libraries?.Foundation?.refreshVerification?.(i.guild);
+      return i.reply({content:"Verification settings saved. Existing verification panels have been refreshed.",ephemeral:true});
+    }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
@@ -141,6 +159,18 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
       if(!installed(this.store,i.guildId,library))return this.show(i,"configure");
+      if(section==="verification"){
+        const value=this.store.verify(i.guildId);
+        const field=(key,label,placeholder,current)=>new TextInputBuilder().setCustomId(key).setLabel(label).setPlaceholder(placeholder).setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(100).setValue(String(current??"").slice(0,100));
+        const modal=new ModalBuilder().setCustomId("settings:verification:modal").setTitle("Verification settings").addComponents(
+          new ActionRowBuilder().addComponents(field("verify-role","Verified role ID","Role ID granted after passing",value.role_id)),
+          new ActionRowBuilder().addComponents(field("required-role","Required role ID","Role ID required before verifying",value.required_role_id)),
+          new ActionRowBuilder().addComponents(field("review-channel","Review channel ID","Text channel ID for manual reviews",value.review_channel_id)),
+          new ActionRowBuilder().addComponents(field("min-age","Minimum account age in days","0 to 3650",value.min_age_days)),
+          new ActionRowBuilder().addComponents(field("thresholds","Pass and review thresholds","Example: 80,60",`${value.thresholds.pass},${value.thresholds.review}`))
+        );
+        return i.showModal(modal);
+      }
       if(section==="welcome"){
         const value=this.store.data.welcome[i.guildId]||{};
         const field=(key,label,placeholder,current,style=TextInputStyle.Short)=>new TextInputBuilder().setCustomId(key).setLabel(label).setPlaceholder(placeholder).setStyle(style).setRequired(false).setMaxLength(style===TextInputStyle.Paragraph?1800:22).setValue(String(current||"").slice(0,style===TextInputStyle.Paragraph?1800:22));
