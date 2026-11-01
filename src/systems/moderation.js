@@ -69,13 +69,13 @@ export class Moderation {
     this.store.data.moderation_jobs[guild.id].push(job);this.store.save();
     await this.processJob(guild,job);
   }
-  text(x){return ["**Timi Moderation Settings**","",`**Module:** ${x.enabled?"Active":"Inactive"}`,`**Sanction:** ${x.sanction}`,
+  text(x){return ["**Timi Moderation Settings**","",`**AutoMod and anti-spam:** ${x.enabled?"Active":"Inactive"}`,`**Sanction:** ${x.sanction}`,
     `**Timeout duration:** ${x.timeout_minutes} minute(s)`,`**Log channel:** ${mentionChannel(x.log_channel_id)}`,
     `**Action duration:** ${x.action_duration_seconds} second(s)`,`**Maximum messages per minute:** ${x.max_message_count}`,
     `**Block Discord invites:** ${x.block_invites}`,`**Block mass mentions:** ${x.block_mass_mentions}`,
     `**Block excessive caps:** ${x.block_excessive_caps}`].join("\n");}
   rows(x){return [
-    row(button(x.enabled?"modpanel:disable":"modpanel:enable",x.enabled?"Disable":"Enable",x.enabled?ButtonStyle.Danger:ButtonStyle.Success),
+    row(button(x.enabled?"modpanel:disable":"modpanel:enable",x.enabled?"Disable AutoMod":"Enable AutoMod",x.enabled?ButtonStyle.Danger:ButtonStyle.Success),
       button("modpanel:sanction","Edit sanction"),button("modpanel:log","Set log channel")),
     row(button("modpanel:duration","Action duration"),button("modpanel:max-count","Max messages")),
     row(button("modpanel:invites","Toggle invites"),button("modpanel:mentions","Toggle mentions"),button("modpanel:caps","Toggle caps"))
