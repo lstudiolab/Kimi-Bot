@@ -9,7 +9,8 @@ const DEFAULT_THEME = Object.freeze({
 });
 
 export function getGuildTheme(store, guildId) {
-  return { ...DEFAULT_THEME };
+  const saved=store?.data?.customizations?.[guildId]?.theme;
+  return { ...DEFAULT_THEME, ...(saved&&typeof saved==="object"?saved:{}) };
 }
 
 export function colorNumber(value) {
