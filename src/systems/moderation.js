@@ -176,7 +176,7 @@ export class Moderation {
     }
     const key=`${guild.id}:${message.channelId}:${message.author.id}`,now=Date.now();
     if(this.spam.size>20000){
-      for(const [storedKey,items] of this.spam)if(!items.length||now-items[items.length-1].at>20000)this.spam.delete(storedKey);
+      for(const [storedKey,items] of this.spam)if(!items.length||now-items[items.length-1].at>60000)this.spam.delete(storedKey);
       while(this.spam.size>20000)this.spam.delete(this.spam.keys().next().value);
     }
     const recent=(this.spam.get(key)||[]).filter(v=>now-v.at<=60000);
