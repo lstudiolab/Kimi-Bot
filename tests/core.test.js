@@ -355,3 +355,19 @@ test("image downloads accept only HTTPS Discord attachment CDN URLs",()=>{
     "not a url"
   ])assert.equal(isTrustedDiscordAttachmentUrl(url),false,url);
 });
+
+import { RolePicker } from "../src/systems/role-picker.js";
+import { Embeds } from "../src/systems/embeds.js";
+
+test("renamed Foundation slash commands reach their system handlers",async()=>{
+  let roleCalled=false,embedCalls=[];
+  const rolePicker=new RolePicker({}, {}, quiet);
+  rolePicker.command=async()=>{roleCalled=true;};
+  await rolePicker.handle({isChatInputCommand:()=>true,commandName:"roles"});
+  assert.equal(roleCalled,true,"/roles must reach the role picker setup handler");
+  const embeds=new Embeds({}, {}, quiet);
+  embeds.command=async interaction=>{embedCalls.push(interaction.commandName);};
+  for(const commandName of ["embed-new","embed-edit","embed-post"])
+    await embeds.handle({isChatInputCommand:()=>true,commandName});
+  assert.deepEqual(embedCalls,["embed-new","embed-edit","embed-post"]);
+});
