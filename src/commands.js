@@ -26,7 +26,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify").setDescription("Publish the verification panel."),
   new SlashCommandBuilder().setName("verify-config").setDescription("Configure verification requirements and panel text.")
     .addRoleOption(o=>o.setName("role").setDescription("Role assigned after verification"))
     .addRoleOption(o=>o.setName("required-role").setDescription("Role members must already have"))
@@ -70,7 +69,7 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan","dashboard-link"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","verify-config","filter","security","moderation"],
+  Security:["verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
