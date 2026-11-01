@@ -172,6 +172,10 @@ export function startDashboardServer({ config, client, store, manager, libraries
     const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
     const method = req.method || "GET";
     try {
+      if (method === "POST" && req.headers.origin) {
+        const origin = new URL(req.headers.origin).host;
+        if (origin !== req.headers.host) return send(res, 403, { error: "Cross-origin request blocked." });
+      }
       if (method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, service: "kimi-dashboard", botReady: client.isReady() });
 
       if (method === "POST" && ["/auth/register", "/auth/login"].includes(url.pathname)) {
@@ -364,7 +368,6 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && !path.extname(pagePath)) {
         const session = sessionFor(req);
         if (!session) return redirect(res, "/login");
-        if (!session.scope.split(/\s+/).includes("guilds")) return redirect(res, "/auth/discord");
         return staticFile(res, "index.html");
       }
       return send(res, 404, { error: "Not found." });
