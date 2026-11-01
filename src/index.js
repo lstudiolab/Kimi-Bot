@@ -15,7 +15,7 @@ const manager=new LibraryManager(store,logger),context={client,store,logger};
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
 const commandModule={
  "verify":"verification","filter":"moderation","security":"protection",
- "welcome":"welcome","autorole":"welcome","roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
+ "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
  "tickets":"tickets","ticket-panel":"tickets",
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
  "script-export":"scratch","script-import":"scratch","script-history":"scratch","script-check":"scratch","script-undo":"scratch","script-redo":"scratch","script-kit":"scratch","script-help":"scratch","script-template":"scratch"
@@ -45,7 +45,7 @@ function opensModal(i){
  }
  if(!i.isButton())return false;
  const id=i.customId;
- return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
+ return id==="settings:config:welcome"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",verification:"verify-config",tickets:"ticket-config",welcome:"welcome"};
