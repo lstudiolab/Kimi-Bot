@@ -22,14 +22,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify-config").setDescription("Configure risk-based member verification.")
-    .addRoleOption(o=>o.setName("role").setDescription("Role granted after passing"))
-    .addRoleOption(o=>o.setName("required-role").setDescription("Role required before verifying"))
-    .addBooleanOption(o=>o.setName("clear-required-role").setDescription("Remove the required-role restriction"))
-    .addIntegerOption(o=>o.setName("min-age-days").setDescription("Minimum account age in days").setMinValue(0).setMaxValue(3650))
-    .addChannelOption(o=>o.setName("review-channel").setDescription("Manual review channel").addChannelTypes(ChannelType.GuildText))
-    .addStringOption(o=>o.setName("title").setDescription("Verification panel title").setMaxLength(200))
-    .addStringOption(o=>o.setName("description").setDescription("Verification panel description").setMaxLength(1000)),
   new SlashCommandBuilder().setName("verify").setDescription("Publish the verification panel."),
   new SlashCommandBuilder().setName("security").setDescription("Audit this server for common security risks."),
   new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
