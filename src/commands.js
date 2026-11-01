@@ -26,14 +26,10 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify-config").setDescription("Configure verification requirements and panel text.")
-    .addRoleOption(o=>o.setName("role").setDescription("Role assigned after verification"))
-    .addRoleOption(o=>o.setName("required-role").setDescription("Role members must already have"))
-    .addBooleanOption(o=>o.setName("clear-required-role").setDescription("Remove the required-role rule"))
+  new SlashCommandBuilder().setName("verify-config").setDescription("Configure automatic join verification.")
+    .addRoleOption(o=>o.setName("role").setDescription("Role assigned after a successful check"))
     .addIntegerOption(o=>o.setName("min-age-days").setDescription("Minimum Discord account age in days").setMinValue(0).setMaxValue(3650))
-    .addChannelOption(o=>o.setName("review-channel").setDescription("Private channel for manual reviews").addChannelTypes(ChannelType.GuildText))
-    .addStringOption(o=>o.setName("title").setDescription("Verification panel title").setMaxLength(256))
-    .addStringOption(o=>o.setName("description").setDescription("Verification panel description").setMaxLength(4000)),
+    .addChannelOption(o=>o.setName("review-channel").setDescription("Private channel for manual reviews").addChannelTypes(ChannelType.GuildText)),
   new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
     .addSubcommand(s=>s.setName("add").setDescription("Block a word or phrase").addStringOption(o=>o.setName("phrase").setDescription("Phrase to block").setRequired(true).setMaxLength(100)))
     .addSubcommand(s=>s.setName("remove").setDescription("Unblock a word or phrase").addStringOption(o=>o.setName("phrase").setDescription("Phrase to remove").setRequired(true).setMaxLength(100)))
