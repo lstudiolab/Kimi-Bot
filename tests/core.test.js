@@ -617,3 +617,16 @@ test("failed AutoMod message deletion remains pending for retry",async()=>{
   assert.equal(job.steps.sanction,false);
   assert.equal(job.attempts,1);
 });
+
+test("automatic moderation warning history is capped per server",async()=>{
+  const warnings=Array.from({length:5000},(_,index)=>({
+    id:index+1,type:"warning",user_id:"member",created_at:Date.now(),automatic:true
+  }));
+  const store={data:{moderation_cases:{guild:warnings}},save(){}};
+  const moderation=new Moderation({},store,quiet);
+  const id=await moderation.warn("guild","member","spam");
+  assert.equal(id,5001);
+  assert.equal(store.data.moderation_cases.guild.length,5000);
+  assert.equal(store.data.moderation_cases.guild[0].id,2);
+  assert.equal(store.data.moderation_cases.guild.at(-1).id,5001);
+});
