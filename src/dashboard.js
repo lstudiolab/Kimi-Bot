@@ -22,7 +22,7 @@ const MODULES = Object.freeze([
 const LIBRARY_NAMES = new Set(["Foundation", "Security", "Support", "Scratch"]);
 const COMMAND_GROUPS = Object.freeze({
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","verify-config","filter","security","moderation"],
+  Security:["verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
@@ -256,6 +256,13 @@ export function startDashboardServer({ config, client, store, manager, libraries
           const topCommands=Object.entries(commandCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name,count])=>({name,count}));
           const rules=await context.guild.autoModerationRules.fetch().catch(()=>null);
           return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activeLibraries:(store.data.installed_libraries?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
+        }
+        const verificationLogsMatch=url.pathname.match(/^\/api\/guilds\/(\d+)\/verification-logs$/);
+        if(method==="GET"&&verificationLogsMatch){
+          const context=await requireGuild(req,res,session,verificationLogsMatch[1]);
+          if(!context)return;
+          const logs=store.data.verification_logs?.[verificationLogsMatch[1]]||[];
+          return send(res,200,{logs:logs.slice(0,300)});
         }
         if (method === "GET" && url.pathname === "/api/logs") {
           if (!config.dashboardOwnerId || session.discord?.id !== config.dashboardOwnerId) {
