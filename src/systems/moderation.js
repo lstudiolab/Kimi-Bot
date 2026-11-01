@@ -157,6 +157,7 @@ export class Moderation {
   async log(guild,content){
     const x=this.store.mods(guild.id);
     let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
+    if(!channel?.isTextBased())channel=null;
     if(!channel)channel=guild.channels.cache.find(c=>["timi-log","timi-logs","timi"].includes(c.name)&&c.type===ChannelType.GuildText);
     if(channel?.isTextBased())await channel.send({content,allowedMentions:{parse:[]}}).catch(()=>{});
   }
