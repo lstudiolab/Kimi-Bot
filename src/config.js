@@ -31,10 +31,8 @@ export function loadConfig(root = process.cwd()) {
   const logLevel = (get("LOG_LEVEL").trim() || "info").toLowerCase();
   const dashboardHost = get("DASHBOARD_HOST").trim() || "127.0.0.1";
   const dashboardPort = Number(get("DASHBOARD_PORT").trim() || "8787");
-  const oauthClientSecret = get("DISCORD_OAUTH_CLIENT_SECRET").trim();
-  const oauthRedirectUri = get("DISCORD_OAUTH_REDIRECT_URI").trim();
   const dashboardOwnerId = get("DASHBOARD_OWNER_ID").trim();
-  const dashboardCookieSecure = get("DASHBOARD_COOKIE_SECURE").trim() ? get("DASHBOARD_COOKIE_SECURE").trim().toLowerCase() === "true" : oauthRedirectUri.startsWith("https://");
+  const dashboardCookieSecure = get("DASHBOARD_COOKIE_SECURE").trim() ? get("DASHBOARD_COOKIE_SECURE").trim().toLowerCase() === "true" : true;
 
   if (!token || token === "your_discord_bot_token") {
     throw new Error("DISCORD_TOKEN is missing or empty. Set it in .env.");
@@ -48,10 +46,9 @@ export function loadConfig(root = process.cwd()) {
   if (!Number.isInteger(dashboardPort) || dashboardPort < 1024 || dashboardPort > 65535) {
     throw new Error("DASHBOARD_PORT must be a valid TCP port between 1024 and 65535.");
   }
-  if (Boolean(oauthClientSecret) !== Boolean(oauthRedirectUri)) throw new Error("Set both DISCORD_OAUTH_CLIENT_SECRET and DISCORD_OAUTH_REDIRECT_URI to enable Discord OAuth.");
   if (dashboardOwnerId && !/^\d{15,22}$/.test(dashboardOwnerId)) throw new Error("DASHBOARD_OWNER_ID must be a Discord user ID or blank.");
   fs.mkdirSync(dataDir, { recursive: true });
-  return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, oauthClientSecret, oauthRedirectUri, dashboardCookieSecure, dashboardOwnerId };
+  return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, dashboardCookieSecure, dashboardOwnerId };
 }
 
 export function createLogger(level = "info") {
