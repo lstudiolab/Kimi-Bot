@@ -8,6 +8,14 @@ import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
 
 const P = PermissionFlagsBits;
+export function getTicketStaffRoles(guild,supportRole=null){
+  const roles=new Map();
+  if(supportRole)roles.set(supportRole.id,supportRole);
+  for(const role of guild.roles.cache.values()){
+    if(role.id!==guild.id&&!role.managed&&role.permissions.has(P.ManageGuild))roles.set(role.id,role);
+  }
+  return [...roles.values()].slice(0,81);
+}
 export class Tickets {
   constructor(client, store, logger, foundation=null) { this.client=client; this.store=store; this.logger=logger; this.foundation=foundation; this.cooldowns=new Map(); this.opening=new Set(); this.closing=new Set(); }
   text(x) {
@@ -148,7 +156,8 @@ export class Tickets {
       {id:i.user.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks]},
       {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.ManageChannels,P.ManageMessages,P.ManageThreads,P.CreatePrivateThreads,P.SendMessagesInThreads]}
     ];
-    if(support)permissionOverwrites.push({id:support.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.SendMessagesInThreads]});
+    const staffRoles=getTicketStaffRoles(guild,support),staffRoleIds=new Set(staffRoles.map(role=>role.id));
+    permissionOverwrites.push(...staffRoles.map(role=>({id:role.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.AttachFiles,P.EmbedLinks,P.SendMessagesInThreads]})));
     const channelName="ticket-"+cleanChannelName(i.user.username).slice(0,84);
     const channel=await guild.channels.create({name:channelName,type:ChannelType.GuildText,parent:category.id,
       topic:`timi-ticket-owner:${i.user.id}`,permissionOverwrites,reason:"Create private support ticket for "+i.user.tag});
@@ -167,12 +176,12 @@ export class Tickets {
       const thread=await channel.threads.create({name:"staff-"+cleanChannelName(i.user.username).slice(0,80),
         type:ChannelType.PrivateThread,autoArchiveDuration:1440,invitable:false,reason:"Private staff discussion for support ticket"});
       await thread.send("Private staff discussion for <#"+channel.id+">. The ticket owner cannot see this thread.");
-      if(support){
+      if(staffRoleIds.size){
         let after;
         do{
           const members=await guild.members.list({limit:1000,...(after?{after}:{})});
           if(!members.size)break;
-          const staff=[...members.values()].filter(member=>member.roles.cache.has(support.id)&&!member.user.bot);
+          const staff=[...members.values()].filter(member=>!member.user.bot&&[...staffRoleIds].some(roleId=>member.roles.cache.has(roleId)));
           for(let offset=0;offset<staff.length;offset+=10){
             await Promise.allSettled(staff.slice(offset,offset+10).map(member=>thread.members.add(member.id)));
           }
