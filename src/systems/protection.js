@@ -10,16 +10,14 @@ export class Protection {
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     let channel=setup.log_channel_id?await guild.channels.fetch(setup.log_channel_id).catch(()=>null):null;
     if(channel?.type!==ChannelType.GuildText)channel=null;
-    if(!channel)channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&(c.name==="timi-log"||c.name==="timi"));
+    if(!channel)channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&(c.name==="kimi-channel"||c.name==="timi-log"||c.name==="timi"));
     const permissions=[
       {id:guild.id,deny:[P.ViewChannel]},
       {id:guild.ownerId,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]},
       {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.EmbedLinks,P.ManageMessages]}
     ];
-    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(P.ManageGuild)).first(80);
-    permissions.push(...adminRoles.map(role=>({id:role.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]})));
-    if(!channel)channel=await guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
-      topic:"Private Timi security alerts and bot approval requests. Only the server owner, server managers, and Timi can view this channel.",
+    if(!channel)channel=await guild.channels.create({name:"kimi-channel",type:ChannelType.GuildText,
+      topic:"Private Timi security alerts and bot approval requests. Only the server owner and Kimi can view this channel.",
       permissionOverwrites:permissions,reason:"Create private Timi security channel"});
     else await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(error=>{
       this.logger.warn("Could not refresh Timi log permissions:",error.message);
@@ -35,7 +33,7 @@ export class Protection {
   async restrictBot(guild,botId,privateId){
     const fetched=await guild.channels.fetch(),result={total:0,restricted:0,failed:0};
     for(const channel of fetched.values()){
-      if(!channel.permissionOverwrites||channel.id===privateId||["timi-log","timi-confirmations","timi-settings","timi"].includes(channel.name))continue;
+      if(!channel.permissionOverwrites||channel.id===privateId||["kimi-channel","kimi-confirmations","kimi-settings","timi-log","timi-confirmations","timi-settings","timi"].includes(channel.name))continue;
       result.total++;
       try{
         await channel.permissionOverwrites.edit(botId,{ViewChannel:false,SendMessages:false,ReadMessageHistory:false,Connect:false,Speak:false},
