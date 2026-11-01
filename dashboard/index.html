@@ -1,4 +1,29 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111214"><meta name="description" content="Kimi control center"><title>Kimi</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="app-shell"><aside class="sidebar" id="sidebar"><a class="brand" href="/"><span class="brand-mark">K</span><span>kimi</span></a><div class="server-select-wrap"><label for="server-select">SERVER</label><select id="server-select" disabled><option>Loading servers…</option></select></div><nav class="nav"><button class="nav-link active" data-page="overview"><span>◫</span>Overview</button><button class="nav-link" data-page="systems"><span>⌘</span>Systems</button><button class="nav-link" data-page="activity"><span>≡</span>Activity</button></nav><div class="sidebar-bottom"><span class="live-dot"></span><span>Kimi runtime</span><span class="version">Termux</span></div></aside>
-<main class="main"><header class="topbar"><button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button><div><div class="eyebrow">KIMI CONTROL CENTER</div><div class="page-title" id="page-title">Overview</div></div><div class="profile" id="profile"><span class="avatar">K</span><span id="profile-name">Loading</span><button id="sign-out" class="quiet-button">Sign out</button></div></header><section id="content" class="content" aria-live="polite"><div class="loading">Connecting to Kimi…</div></section><footer class="footer"><span>Kimi</span><span id="runtime-label">Connecting to local runtime</span></footer></main></div><div id="toast" class="toast" role="status"></div><script src="/app.js" defer></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111214"><title>Kimi Control Center</title><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar" id="sidebar">
+<a class="brand" href="/"><span class="brand-mark">K</span><span>kimi</span></a>
+<div class="server-select-wrap"><label for="server-select">SERVER</label><select id="server-select" disabled><option>Loading servers…</option></select></div>
+<div class="nav-label">WORKSPACE</div>
+<nav class="nav">
+<button class="nav-link active" data-page="menu"><span>◫</span>Menu</button>
+<button class="nav-link" data-page="analytics"><span>⌁</span>Analytics</button>
+<button class="nav-link" data-page="modules"><span>▦</span>Modules</button>
+<button class="nav-link" data-page="logs" id="logs-nav"><span>≡</span>Logs</button>
+<div class="nav-label nav-spacer">CONFIGURATION</div>
+<button class="nav-link" data-page="bot-settings"><span>⚙</span>Bot settings</button>
+<button class="nav-link" data-page="commands"><span>⌘</span>Command configuration</button>
+</nav>
+<div class="sidebar-bottom"><span class="live-dot"></span><span>Kimi runtime</span><span class="version">Termux</span></div>
+</aside>
+<main class="main">
+<header class="topbar"><button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button><div><div class="eyebrow">KIMI CONTROL CENTER</div><div class="page-title" id="page-title">Menu</div></div><div class="profile"><span class="avatar">K</span><span id="profile-name">Loading</span><button id="sign-out" class="quiet-button">Sign out</button></div></header>
+<section id="content" class="content" aria-live="polite"><div class="loading">Connecting to Kimi…</div></section>
+<footer class="footer"><span>Kimi</span><span id="runtime-label">Connecting to local runtime</span></footer>
+</main></div><div id="toast" class="toast" role="status"></div><script src="/app.js" defer></script>
+</body></html>
