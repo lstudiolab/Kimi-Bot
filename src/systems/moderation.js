@@ -29,8 +29,18 @@ export class Moderation {
         const channel=await guild.channels.fetch(job.channel_id).catch(()=>null);
         if(channel?.isTextBased()){
           const ids=(job.message_ids||[]).filter(Boolean);
-          if(ids.length>1)await channel.bulkDelete(ids,true).catch(async()=>{for(const id of ids){const message=await channel.messages.fetch(id).catch(()=>null);if(message)await message.delete().catch(()=>{});}});
-          else if(ids[0]){const message=await channel.messages.fetch(ids[0]).catch(()=>null);if(message)await message.delete().catch(()=>{});}
+          let remaining=ids;
+          if(ids.length>1){
+            const deleted=await channel.bulkDelete(ids,true).catch(()=>null);
+            if(deleted)remaining=ids.filter(id=>!deleted.has(id));
+          }
+          const failures=[];
+          for(const id of remaining){
+            const message=await channel.messages.fetch(id).catch(()=>null);
+            if(!message)continue;
+            try{await message.delete();}catch(error){failures.push({id,error});}
+          }
+          if(failures.length)throw new Error("Could not delete "+failures.length+" flagged message(s): "+failures.map(item=>item.id).join(", "));
         }
         job.steps.deleted=true;job.updated_at=Date.now();this.store.save();
       }
