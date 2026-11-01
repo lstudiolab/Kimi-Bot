@@ -646,3 +646,30 @@ test("blocked-phrase AutoMod does not sanction when message deletion fails",asyn
   assert.equal(warnings,0);
   assert.equal(logs,1);
 });
+
+import { startWorking, respond, finishWorking } from "../src/ui.js";
+
+test("Discord interactions are acknowledged once and use the deferred response",async()=>{
+  let deferred=0,edits=0,last=null;
+  const interaction={
+    deferred:false,replied:false,
+    async deferReply(options){deferred++;this.deferred=true;assert.equal(options.ephemeral,true);},
+    async editReply(payload){edits++;last=payload;this.replied=true;return payload;}
+  };
+  await startWorking(interaction);
+  await startWorking(interaction);
+  await respond(interaction,"Completed.");
+  assert.equal(deferred,1);
+  assert.equal(edits,1);
+  assert.equal(last.content,"Completed.");
+});
+
+test("unanswered interactions get one fallback, while deleted ticket replies are skipped",async()=>{
+  let edits=0;
+  const pending={deferred:true,replied:false,async editReply(){edits++;}};
+  assert.equal(await finishWorking(pending),true);
+  assert.equal(edits,1);
+  const deleted={deferred:true,replied:false,__timiDeletedReply:true,async editReply(){edits++;}};
+  assert.equal(await finishWorking(deleted),false);
+  assert.equal(edits,1);
+});
