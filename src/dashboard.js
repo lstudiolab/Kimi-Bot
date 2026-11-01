@@ -164,6 +164,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       name: guild.name,
       icon: guild.iconURL({ size: 64 }),
       owner: guild.ownerId === session.user.id,
+      canManage: true,
       libraries: [...LIBRARY_NAMES].map(name => ({
         name,
         installed: installed.includes(name),
@@ -410,7 +411,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && ["/", "/dashboard", "/dashboard/index.html", "/index.html"].includes(pagePath)) {
         const session = sessionFor(req);
         if (!session) return redirect(res, "/login");
-        if (!session.scope.split(/\\s+/).includes("guilds")) return redirect(res, "/auth/discord");
+        if (!session.scope.split(/\s+/).includes("guilds")) return redirect(res, "/auth/discord");
         return staticFile(res, "index.html");
       }
       if (method === "GET" && ["/app.js", "/styles.css", "/verify.js", "/dashboard/app.js", "/dashboard/styles.css", "/dashboard/verify.js"].includes(pagePath)) {
@@ -421,7 +422,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && !path.extname(pagePath)) {
         const session = sessionFor(req);
         if (!session) return redirect(res, "/login");
-        if (!session.scope.split(/\\s+/).includes("guilds")) return redirect(res, "/auth/discord");
+        if (!session.scope.split(/\s+/).includes("guilds")) return redirect(res, "/auth/discord");
         return staticFile(res, "index.html");
       }
       return send(res, 404, { error: "Not found." });
