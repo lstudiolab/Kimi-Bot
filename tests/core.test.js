@@ -461,6 +461,9 @@ test("AutoMod blocked phrases match whole words without false substrings",()=>{
   assert.equal(matchesBlockedPhrase("passage","ass"),false);
   assert.equal(matchesBlockedPhrase("nothing suspicious",""),false);
   assert.equal(matchesBlockedPhrase("élève suspect","élève"),true);
+  assert.equal(matchesBlockedPhrase("𐐨ass","ass"),false,"supplementary Unicode letters must count as word characters");
+  assert.equal(matchesBlockedPhrase("ass𐐨","ass"),false,"supplementary Unicode letters after a phrase must count as word characters");
+  assert.equal(matchesBlockedPhrase("💩ass!","ass"),true,"symbols remain valid word boundaries");
 });
 
 import { isTrustedTbScriptAttachmentUrl } from "../src/systems/scratch.js";
