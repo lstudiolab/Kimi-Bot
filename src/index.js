@@ -53,7 +53,7 @@ async function coreCommand(i){
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
   });
-  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nUse /install and enter a libraryname.");
+  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nUse /install with the library option.");
  }
  if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Timi libraries.");
