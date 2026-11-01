@@ -13,5 +13,8 @@ if ! grep -Eq '^DISCORD_OAUTH_CLIENT_SECRET=.+$' .env || ! grep -Eq '^DISCORD_OA
   echo "Discord dashboard login is not configured. Set DISCORD_OAUTH_CLIENT_SECRET and the public HTTPS callback URL in .env."
   exit 1
 fi
+if command -v termux-wake-lock >/dev/null 2>&1; then
+  termux-wake-lock || true
+fi
 npm run check
 exec npm start
