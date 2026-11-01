@@ -36,7 +36,7 @@ export class Verification {
     ];
     this.store.save();return {score:agePoints+historyPoints+attemptPoints+behaviorPoints+avatarPoints,checks,ageFailed};
   }
-  async log(guild,channelId,content){
+  async log(guild,channelId,content,components=[]){
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     let ch=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
     if(!ch&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
@@ -127,8 +127,8 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     if(!match)return deny(i,"This verification review control is invalid.");
     const [,decision,guildId,userId]=match;
     if(i.guildId!==guildId)return deny(i,"This review belongs to a different server.");
-    if(!isManager(i))return deny(i,"Only server managers can decide verification reviews.");
     const guild=i.guild||await this.client.guilds.fetch(guildId);
+    if(guild.ownerId!==i.user.id&&!isManager(i))return deny(i,"Only server managers can decide verification reviews.");
     const record=this.store.member(guildId,userId);
     if(record.last_verified>0)return deny(i,"This member has already been approved.");
     const member=await guild.members.fetch(userId).catch(()=>null);
