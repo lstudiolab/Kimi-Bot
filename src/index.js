@@ -10,6 +10,15 @@ import { getStorageReport, formatBytes } from "./subscriptions.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
+const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
+const commandModule={
+ "verify-config":"verification","verify":"verification","moderation":"moderation","filter":"moderation","security":"protection",
+ "welcome":"welcome","autorole":"welcome","roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
+ "tickets":"tickets","ticket-panel":"tickets","ticket-config":"tickets",
+ "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
+ "script-export":"scratch","script-import":"scratch","script-history":"scratch","script-check":"scratch","script-undo":"scratch","script-redo":"scratch","script-kit":"scratch","script-help":"scratch","script-template":"scratch"
+};
+const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:"))?"scratch":null;
 const foundation=LIBRARIES.Foundation.create(context);context.foundation=foundation;
 const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
 context.libraries=libraries;
@@ -79,6 +88,8 @@ async function handleInteraction(i){
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
   if(["timi-settings","install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
+  const moduleId=commandModule[i.commandName];
+  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /timi-settings.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
   if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Timi library commands.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
@@ -86,6 +97,8 @@ async function handleInteraction(i){
  }
  const id=i.customId||"";
  if(id.startsWith("settings:"))return settings.handle(i);
+ const moduleId=componentModule(id);
+ if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /timi-settings.`);
  const required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
@@ -133,17 +146,17 @@ client.on(Events.MessageCreate,async m=>{
    return m.reply("Timi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
   }
  }
- if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m).catch(e=>logger.error("Moderation message processing failed:",e));
+ if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
-client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
-client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security"))libraries.Security.messageUpdate(oldMessage,newMessage).catch(e=>logger.error("Message edit log failed:",e));});
-client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
-client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
-client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
-client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries.Security.messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
+client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security")&&moduleEnabled(newMember.guild.id,"moderation"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
+client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
+client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security")&&moduleEnabled(guild.id,"protection"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
- if(manager.installed(m.guild.id,"Security"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
- if(manager.installed(m.guild.id,"Foundation")){
+ if(manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"protection"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
+ if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome")){
   if(!manager.installed(m.guild.id,"Security")){const r=store.member(m.guild.id,m.id);r.joins++;r.last_join=Date.now();store.save();}
   libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
  }
@@ -151,12 +164,12 @@ client.on(Events.GuildMemberAdd,m=>{
 client.on(Events.GuildMemberRemove,m=>{
  const foundationInstalled=manager.installed(m.guild.id,"Foundation");
  const securityInstalled=manager.installed(m.guild.id,"Security");
- if(foundationInstalled||securityInstalled){const record=store.member(m.guild.id,m.id);record.leaves++;store.save();}
- if(foundationInstalled)libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
+ if((foundationInstalled&&moduleEnabled(m.guild.id,"welcome"))||(securityInstalled&&moduleEnabled(m.guild.id,"protection"))){const record=store.member(m.guild.id,m.id);record.leaves++;store.save();}
+ if(foundationInstalled&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
-client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelCreate(c);});
-client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelUpdate(o,c);});
-client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
+client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelCreate(c);});
+client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelUpdate(o,c);});
+client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Timi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
