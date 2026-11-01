@@ -371,3 +371,18 @@ test("renamed Foundation slash commands reach their system handlers",async()=>{
     await embeds.handle({isChatInputCommand:()=>true,commandName});
   assert.deepEqual(embedCalls,["embed-new","embed-edit","embed-post"]);
 });
+
+test("published role pickers revalidate role safety before assigning",async()=>{
+  let added=false,response=null;
+  const store={data:{role_picker_menus:{menu:{guild_id:"guild",roles:[{id:"role-safe"}],selections:{}}}},save(){}};
+  const picker=new RolePicker({},store,quiet,{validateRole:async()=>[false,"role has privileged permissions"]});
+  const interaction={
+    customId:"rolepicker:menu:menu",guildId:"guild",values:["role-safe"],user:{id:"member"},
+    guild:{roles:{fetch:async()=>({id:"role-safe"})}},
+    member:{roles:{add:async()=>{added=true;},remove:async()=>{}}},
+    deferred:true,replied:false,editReply:async payload=>{response=payload;}
+  };
+  await picker.menu(interaction);
+  assert.equal(added,false,"a role that became privileged after publication must not be assigned");
+  assert.match(response.content,/can no longer be self-assigned/);
+});
