@@ -696,3 +696,15 @@ test("private-channel checks reject public and non-text destinations",()=>{
   assert.equal(isPrivateTextChannel({isTextBased:()=>false},guild),false);
   assert.equal(isPrivateTextChannel(null,guild),false);
 });
+
+import { libraryForComponent } from "../src/component-routing.js";
+
+test("all persistent component prefixes route to their installed library",()=>{
+  for(const [id,library] of [
+    ["ticket:close","Support"],["modpanel:enable","Security"],["botguard:yes:123","Security"],
+    ["verify:start","Security"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
+    ["tbs:button:1","Scratch"],["tbm:open:1","Scratch"],["tbm-submit:form","Scratch"],
+    ["developer:editor:new:test","Scratch"]
+  ])assert.equal(libraryForComponent(id),library,id);
+  assert.equal(libraryForComponent("unknown:component"),null);
+});
