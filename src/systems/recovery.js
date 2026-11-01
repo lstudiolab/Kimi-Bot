@@ -1,9 +1,9 @@
 import { AuditLogEvent, ChannelType, PermissionFlagsBits } from "discord.js";
 import { nowMs, DAY, chunkText } from "../utils.js";
 
-const WEEK=7*DAY,MAX_MESSAGES=25000;
+const WEEK=7*DAY,MAX_MESSAGES=25000,MAX_ARCHIVE_BYTES=4*1024*1024;
 export class Recovery {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.deletions=new Map();this.recovering=new Set();}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.deletions=new Map();this.recovering=new Set();this.archiveBytes=new Map();}
   snapshot(channel) {
     if(!channel.guild||!channel.id)return;
     const permissions=channel.permissionOverwrites?.cache?.map(o=>({
@@ -21,13 +21,22 @@ export class Recovery {
     if(!message.guild||message.author.bot||(!message.content&&message.attachments.size===0))return;
     const guild=message.guild.id;
     const list=this.store.data.messages[guild]||[];this.store.data.messages[guild]=list;
-    list.push({
+    const sizeOf=value=>Buffer.byteLength(JSON.stringify(value),"utf8");
+    let bytes=this.archiveBytes.get(guild);
+    if(bytes===undefined){
+      list.sort((a,b)=>(a.timestamp_ms||0)-(b.timestamp_ms||0));
+      bytes=list.reduce((total,item)=>total+sizeOf(item),0);
+    }
+    const cutoff=nowMs()-WEEK;
+    while(list.length&&(list[0].timestamp_ms||0)<cutoff)bytes-=sizeOf(list.shift());
+    const record={
       id:message.id,channel_id:message.channelId,author_id:message.author.id,author_tag:message.author.tag,
       content:(message.content||"").slice(0,4000),timestamp_ms:message.createdTimestamp,
       attachments:[...message.attachments.values()].slice(0,10).map(a=>({name:a.name,url:a.url,content_type:a.contentType,size:a.size}))
-    });
-    const cutoff=nowMs()-WEEK;
-    this.store.data.messages[guild]=list.filter(m=>(m.timestamp_ms||0)>=cutoff).slice(-MAX_MESSAGES);
+    };
+    list.push(record);bytes+=sizeOf(record);
+    while(list.length&&(list.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(list.shift());
+    this.archiveBytes.set(guild,Math.max(0,bytes));
     this.store.queueSave();
   }
   async findLogChannel(guild) {
