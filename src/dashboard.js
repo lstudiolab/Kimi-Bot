@@ -107,14 +107,15 @@ export function startDashboardServer({ config, client, store, manager, libraries
     res.setHeader("Set-Cookie", COOKIE + "=" + encodeURIComponent(token) + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + Math.floor(SESSION_TTL / 1000) + secure);
   }
   async function memberAccess(session, guild) {
-    const discordId = session.discord?.id;
+    const link = (session.account.guilds || []).find(item => item.id === guild.id);
+    const discordId = link?.linkedBy;
     if (!discordId) return null;
-    if (guild.ownerId === discordId) return { owner: true, canManage: true };
+    if (guild.ownerId === discordId) return { owner: true, canManage: true, linkedBy: discordId };
     const member = guild.members.cache.get(discordId) || await guild.members.fetch(discordId).catch(() => null);
     if (!member) return null;
     const bits = member.permissions.bitfield;
     const canManage = (bits & 0x8n) === 0x8n || (bits & 0x20n) === 0x20n;
-    return canManage ? { owner: false, canManage: true } : null;
+    return canManage ? { owner: false, canManage: true, linkedBy: discordId } : null;
   }
   async function authorizedGuild(session, guildId) {
     const guild = client.guilds.cache.get(guildId);
@@ -141,7 +142,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       id: guild.id,
       name: guild.name,
       icon: guild.iconURL({ size: 64 }),
-      owner: guild.ownerId === session.discord?.id,
+      owner: guild.ownerId === (session.account.guilds || []).find(item => item.id === guild.id)?.linkedBy,
       canManage: true,
       libraries: [...LIBRARY_NAMES].map(name => ({
         name,
@@ -219,18 +220,27 @@ export function startDashboardServer({ config, client, store, manager, libraries
           return send(res, 200, {
             user: { id: account.id, username: account.email, email: account.email, globalName: account.displayName, displayName: account.displayName, createdAt: account.createdAt, discord: account.discord },
             bot: { ready: client.isReady(), tag: client.user?.tag || null, guildCount: client.guilds.cache.size },
-            canViewLogs: Boolean(config.dashboardOwnerId && session.discord?.id === config.dashboardOwnerId),
+            canViewLogs: Boolean(config.dashboardOwnerId && (session.discord?.id === config.dashboardOwnerId || (session.account.guilds || []).some(item => item.linkedBy === config.dashboardOwnerId))),
             discordLinked: Boolean(session.discord)
           });
+        }
+        if (method === "POST" && url.pathname === "/api/web-token") {
+          const result = authStore.createWebToken(session.account.id);
+          return send(res, 200, result);
+        }
+        if (method === "POST" && url.pathname === "/api/web-token/status") {
+          const body = await parseBody(req);
+          return send(res, 200, authStore.getWebTokenStatus(session.account.id, body.token));
         }
         if (method === "POST" && url.pathname === "/api/discord/link-code") {
           const result = authStore.createLinkCode(session.account.id);
           return send(res, 200, { code: result.code, expiresAt: result.expiresAt });
         }
         if (method === "GET" && url.pathname === "/api/guilds") {
-          if (!session.discord?.id) return send(res, 409, { error: "Connect your Discord account to load servers. Generate a linking code and use /dashboard-link in a server where Kimi is installed." });
           const guilds = [];
-          for (const guild of client.guilds.cache.values()) {
+          for (const link of session.account.guilds || []) {
+            const guild = client.guilds.cache.get(link.id);
+            if (!guild) continue;
             const access = await memberAccess(session, guild);
             if (access) guilds.push({ id: guild.id, name: guild.name, icon: guild.iconURL({ size: 64 }), owner: access.owner });
           }
