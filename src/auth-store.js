@@ -112,6 +112,7 @@ export class AuthStore {
   completeLinkCode(code, discordUser) {
     const normalized = String(code || "").trim();
     const now = Date.now();
+    for (const [userId, record] of this.linkFailures) if (record.resetAt <= now) this.linkFailures.delete(userId);
     const attempt = this.linkFailures.get(discordUser.id) || { count: 0, resetAt: now + LINK_TTL };
     if (attempt.resetAt <= now) { attempt.count = 0; attempt.resetAt = now + LINK_TTL; }
     if (attempt.count >= 5) return { error: "Too many incorrect linking codes. Wait 10 minutes and generate a new code." };
