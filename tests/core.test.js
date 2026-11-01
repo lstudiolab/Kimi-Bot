@@ -386,3 +386,17 @@ test("published role pickers revalidate role safety before assigning",async()=>{
   assert.equal(added,false,"a role that became privileged after publication must not be assigned");
   assert.match(response.content,/can no longer be self-assigned/);
 });
+
+import { isSafeAssignableRole, SELF_SERVICE_BLOCKED_PERMISSIONS } from "../src/permissions.js";
+
+test("self-service role validation blocks every privileged permission",()=>{
+  const role={id:"role",managed:false,permissions:{has:()=>false}};
+  assert.equal(isSafeAssignableRole(role,"guild"),true);
+  assert.equal(isSafeAssignableRole(null,"guild"),false);
+  assert.equal(isSafeAssignableRole({...role,id:"guild"},"guild"),false);
+  assert.equal(isSafeAssignableRole({...role,managed:true},"guild"),false);
+  for(const permission of SELF_SERVICE_BLOCKED_PERMISSIONS){
+    assert.equal(isSafeAssignableRole({...role,permissions:{has:value=>value===permission}},"guild"),false,
+      "privileged permission "+permission+" must not be self-assignable");
+  }
+});
