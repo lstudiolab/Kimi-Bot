@@ -1,4 +1,13 @@
-import test from "node:test";
+imp
+test("pre-rename ticket settings filename remains supported",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-legacy-ticket-"));
+  try{
+    fs.writeFileSync(path.join(dir,"ticket-settings.json"),JSON.stringify({"guild-old":{panelTitle:"Old Support"}}));
+    const store=new Store(dir,quiet);
+    assert.equal(store.ticket("guild-old").panel_title,"Old Support");
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+ort test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
