@@ -96,36 +96,36 @@ export class Developer {
     if (!await this.allowed(i)) return;
     const name = i.commandName;
 
-    if (name === "code") {
+    if (name === "script") {
       const slug = slugify(i.options.getString("name"));
       if (!/^[a-z0-9][a-z0-9_-]{0,23}$/.test(slug)) return deny(i, "Project names can contain letters, numbers, underscores, and hyphens (up to 24 characters).");
-      if (this.project(i.guildId, slug)) return deny(i, "That project already exists. Use /code-edit.");
+      if (this.project(i.guildId, slug)) return deny(i, "That project already exists. Use /script-edit.");
       const attachment=i.options.getAttachment("file");
       if(attachment)return this.createProjectFromAttachment(i,slug,attachment);
       return i.showModal(modal("developer:editor:new:" + slug, "Create TbScript project", [
         textInput("source", "TbScript source", STARTER, TextInputStyle.Paragraph, true, 4000)
       ]));
     }
-    if(name==="code-template")return this.createTemplate(i,i.options.getString("name"),i.options.getString("template"));
-    if(name==="code-docs")return this.docs(i,i.options.getString("topic")||"syntax");
-    if(name==="code-validate")return this.validate(i,i.options.getString("name"));
+    if(name==="script-template")return this.createTemplate(i,i.options.getString("name"),i.options.getString("template"));
+    if(name==="script-help")return this.docs(i,i.options.getString("topic")||"syntax");
+    if(name==="script-check")return this.validate(i,i.options.getString("name"));
 
-    if (name === "code-edit") {
+    if (name === "script-edit") {
       const target = i.options.getString("target");
       const attachment=i.options.getAttachment("file");
       if(attachment)return this.replaceTargetFromAttachment(i,target,attachment);
       if (target === "project") {
         const slug = slugify(i.options.getString("name"));
         const project = this.project(i.guildId, slug);
-        if (!project) return deny(i, "That project does not exist. Use /code-list or /code.");
-        if(Buffer.byteLength(project.source,"utf8")>3900)return deny(i,"This source is too large for a Discord editor modal. Use /code-export, edit the .tdl file, then run /code-edit with target:Project, name, and the edited file attached.");
+        if (!project) return deny(i, "That project does not exist. Use /scripts or /script.");
+        if(Buffer.byteLength(project.source,"utf8")>3900)return deny(i,"This source is too large for a Discord editor modal. Use /script-export, edit the .tdl file, then run /script-edit with target:Project, name, and the edited file attached.");
         return i.showModal(modal("developer:editor:project:" + slug, "Edit " + project.name, [
           textInput("source", "TbScript source", project.source, TextInputStyle.Paragraph, true, 4000)
         ]));
       }
       if (panelTarget(target)) {
         const current = this.store.data.panel_scripts[i.guildId]?.[target];
-        if(current&&Buffer.byteLength(current,"utf8")>3900)return deny(i,"This source is too large for a Discord editor modal. Edit a .tdl file and attach it to /code-edit with the same target.");
+        if(current&&Buffer.byteLength(current,"utf8")>3900)return deny(i,"This source is too large for a Discord editor modal. Edit a .tdl file and attach it to /script-edit with the same target.");
         const settings = target === "ticket-panel" ? this.store.ticket(i.guildId)
           : target === "verification-panel" ? this.store.verify(i.guildId) : null;
         const fallback=panelSource(settings?.panel_title||target.replace("-panel",""),settings?.panel_description||"Customize this Timi panel with TbScript.");
@@ -136,23 +136,23 @@ export class Developer {
       return deny(i, "Choose project, ticket-panel, or verification-panel.");
     }
 
-    if (name === "code-list") {
+    if (name === "scripts") {
       const entries = Object.entries(this.projects(i.guildId));
       const storage = getStorageReport(this.store, i.guildId);
       const body = entries.length
         ? entries.slice(0, 20).map(([slug, p]) => "**" + p.name + "** (" + slug + ") · v" + p.version + " · " + (p.status || "saved")).join("\n")
-        : "No projects saved yet. Use /code to create one.";
+        : "No projects saved yet. Use /script to create one.";
       return respond(i, "**Developer projects**\n" + body + "\n\nStorage: " + formatBytes(storage.bytes) + " / " + formatBytes(storage.limit));
     }
-    if (name === "code-run") return this.run(i, i.options.getString("name"));
-    if (name === "code-stop") return this.stop(i, i.options.getString("name"));
-    if (name === "code-delete") return this.remove(i, i.options.getString("name"));
-    if (name === "code-export") return this.export(i, i.options.getString("name"));
-    if (name === "code-import") return this.import(i, i.options.getAttachment("file"), i.options.getBoolean("replace") === true);
-    if (name === "code-history") return this.history(i, i.options.getString("name"));
-    if (name === "code-undo") return this.undo(i, i.options.getString("name"));
-    if (name === "code-redo") return this.redo(i, i.options.getString("name"));
-    if (name === "code-kit") return this.kit(i);
+    if (name === "script-run") return this.run(i, i.options.getString("name"));
+    if (name === "script-stop") return this.stop(i, i.options.getString("name"));
+    if (name === "script-delete") return this.remove(i, i.options.getString("name"));
+    if (name === "script-export") return this.export(i, i.options.getString("name"));
+    if (name === "script-import") return this.import(i, i.options.getAttachment("file"), i.options.getBoolean("replace") === true);
+    if (name === "script-history") return this.history(i, i.options.getString("name"));
+    if (name === "script-undo") return this.undo(i, i.options.getString("name"));
+    if (name === "script-redo") return this.redo(i, i.options.getString("name"));
+    if (name === "script-kit") return this.kit(i);
   }
 
   async createProjectFromAttachment(i,slug,attachment){
@@ -175,7 +175,7 @@ export class Developer {
     if(!report.ok)return deny(i,storageError(report));
     this.store.data.developer_projects[i.guildId]=projects;
     this.store.save();
-    return respond(i,"Created **"+slug+"** from a "+origin+". It is saved but not running. Use /code-run to test it.");
+    return respond(i,"Created **"+slug+"** from a "+origin+". It is saved but not running. Use /script-run to test it.");
   }
 
   async createTemplate(i,rawName,templateName){
@@ -190,7 +190,7 @@ export class Developer {
   async docs(i,topic){
     const selected=DOCUMENTATION[topic]||DOCUMENTATION.syntax;
     const title=topic.charAt(0).toUpperCase()+topic.slice(1);
-    return respond(i,"**TbScript documentation — "+title+"**\n"+selected+"\n\nUse /code-kit to assemble components into a project, /code-template to start from a template, and /code-validate to inspect a saved project's syntax.");
+    return respond(i,"**TbScript documentation — "+title+"**\n"+selected+"\n\nUse /script-kit to assemble components into a project, /script-template to start from a template, and /script-check to inspect a saved project's syntax.");
   }
 
   async validate(i,rawName){
@@ -222,7 +222,7 @@ export class Developer {
       this.store.data.panel_scripts[i.guildId] = scripts;
       this.store.save();
       await this.refreshPanel(i.guild, target);
-      return respond(i, "TbScript saved and existing " + target.replace("-", " ") + " panels refreshed." + autoFixNote + " Use /code-edit to change it again.");
+      return respond(i, "TbScript saved and existing " + target.replace("-", " ") + " panels refreshed." + autoFixNote + " Use /script-edit to change it again.");
     }
 
     const slug = target;
@@ -254,7 +254,7 @@ export class Developer {
     delete this.store.data.developer_redo[i.guildId][slug];
     stopRuntime(this.store,i.guildId,slug);
     this.store.save();
-    return respond(i, (mode === "new" ? "Project created." : "Project saved.") + autoFixNote + " It is saved but not running. Use /code-run to test it.");
+    return respond(i, (mode === "new" ? "Project created." : "Project saved.") + autoFixNote + " It is saved but not running. Use /script-run to test it.");
   }
 
   async replaceTargetFromAttachment(i,target,attachment){
@@ -305,7 +305,7 @@ export class Developer {
     try {
       if (target === "ticket-panel") await this.context.libraries?.Support?.refreshPanels?.(guild);
       if (target === "verification-panel") await this.context.libraries?.Foundation?.refreshVerification?.(guild);
-      if (target === "moderation-panel") await this.context.libraries?.Moderation?.refreshPanel?.(guild);
+      if (target === "moderation-panel") await this.context.libraries?.Security?.refreshPanel?.(guild);
       if (target === "role-picker-panel") await this.context.libraries?.Foundation?.refreshRolePickers?.(guild);
     } catch (error) {
       this.logger.warn("TbScript panel refresh failed:", error.message);
@@ -329,7 +329,7 @@ export class Developer {
       message = await i.channel.send({
         content: rendered.content, embeds: rendered.embeds, components: rendered.components, allowedMentions: { parse: [] }
       });
-      await respond(i, "Project " + project.name + " is running in this channel. Use /code-stop to disable its controls.");
+      await respond(i, "Project " + project.name + " is running in this channel. Use /script-stop to disable its controls.");
     }
     this.store.data.developer_active[i.guildId] ||= {};
     this.store.data.developer_active[i.guildId][slug] = {
@@ -520,7 +520,7 @@ export class Developer {
       if (!project || active?.status !== "running" || active.message_id !== i.message.id) return deny(i, "This project control is no longer active.");
       source = project.source;
     } else {
-      if (!(this.store.data.installed_libraries[i.guildId] || []).includes("Developer")) return deny(i, "The Developer library is not active.");
+      if (!(this.store.data.installed_libraries[i.guildId] || []).includes("Scratch")) return deny(i, "The Developer library is not active.");
       const panels = scope === "ticket" ? this.store.ticket(i.guildId).published_panels
         : scope === "verification" ? this.store.verify(i.guildId).published_panels
         : scope === "moderation" ? [{message_id:this.store.mods(i.guildId).panel_message_id}]
@@ -553,7 +553,7 @@ export class Developer {
       source = project.source;
     } else {
       const target = ["ticket","verification","moderation","role-picker"].includes(scope) ? scope + "-panel" : "";
-      if (!target || !(this.store.data.installed_libraries[i.guildId] || []).includes("Developer")) return deny(i, "This panel form is no longer active.");
+      if (!target || !(this.store.data.installed_libraries[i.guildId] || []).includes("Scratch")) return deny(i, "This panel form is no longer active.");
       const panels = scope === "ticket" ? this.store.ticket(i.guildId).published_panels
         : scope === "verification" ? this.store.verify(i.guildId).published_panels
         : scope === "moderation" ? [{message_id:this.store.mods(i.guildId).panel_message_id}]
@@ -581,7 +581,7 @@ export class Developer {
       if(!KIT[key])return deny(i,"Unknown component.");
       if(!projects.length){
         const fence=String.fromCharCode(96).repeat(3);
-        return respond(i,"Create a project with /code first. Component source:\n"+fence+"text\n"+KIT[key]+"\n"+fence);
+        return respond(i,"Create a project with /script first. Component source:\n"+fence+"text\n"+KIT[key]+"\n"+fence);
       }
       const menu=new StringSelectMenuBuilder().setCustomId("developer:kit-project:"+key)
         .setPlaceholder("Choose a project").setMinValues(1).setMaxValues(1)
