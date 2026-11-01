@@ -98,3 +98,34 @@ td{color:#c6c9ce}
 .chart-labels{color:#777d85}
 .divider{background:#292c30}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+
+/* Kimi dashboard additions */
+.kimi-summary-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;margin-bottom:14px;background:#17191c;border:1px solid #2a2d32;border-radius:9px}
+.kimi-summary-row strong,.kimi-summary-row small{display:block}
+.kimi-summary-row strong{font-size:12px;font-weight:620}
+.kimi-summary-row small{font-size:10px;color:#858b93;margin-top:3px}
+.kimi-module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kimi-module-card{min-width:0;background:#17191c;border:1px solid #2a2d32;border-radius:10px;padding:15px;display:flex;flex-direction:column;min-height:208px;transition:border-color .16s,transform .16s}
+.kimi-module-card:hover{border-color:#454a51;transform:translateY(-2px)}
+.kimi-module-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.kimi-module-icon{width:31px;height:31px;border-radius:8px;background:#282b30;color:#e0e2e5;display:grid;place-items:center;font-size:13px;font-weight:650}
+.kimi-tag{display:inline-flex;align-items:center;border:1px solid #383c42;background:#202327;border-radius:20px;padding:3px 7px;color:#aeb3ba;font-size:9px;white-space:nowrap}
+.kimi-module-title{font-size:12px;font-weight:620;letter-spacing:-.1px}
+.kimi-module-card p{font-size:10px;line-height:1.55;color:#92979e;margin:6px 0 13px;min-height:31px}
+.kimi-module-meta{display:flex;gap:10px;flex-wrap:wrap;color:#777d85;font-size:9px;margin-top:auto;padding-bottom:12px}
+.kimi-module-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid #26292d;padding-top:11px}
+.kimi-installed{display:inline-flex;align-items:center;gap:6px;color:#bfc4ca;font-size:9px;margin-right:auto}
+.kimi-installed i{width:6px;height:6px;border-radius:50%;background:#b7bdc3;display:inline-block}
+.kimi-footnote{margin-top:15px}
+.kimi-empty{grid-column:1/-1;text-align:center;padding:35px}
+.kimi-empty p{color:#858b93;font-size:10px}
+.kimi-runtime{display:flex;align-items:center;gap:11px;margin:15px 0}
+.kimi-runtime-mark{width:34px;height:34px;border-radius:9px;background:#292d32;display:grid;place-items:center;font-weight:700}
+.kimi-runtime div{display:flex;flex-direction:column;flex:1}
+.kimi-runtime strong{font-size:11px}
+.kimi-runtime small{font-size:9px;color:#858b93}
+.kimi-language-option strong{font-size:11px}
+.kimi-language-option p{font-size:10px;color:#92979e;line-height:1.55;margin:5px 0 9px}
+@media(max-width:1050px){.kimi-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.kimi-module-grid{grid-template-columns:1fr}.kimi-summary-row{align-items:flex-start;flex-direction:column}.kimi-module-card{min-height:0}}
