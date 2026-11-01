@@ -124,7 +124,8 @@ function localizeInteraction(i){
  }
 }
 async function handleInteraction(i){
- localizeInteraction(i);\n if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
+ localizeInteraction(i);
+ if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
   if(["timi-settings","install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
