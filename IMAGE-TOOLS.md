@@ -27,4 +27,4 @@ If a package is unavailable in the configured Termux repository, the correspondi
 
 ## Usage
 
-Install the Security library. Upload an image and mention Timi, or reply to a Timi message with an image. Timi analyzes at most three images per request, each up to 8 MB. Per-user requests are rate-limited to one every 10 seconds. Temporary files are removed after processing.
+Install the Security library. Upload an image and mention Timi, or reply to a Timi message with an image. Timi analyzes at most three images per request, each up to 8 MB and 40 megapixels (maximum side 12,000 pixels). Per-user requests are rate-limited to one every 10 seconds. Temporary files are removed after processing.
