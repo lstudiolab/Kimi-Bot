@@ -32,12 +32,12 @@ const embed = (title,description) => new EmbedBuilder().setColor(GREY).setTitle(
 const hasAccess = i => i.guild?.ownerId===i.user.id || i.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
 const installed = (store,guildId,name) => (store.data.installed_libraries[guildId]||[]).includes(name);
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
-const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? "Library not installed" : enabled(store,guildId,module.id) ? "Enabled" : "Disabled";
+const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
 
 export class TimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
-    if(!hasAccess(i))return i.editReply({content:"You need Manage Server permission to use Timi Settings.",embeds:[],components:[]});
+    if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const guild=i.guild, id=guild.id;
     const language=this.store.data.languages?.[id]||"en-US";
     const tr=key=>t(this.store,id,key);
@@ -65,15 +65,15 @@ export class TimiSettings {
       const menu=new StringSelectMenuBuilder().setCustomId("settings:library-select:"+page).setPlaceholder(page==="install"?"Choose a library to install":"Choose an installed library");
       if(choices.length)menu.addOptions(choices.map(lib=>({label:lib.name,value:lib.name,description:lib.description.slice(0,100)})));
       const components=choices.length?[row(menu)]:[];
-      if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:library-confirm:"+page+":"+selected,page==="install"?"Install Library":"Uninstall Library",page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
-      components.push(row(button("settings:home","Back")));
+      if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:library-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
+      components.push(row(button("settings:home",tr("back"))));
       const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available libraries are installed.":"There are no installed libraries to remove.");
       return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
       const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
-      const first=makeLanguageMenu(LANGUAGES.slice(0,25),"Choose a language");
-      const second=makeLanguageMenu(LANGUAGES.slice(25),"More languages");
+      const first=makeLanguageMenu(LANGUAGES.slice(0,25),tr("language"));
+      const second=makeLanguageMenu(LANGUAGES.slice(25),tr("language"));
       return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
@@ -90,7 +90,7 @@ export class TimiSettings {
   }
   async handle(i){
     if(!i.inGuild())return i.editReply({content:"Use Timi Settings inside a server.",embeds:[],components:[]});
-    if(!hasAccess(i))return i.editReply({content:"You need Manage Server permission to use Timi Settings.",embeds:[],components:[]});
+    if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
     if(i.isStringSelectMenu()){
       if(id==="settings:module-select")return this.show(i,"modules",i.values[0]);
