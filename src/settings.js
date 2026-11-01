@@ -67,8 +67,10 @@ export class TimiSettings {
       return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
-      const menu=new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder("Choose a language").addOptions(LANGUAGES.map(([value,label])=>({label,value,default:value===language})));
-      return i.editReply({embeds:[embed("Language",`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(menu),row(button("settings:home","Back"))]});
+      const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label,value,default:value===language})));
+      const first=makeLanguageMenu(LANGUAGES.slice(0,25),"Choose a language");
+      const second=makeLanguageMenu(LANGUAGES.slice(25),"More languages");
+      return i.editReply({embeds:[embed("Language",`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
       const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\n");
