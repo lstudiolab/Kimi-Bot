@@ -102,8 +102,14 @@ async function downloadAttachment(attachment){
   if(!response.ok)throw new Error("Discord image download failed ("+response.status+").");
   const declared=Number(response.headers.get("content-length")||0);
   if(declared>MAX_IMAGE_BYTES)throw new Error("Image exceeds the 8 MB processing limit.");
-  const bytes=Buffer.from(await response.arrayBuffer());
-  if(bytes.length>MAX_IMAGE_BYTES)throw new Error("Image exceeds the 8 MB processing limit.");
+  const chunks=[];let total=0;
+  if(!response.body)throw new Error("Discord returned an empty image body.");
+  for await(const chunk of response.body){
+    total+=chunk.length;
+    if(total>MAX_IMAGE_BYTES)throw new Error("Image exceeds the 8 MB processing limit.");
+    chunks.push(Buffer.from(chunk));
+  }
+  const bytes=Buffer.concat(chunks,total);
   if(!imageSignature(bytes))throw new Error("Attachment is not a supported PNG, JPEG, GIF, WEBP, or BMP image.");
   return bytes;
 }
@@ -117,7 +123,7 @@ async function decodeQr(file){
 }
 async function differenceHash(file){
   const args=[file,"-resize","9x8!","-colorspace","Gray","-depth","8","gray:-"];
-  const result=await runOptional(["magick","convert"],args,{timeout:8000,maxBuffer:1024});
+  const result=await runOptional(["magick","convert"],args,{timeout:8000,maxBuffer:1024,encoding:"buffer"});
   if(!result?.stdout||result.stdout.length<72)return null;
   const pixels=Buffer.isBuffer(result.stdout)?result.stdout:Buffer.from(result.stdout,"binary");
   if(pixels.length<72)return null;
@@ -175,6 +181,11 @@ export class ImageAnalysis{
     const now=Date.now(),key=message.guildId+":"+message.author.id;
     if(now-(this.userCooldown.get(key)||0)<10000)return false;
     this.userCooldown.set(key,now);
+    if(this.userCooldown.size>10000){
+      for(const [userKey,at] of this.userCooldown)if(now-at>10*60*1000)this.userCooldown.delete(userKey);
+      while(this.userCooldown.size>10000)this.userCooldown.delete(this.userCooldown.keys().next().value);
+    }
+    if(this.seen.size>1000){while(this.seen.size>1000)this.seen.delete(this.seen.keys().next().value);}
     const reports=[];
     for(const attachment of attachments){
       try{reports.push(await this.analyzeOne(message,attachment));}
