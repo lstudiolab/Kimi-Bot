@@ -1,34 +1,34 @@
 # Timi Bot
 
-Timi is a Discord bot built with **Node.js 24+** and **discord.js 14**. It provides configurable ticket panels, private support tickets and staff threads, transcripts, moderation controls, risk-based verification, self-service role pickers, reusable embeds, bot-join approval, and best-effort channel/message recovery.
+Timi is a Discord bot built with Node.js 24+ and discord.js 14. It is designed around four optional libraries: Foundation, Security, Support, and Scratch. Timi has no paid tier or AI API dependency.
 
 ## Requirements
 
-- Node.js 24.17.0 or newer
-- npm
+- Node.js 24.17 or newer
+- npm and Git
 - A Discord application and bot token
 - OAuth2 scopes: `bot` and `applications.commands`
-- Enable **Server Members Intent** and **Message Content Intent** in the Discord Developer Portal.
+- Enable **Server Members Intent** and **Message Content Intent** in the Discord Developer Portal
 
-Grant only the permissions needed for the features you enable. Timi uses View Channels, Send Messages, Read Message History, Embed Links, Attach Files, Manage Channels, Manage Messages, Manage Threads, Create Private Threads, Send Messages in Threads, Manage Roles, Moderate Members, View Audit Log, Kick Members, and Ban Members.
+Grant only the permissions needed by the systems enabled in your server. Security and ticket recovery features need elevated permissions such as View Audit Log, Manage Channels, Manage Messages, Manage Roles, Moderate Members, Kick Members, and Ban Members.
 
-## Termux installation
+## Install or update on Termux
 
-Install Node.js LTS and Git:
+Install Node.js and Git:
 
 ```sh
 pkg update
 pkg install -y nodejs-lts git
 ```
 
-Check that Node.js is version 24 or newer:
+Check Node.js:
 
 ```sh
 node --version
 npm --version
 ```
 
-Update the existing Timi repository and run the JavaScript setup:
+Update Timi and install dependencies:
 
 ```sh
 cd ~/Timi-Bot
@@ -36,11 +36,11 @@ git pull origin main
 node scripts/termux-setup.js
 ```
 
-The setup script installs npm dependencies and runs the tests. It creates `.env` from `.env.example` only when `.env` does not already exist. Existing credentials and the `data/` directory are preserved.
+The setup script installs npm dependencies, checks the JavaScript modules, and runs the tests. It creates `.env` from `.env.example` only when `.env` does not already exist. It does not overwrite existing credentials or the `data/` directory.
 
 ## Configuration
 
-Edit `.env` from the repository root:
+Set these values in `.env`:
 
 ```env
 DISCORD_TOKEN=your_discord_bot_token
@@ -52,11 +52,11 @@ LOG_LEVEL=info
 
 - `DISCORD_TOKEN`: Bot token from Developer Portal → Bot.
 - `CLIENT_ID`: Application ID from Developer Portal → General Information.
-- `GUILD_ID`: Optional development server ID. Leave blank for global slash-command registration.
+- `GUILD_ID`: Optional development server ID. Leave blank for global core commands.
 - `DATA_DIR`: Persistent JSON data directory. Defaults to `data`.
 - `LOG_LEVEL`: `debug`, `info`, `warn`, or `error`.
 
-Never commit `.env` or share your bot token. If the token was exposed, reset it in the Developer Portal.
+Never commit `.env` or share your bot token. Reset the token in the Developer Portal if it is exposed.
 
 ## Start Timi
 
@@ -65,11 +65,7 @@ cd ~/Timi-Bot
 npm start
 ```
 
-Timi registers its slash commands when it connects. To register them separately:
-
-```sh
-npm run deploy
-```
+Timi registers core commands globally and library commands for each server where that library is installed. It also synchronizes the current command set on startup, so older command names are removed when the bot restarts.
 
 For a persistent Termux session:
 
@@ -80,75 +76,134 @@ cd ~/Timi-Bot
 npm start
 ```
 
-Detach with `Ctrl+B`, then `D`. Reopen with `tmux attach -t timi`. Android may still stop background processes; keep Termux exempt from battery optimization.
+Detach with `Ctrl+B`, then `D`. Reopen with `tmux attach -t timi`. Android may stop background processes; exempt Termux from battery optimization.
 
-## Built-in libraries
+## Libraries
 
-Timi is free. Its first-party libraries are included in the same bot codebase, and each server can enable the libraries it needs. All four libraries are available without a subscription.
+Timi is free. Every library is included in the same bot. The server owner installs or uninstalls libraries with the core commands.
 
-- **Moderation** — moderation actions and cases, auto moderation, server protection, anti-raid and bot approval, activity archiving, and moderation logs.
-- **Support** — ticket setup, configurable panels, private tickets, staff threads, transcripts, permissions, and ticket logs.
-- **Foundation** — server utilities, message and embed builder, welcome and goodbye messages, role picker, and member verification.
-- **Developer** — TbScript block language, project editor, visual component kit, panel source editing, testing, version history, undo/redo, and .tdl import/export.
+| Library | What it contains |
+|---|---|
+| **Foundation** | Private setup channels, welcome and goodbye messages, automatic roles, role pickers, reusable embeds |
+| **Security** | Verification, AutoMod, anti-spam, anti-nuke monitoring, raid containment, bot approval, image checks, security audit and recovery |
+| **Support** | Ticket setup, persistent ticket panels, private channels, staff threads, transcripts and logs |
+| **Scratch** | TbScript projects, source editor, component kit, panel scripts, validation, test runs, version history, undo/redo and .tdl import/export |
 
-Only the server owner can install or uninstall a library. Use `/library-list` to see every available library, including Scratch, and `/install-library` with the `libraryname` option to activate one. Uninstalling a library removes its commands and integrations but preserves its saved data and projects.
+Use `/libraries` to see the libraries and installation state. Use `/install library:<name>` and `/uninstall library:<name>` to manage them. Valid names are Foundation, Security, Support, and Scratch. Previous names Moderation and Developer are accepted as aliases when older configuration is migrated.
 
 ## Commands
 
-- Core: `/timi-plan`, `/library-list`, `/install-library`, `/uninstall-library`.
-- Moderation: `/moderation-settings`, `/automod-word add`, `/automod-word remove`, `/automod-word list`.
-- Support: `/ticket-setup`, `/ticket-panel`, `/ticket-settings`.
-- Foundation: `/ping`, `/server-info`, `/server-settings`, `/server-stats`, `/server-backup`, `/user-info`, `/member-info`, `/member-count`, `/avatar`, `/welcome-settings`, `/channel-create`, `/channel-edit`, `/role-create`, `/role-edit`, `/role-add`, `/role-remove`, `/nickname`, `/role-list`, `/channel-list`, `/permissions`, `/invite`, `/announce`, `/poll`, `/reminder`, `/clear`, `/slowmode`, `/timestamp`, `/calculator`, `/verify-settings`, `/verify-panel`, `/setup-role-picker`, `/create-embed`, `/edit-embed`, `/place-embed`.
-- Developer: `/code`, `/code-edit`, `/code-list`, `/code-kit`, `/code-run`, `/code-stop`, `/code-history`, `/code-validate`, `/code-undo`, `/code-redo`, `/code-import`, `/code-export`, `/code-delete`, `/code-docs`, and `/code-template`.
+**Core**
+- `/plan` — view the free plan and server storage.
+- `/libraries` — list the four libraries and their installation state.
+- `/install` — install one library (server owner only).
+- `/uninstall` — disable one library (server owner only).
 
-## Timi Free
+**Foundation**
+- `/setup` — create private `#timi-log`, `#timi-confirmations`, and `#timi-settings` channels.
+- `/welcome` — configure welcome and goodbye channels and templates.
+- `/autorole` — set or disable automatic role assignment.
+- `/roles` — configure a self-service role picker.
+- `/embed-new`, `/embed-edit`, `/embed-post` — create, edit, and post reusable embeds.
 
-Timi is free to use. There is no Pro subscription, paid tier, or payment setup. Every built-in library, including Scratch, is available to every server.
+**Security**
+- `/verify-settings` — configure the verified role, required role, minimum account age, review channel and panel text.
+- `/verify` — publish or update the verification panel.
+- `/moderation` — open the persistent moderation settings panel.
+- `/filter add`, `/filter remove`, `/filter list` — manage blocked phrases.
+- `/security` — audit common server security settings.
 
-Each server has **5 MB** of saved configuration and project storage. The quota includes installed-library state, settings, customizations, TbScript projects, project history, and saved panel scripts. Message archives and recovery snapshots keep their existing retention limits and are not included. Timi rejects changes that would exceed the 5 MB allocation and preserves the server's last saved state.
+Image checks run when a member uploads an image and either mentions Timi or replies to one of Timi's messages with the image.
 
-Use `/timi-plan` to check storage usage.
+**Support**
+- `/tickets` — create or reuse Timi's private setup channels and the ticket category.
+- `/ticket-panel` — publish or update the ticket panel.
+- `/ticket-settings` — configure ticket text, support roles and destinations.
 
-## Developer library and TbScript
+**Scratch**
+- `/script` — create a TbScript project.
+- `/script-edit` — edit a project or supported panel script.
+- `/scripts` — list saved projects.
+- `/script-run`, `/script-stop` — test or stop a project.
+- `/script-check` — validate source without running it.
+- `/script-template`, `/script-kit`, `/script-help` — create and learn TbScript components.
+- `/script-history`, `/script-undo`, `/script-redo` — manage project versions.
+- `/script-import`, `/script-export`, `/script-delete` — import, export, or remove projects.
 
-Developer is installed separately with `/install-library libraryname:Developer`. Only the server owner can create projects, edit panel source, run or stop projects, and manage the Developer workbench.
+Library commands require Manage Server permission unless a command explicitly requires the server owner. Ticket opening, verification actions, role selection, and published TbScript role buttons are member-facing.
 
-TbScript keeps the exact nested brace-block structure:
+## Security behavior
+
+- New bot joins are sent to the private confirmation channel. Timi posts the approval request before applying temporary channel restrictions.
+- New accounts younger than three days receive a 10-minute timeout when Timi can moderate them; accounts younger than seven days are logged for review.
+- Six joins in ten seconds trigger a warning. Eight joins in ten seconds trigger a 60-second raid-containment window and 10-minute timeouts for manageable non-administrator accounts. This is timeout-based containment, not a full server lockdown.
+- Sensitive audit activity is monitored for destructive channel, role, webhook, permission and member-role changes. Repeated activity can trigger a 60-minute timeout where role hierarchy permits.
+- High-impact role permission changes and dangerous role assignments are logged for owner review. Timi does not silently revert role grants.
+- `/security` performs a configuration audit. It is not a penetration test and cannot detect compromised accounts, leaked tokens, malicious code, or every permission path.
+
+Automated moderation is configurable. The default burst threshold is 20 messages per member per channel within 60 seconds. Phrase, invite, mention, capitalization and link checks are separate signals. Configure sanctions carefully and review the private logs.
+
+## Free image tools (no AI API)
+
+Timi does not upload images to a paid AI service. Optional local tools provide:
+
+- Image format, dimensions, byte count and SHA-256.
+- OCR with Tesseract (English).
+- QR decoding with ZBar.
+- Perceptual duplicate checks with ImageMagick.
+- Exact duplicate checks in a bounded in-memory history.
+- URL extraction from OCR and QR content, plus simple phishing heuristics.
+
+Optional Termux packages:
+
+```sh
+pkg update
+pkg install tesseract zbar imagemagick
+```
+
+Each image is limited to 8 MB, up to three images are checked per request, and temporary files are deleted after processing. Timi rejects oversized images and does not store the image itself.
+
+These tools do **not** provide AI image understanding or a reliable visual classifier for nudity, violence or graphic content. OCR can miss text, and a clean report does not prove an image or link is safe. Heuristic flags do not automatically punish users.
+
+## Timi Free and storage
+
+Timi has one free plan. There is no Pro plan, subscription or payment setup. All four libraries are available to every server.
+
+Each server has a fixed 5 MB allocation for saved settings, customizations, embeds, projects and panel scripts. Timi rejects writes that exceed the allocation and preserves the previous saved state. Transient image-processing files and the bounded in-memory duplicate cache are not persisted as server content.
+
+Use `/plan` to check the current allocation.
+
+## TbScript
+
+TbScript is a restricted component language. Its nested brace syntax is validated before a project is saved or rendered:
 
 ```text
 {
    {title:"Welcome"}
    {description:"Hello, {user}!"}
-   {addbutton:true:"Verify":"":false}
-   {onclick(button):giverole:"Member"}
+   {color:"#808080"}
 }
 ```
 
-Each instruction is a `{}` block, nested blocks stay inside their parent blocks, `:` separates arguments, text values are quoted, and statements do not use semicolons. The transpiler parses nested blocks and validates them before creating Discord components. Supported blocks include `title`, `description`, `footer`, `author`, `imagelink`, `thumbnail`, `url`, `content`, `color`, `ephemeral`, `field`, `addbutton`, `onclick(button)`, `modal`, and nested `input`.
+It does not execute JavaScript, shell commands, arbitrary network requests or dynamically evaluated code. Only explicitly supported Discord components and actions are available.
 
-- `/code` creates a saved project. Saving never starts it automatically.
-- `/code-edit` edits a project or supported ticket, verification, moderation, and role-picker panel source.
-- `/code-kit` assembles component blocks into a selected project.
-- `/code-template` creates a project from a starter template.
-- `/code-validate` checks and transpiles a project without running it.
-- `/code-run` tests a project; `/code-stop` disables its controls.
-- `/code-undo` and `/code-redo` navigate recent source changes; `/code-history` lists saved versions.
-- `/code-import` and `/code-export` exchange `.tdl` files (64 KB import limit).
-- `/code-docs` opens the language reference.
-
-TbScript does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Only whitelisted Discord operations run. The current automatic repair adds missing closing braces; it does not invent or rewrite application logic. Discord modals are used for short source edits; larger files can be attached as `.tdl` files.
+- Projects are saved without running automatically.
+- Imports are restricted to `.tdl` files up to 64 KB.
+- Project history retains up to ten prior versions per project.
+- Script controls are checked against the active project or panel before execution.
+- Saving or stopping a project makes its older controls inactive.
 
 ## Data and recovery
 
-The primary store is `data/timi.json`; `data/timi.json.bak` is the previous known-good copy. Timi migrates compatible legacy ticket, moderation, verification, and recovery JSON files when their corresponding records are missing. Invalid primary data is preserved and recovered from the backup when possible; Timi refuses to silently reset corrupted data.
+The primary store is `data/timi.json`; `data/timi.json.bak` is the previous known-good copy. Compatible legacy settings are migrated without overwriting existing records. Invalid primary data is preserved and recovered from the backup when possible; Timi refuses to silently reset corrupted data.
 
-Channel snapshots and up to 25,000 human-authored messages per server are retained for seven days. Recovery is best-effort: recreated messages have new IDs, attachment URLs may expire, and deleted content that was never archived cannot be reconstructed.
+Recovery keeps channel configuration snapshots and up to 25,000 human-authored messages per server for seven days. Recreated messages have new IDs. Attachment URLs may expire, and content that was never archived cannot be reconstructed. Recovery is best-effort, not a guaranteed restore service.
 
-## Development and tests
+## Development checks
 
 ```sh
 npm run check
 npm test
 ```
 
-The GitHub Actions workflow performs JavaScript syntax checks and runs the Node.js test suite on pushes and pull requests to `main`.
+GitHub Actions runs syntax, import and test checks on pushes and pull requests to `main`.
