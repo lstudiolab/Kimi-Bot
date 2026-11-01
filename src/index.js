@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits } from "discord.js";
+import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { loadConfig, createLogger } from "./config.js";
 import { startDashboardServer } from "./dashboard.js";
 import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData, libraryForCommand } from "./commands.js";
@@ -54,7 +54,7 @@ function opensModal(i){
  if(i.isChatInputCommand()){
   const file=i.commandName==="script"||i.commandName==="script-edit" ? i.options.getAttachment("file") : null;
   if(file)return false;
-  return ["embed-new","script","script-edit"].includes(i.commandName);
+  return ["embed-new","script","script-edit","web-token"].includes(i.commandName);
  }
  if(!i.isButton())return false;
  const id=i.customId;
@@ -80,9 +80,11 @@ const openConfiguration=async(i,section)=>{
 const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
- if(i.commandName==="dashboard-link"){
-  const result=authStore.completeLinkCode(i.options.getString("code"),i.user);
-  return respond(i,result.error||"Your Discord account is now linked to your Kimi account. Return to the dashboard and refresh the server list.");
+ if(i.commandName==="web-token"){
+  const modal=new ModalBuilder().setCustomId("web-token:submit").setTitle("Connect server to Kimi");
+  const tokenInput=new TextInputBuilder().setCustomId("web-token").setLabel("One-time Kimi token").setPlaceholder("Paste the token from your Kimi dashboard").setStyle(TextInputStyle.Short).setMinLength(20).setMaxLength(64).setRequired(true);
+  modal.addComponents(new ActionRowBuilder().addComponents(tokenInput));
+  return i.showModal(modal);
  }
  if(i.commandName==="timi-settings")return settings.show(i,"home");
  if(i.commandName==="plan"){
@@ -130,10 +132,16 @@ function localizeInteraction(i){
 }
 async function handleInteraction(i){
  localizeInteraction(i);
+ if(i.isModalSubmit()&&i.customId==="web-token:submit"){
+  if(!i.inGuild())return respond(i,"Use this form inside a Discord server.");
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to connect this server to a Kimi account.");
+  const result=authStore.completeWebToken(i.fields.getTextInputValue("web-token"),i.guild,i.user);
+  return respond(i,result.error||"This server is now connected to the Kimi account that generated the token. Return to the dashboard.");
+ }
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["timi-settings","install","uninstall","libraries","plan","dashboard-link"].includes(i.commandName))return coreCommand(i);
+  if(["timi-settings","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /timi-settings.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
