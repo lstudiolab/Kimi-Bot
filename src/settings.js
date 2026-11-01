@@ -33,7 +33,7 @@ const installed = (store,guildId,name) => (store.data.installed_libraries[guildI
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
 
 export class TimiSettings {
-  constructor(store,manager,logger){this.store=store;this.manager=manager;this.logger=logger;}
+  constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
     const guild=i.guild, id=guild.id;
     const language=this.store.data.languages?.[id]||"en-US";
@@ -119,10 +119,17 @@ export class TimiSettings {
       if(action==="install"){
         const result=this.manager.install(i.guildId,name);
         if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
+        await this.hooks.syncGuildCommands?.(i.guildId);
+        const library=this.hooks.libraries?.[name];
+        if(library?.ready)await library.ready(i.guild);
+        if(library?.onInstall)await library.onInstall(i.guild);
         return i.editReply({embeds:[embed("Library Installed",`**${name}** is now installed. Its commands will be registered when Timi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
       }
       const result=this.manager.uninstall(i.guildId,name);
       if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
+      const library=this.hooks.libraries?.[name];
+      if(library?.onUninstall)await library.onUninstall(i.guild);
+      await this.hooks.syncGuildCommands?.(i.guildId);
       return i.editReply({embeds:[embed("Library Uninstalled",`**${name}** has been uninstalled. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
     }
   }
