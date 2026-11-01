@@ -115,6 +115,8 @@ Use `/libraries` to see the libraries and installation state. Use `/install libr
 
 Image checks run when a member uploads an image and either mentions Timi or replies to one of Timi's messages with the image.
 
+Verification uses the configured score thresholds: 80+ passes and assigns the verified role, 60–79 (or an account below the configured minimum age) goes to manual review with manager-only Approve and Reject controls, and scores below 60 trigger a kick attempt. Each member can complete verification only once per server.
+
 **Support**
 - `/tickets` — create or reuse Timi's private setup channels and the ticket category.
 - `/ticket-panel` — publish or update the ticket panel.
