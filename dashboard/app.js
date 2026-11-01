@@ -6,12 +6,12 @@ overview:"Overview",welcome:"Welcome message",goodbye:"Goodbye message",autorole
 automod:"AutoMod",verification:"Verification","anti-raid":"Anti-raid","anti-nuke":"Anti-nuke","bot-approval":"Bot approval",
 "image-checks":"Image checks","moderation-cases":"Warnings & cases",recovery:"Recovery","security-audit":"Security audit",
 "ticket-setup":"Ticket setup","ticket-panel":"Ticket panel","ticket-settings":"Ticket settings","ticket-history":"Ticket history",
-projects:"Projects","script-editor":"TbScript editor","script-templates":"Templates & kit","script-history":"Version history",
+projects:"Projects","script-editor":"Cling editor","script-templates":"Templates & kit","script-history":"Version history",
 "script-import":"Import & export","server-settings":"Server settings",permissions:"Permissions"
 };
 const descriptions = {
 welcome:"Control the first message members see when they join your server.",
-goodbye:"Choose where and how Timi announces member departures.",
+goodbye:"Choose where and how Kimi announces member departures.",
 autorole:"Assign selected roles automatically when a member joins.",
 "role-panels":"Create and publish self-service role selection panels.",
 "role-settings":"Set role picker behavior and assignment limits.",
@@ -30,13 +30,13 @@ recovery:"Manage channel snapshots and bounded message recovery.",
 "ticket-panel":"Customize and publish the ticket opening panel.",
 "ticket-settings":"Configure support roles, transcripts and ticket behavior.",
 "ticket-history":"Review ticket activity and transcript records.",
-projects:"Browse your TbScript projects.",
-"script-editor":"Write and validate restricted TbScript projects.",
+projects:"Browse your Cling projects.",
+"script-editor":"Write and validate restricted Cling projects.",
 "script-templates":"Start from a panel, button, ticket or welcome template.",
 "script-history":"Review project versions and restore earlier work.",
-"script-import":"Import or export .tdl project files.",
+"script-import":"Import or export .cling project files.",
 "server-settings":"Set server-wide dashboard preferences.",
-permissions:"Review which server roles can manage Timi."
+permissions:"Review which server roles can manage Kimi."
 };
 const moduleMap = {
 welcome:["welcome","goodbye","autorole"],roles:["role-panels","role-settings"],embeds:["embed-editor","saved-embeds"],
@@ -54,7 +54,7 @@ goodbye:{enabled:false,channel:"",message:"{user} has left {server}.",image:""},
 autorole:{enabled:false,role:"",delay:"0"},
 "role-panels":{enabled:false,title:"Choose your roles",description:"Select the roles you would like to receive.",style:"buttons"},
 "role-settings":{single:false,remove:true,allowMultiple:true},
-"embed-editor":{title:"Welcome",description:"Thanks for joining our community.",color:"#808080",footer:"Timi"},
+"embed-editor":{title:"Welcome",description:"Thanks for joining our community.",color:"#808080",footer:"Kimi"},
 automod:{enabled:false,threshold:"20",window:"60",sanction:"timeout",duration:"10",logChannel:"",invites:true,mentions:true,caps:true,links:false},
 verification:{enabled:false,minAge:"7",passScore:"80",reviewScore:"60",verifiedRole:"",reviewChannel:""},
 "anti-raid":{enabled:true,joinThreshold:"8",window:"10",timeout:"10"},
@@ -72,8 +72,8 @@ recovery:{enabled:true,storage:"5",retention:"7",messages:true,channels:true},
 permissions:{managerRole:"",ownerOnly:true}
 };
 const state = loadState();
-function loadState(){try{return Object.assign({},defaults,JSON.parse(localStorage.getItem("timi-dashboard-state")||"{}"));}catch{return {...defaults};}}
-function saveState(){localStorage.setItem("timi-dashboard-state",JSON.stringify(state));}
+function loadState(){try{return Object.assign({},defaults,JSON.parse(localStorage.getItem("kimi-dashboard-state")||"{}"));}catch{return {...defaults};}}
+function saveState(){localStorage.setItem("kimi-dashboard-state",JSON.stringify(state));}
 function esc(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 function toast(message){const node=document.createElement("div");node.className="toast";node.textContent=message;$("#toast-region").append(node);setTimeout(()=>node.remove(),2800);}
 function field(key,label,type="text",help="",placeholder=""){const value=(state[currentPage]||{})[key]??"";return '<div class="field"><label for="f-'+key+'">'+label+'</label><input id="f-'+key+'" name="'+key+'" type="'+type+'" value="'+esc(value)+'" placeholder="'+esc(placeholder)+'">'+(help?'<small class="field-help">'+help+'</small>':"")+'</div>';}
@@ -81,7 +81,7 @@ function area(key,label,help=""){const value=(state[currentPage]||{})[key]??"";r
 function selectField(key,label,options){const value=(state[currentPage]||{})[key]??"";return '<div class="field"><label for="f-'+key+'">'+label+'</label><select id="f-'+key+'" name="'+key+'">'+options.map(o=>'<option value="'+esc(o[0])+'" '+(value===o[0]?"selected":"")+'>'+esc(o[1])+'</option>').join("")+'</select></div>';}
 function toggle(key,label,help=""){const value=(state[currentPage]||{})[key]===true;return '<div class="toggle-row"><div class="toggle-copy"><strong>'+label+'</strong>'+(help?'<small>'+help+'</small>':"")+'</div><input class="switch" type="checkbox" name="'+key+'" '+(value?"checked":"")+'></div>';}
 function card(title,body,subtitle=""){return '<section class="card"><div class="card-header"><div><h2 class="card-title">'+title+'</h2>'+(subtitle?'<div class="card-subtitle">'+subtitle+'</div>':"")+'</div></div>'+body+'</section>';}
-function heading(page,actions=""){const mod=moduleForPage[page];return '<div class="page-heading"><div><div class="eyebrow">'+(mod?moduleTitles[mod]:"Workspace")+'</div><h1>'+pageNames[page]+'</h1><p>'+ (descriptions[page]||"Manage your Timi dashboard.")+'</p></div><div class="heading-actions">'+actions+'</div></div>';}
+function heading(page,actions=""){const mod=moduleForPage[page];return '<div class="page-heading"><div><div class="eyebrow">'+(mod?moduleTitles[mod]:"Workspace")+'</div><h1>'+pageNames[page]+'</h1><p>'+ (descriptions[page]||"Manage your Kimi dashboard.")+'</p></div><div class="heading-actions">'+actions+'</div></div>';}
 function saveButton(){return '<button class="button" type="submit">Save changes</button>';}
 let currentPage="overview";
 function navigate(page){if(!pageNames[page])page="overview";location.hash=page;}
@@ -91,24 +91,24 @@ const systems=Object.keys(moduleMap).flatMap(group=>moduleMap[group].map(page=>(
 const active=systems.filter(x=>state[x.page]?.enabled===true).length;
 const moduleRows=Object.keys(moduleMap).map(group=>'<div class="system-row"><div class="system-symbol">'+symbols[group]+'</div><div class="system-copy"><strong>'+moduleTitles[group]+'</strong><small>'+moduleMap[group].length+' systems · '+moduleMap[group].map(p=>pageNames[p]).join(", ")+'</small></div><span class="status">Available</span></div>').join("");
 return heading("overview",'<button class="button secondary" data-action="refresh">Refresh</button>')+
-'<div class="grid stats-grid"><div class="stat-card"><div class="stat-top">Modules <span class="stat-icon">▦</span></div><div class="stat-value">6</div><div class="stat-note">Your six Timi modules</div></div><div class="stat-card"><div class="stat-top">Systems <span class="stat-icon">⌘</span></div><div class="stat-value">'+systems.length+'</div><div class="stat-note">Pages available in this dashboard</div></div><div class="stat-card"><div class="stat-top">Enabled in preview <span class="stat-icon">◉</span></div><div class="stat-value">'+active+'</div><div class="stat-note">Browser-side preview values</div></div><div class="stat-card"><div class="stat-top">Connection <span class="stat-icon">↗</span></div><div class="stat-value" style="font-size:17px;margin-top:17px">Not connected</div><div class="stat-note">Termux API bridge not configured</div></div></div>'+
-'<div class="grid overview-grid"><div>'+card("Your modules",'<div class="system-list">'+moduleRows+'</div>',"All six modules are available in the navigation.")+card("Activity overview",'<div class="chart-bars"><span style="height:28%"></span><span style="height:46%"></span><span style="height:39%"></span><span style="height:65%"></span><span style="height:51%"></span><span style="height:79%"></span><span style="height:58%"></span><span style="height:91%"></span></div><div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span><span>Today</span></div><p class="empty-note">Illustrative preview only. Live Discord activity will appear after the dashboard API is connected.</p>',"Preview chart")+'</div><div>'+card("Quick access",'<div class="grid quick-grid">'+[['automod','AutoMod'],['verification','Verification'],['ticket-panel','Ticket panel'],['script-editor','TbScript editor'],['welcome','Welcome message'],['embed-editor','Embed builder']].map(x=>'<a class="quick-link" href="#'+x[0]+'"><strong>'+x[1]+'</strong><small>Open settings →</small></a>').join("")+'</div>')+card("Connection status",'<div class="notice info">This is a static frontend preview. Changes are stored in this browser and are not yet sent to your Discord bot.</div><div class="toggle-row"><div class="toggle-copy"><strong>GitHub Pages frontend</strong><small>Static dashboard files</small></div><span class="status">Ready</span></div><div class="toggle-row"><div class="toggle-copy"><strong>Termux API</strong><small>Secure bot settings bridge</small></div><span class="status off">Not configured</span></div>')+'</div></div>';
+'<div class="grid stats-grid"><div class="stat-card"><div class="stat-top">Modules <span class="stat-icon">▦</span></div><div class="stat-value">6</div><div class="stat-note">Your six Kimi modules</div></div><div class="stat-card"><div class="stat-top">Systems <span class="stat-icon">⌘</span></div><div class="stat-value">'+systems.length+'</div><div class="stat-note">Pages available in this dashboard</div></div><div class="stat-card"><div class="stat-top">Enabled in preview <span class="stat-icon">◉</span></div><div class="stat-value">'+active+'</div><div class="stat-note">Browser-side preview values</div></div><div class="stat-card"><div class="stat-top">Connection <span class="stat-icon">↗</span></div><div class="stat-value" style="font-size:17px;margin-top:17px">Not connected</div><div class="stat-note">Termux API bridge not configured</div></div></div>'+
+'<div class="grid overview-grid"><div>'+card("Your modules",'<div class="system-list">'+moduleRows+'</div>',"All six modules are available in the navigation.")+card("Activity overview",'<div class="chart-bars"><span style="height:28%"></span><span style="height:46%"></span><span style="height:39%"></span><span style="height:65%"></span><span style="height:51%"></span><span style="height:79%"></span><span style="height:58%"></span><span style="height:91%"></span></div><div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span><span>Today</span></div><p class="empty-note">Illustrative preview only. Live Discord activity will appear after the dashboard API is connected.</p>',"Preview chart")+'</div><div>'+card("Quick access",'<div class="grid quick-grid">'+[['automod','AutoMod'],['verification','Verification'],['ticket-panel','Ticket panel'],['script-editor','Cling editor'],['welcome','Welcome message'],['embed-editor','Embed builder']].map(x=>'<a class="quick-link" href="#'+x[0]+'"><strong>'+x[1]+'</strong><small>Open settings →</small></a>').join("")+'</div>')+card("Connection status",'<div class="notice info">This is a static frontend preview. Changes are stored in this browser and are not yet sent to your Discord bot.</div><div class="toggle-row"><div class="toggle-copy"><strong>GitHub Pages frontend</strong><small>Static dashboard files</small></div><span class="status">Ready</span></div><div class="toggle-row"><div class="toggle-copy"><strong>Termux API</strong><small>Secure bot settings bridge</small></div><span class="status off">Not configured</span></div>')+'</div></div>';
 }
 function renderFormPage(page){
 const cfg=state[page]||{};
 let main="",side="";
 if(["welcome","goodbye"].includes(page)){
-main=card("Message configuration",toggle("enabled","Enable "+(page==="welcome"?"welcome":"goodbye")+" messages","Turn this system on or off.")+field("channel","Destination channel","text","Discord channel ID or #channel name.")+field("title","Message title","text","Use {server} and {user} placeholders.")+area("message","Message content","Supported placeholders: {user}, {server}, {memberCount}.")+field("image","Image URL","url","Optional image shown with the message.")+toggle("mention","Mention the member","Allow Timi to mention the joining member."), "Customize the message sent by Timi.")+card("Preview",'<div class="preview-box"><strong>'+(esc(cfg.title||"Welcome to {server}").replaceAll("{server}","Your server"))+'</strong><p>'+esc(cfg.message||"Your message preview appears here.").replaceAll("{user}","@Member").replaceAll("{server}","Your server")+'</p><small class="muted">Preview · Discord message</small></div>');
-side=card("How it works",'<p class="empty-note">Timi listens for member join and leave events, then posts the configured message to the selected channel. The bot needs permission to view and send messages in that channel.</p>');
+main=card("Message configuration",toggle("enabled","Enable "+(page==="welcome"?"welcome":"goodbye")+" messages","Turn this system on or off.")+field("channel","Destination channel","text","Discord channel ID or #channel name.")+field("title","Message title","text","Use {server} and {user} placeholders.")+area("message","Message content","Supported placeholders: {user}, {server}, {memberCount}.")+field("image","Image URL","url","Optional image shown with the message.")+toggle("mention","Mention the member","Allow Kimi to mention the joining member."), "Customize the message sent by Kimi.")+card("Preview",'<div class="preview-box"><strong>'+(esc(cfg.title||"Welcome to {server}").replaceAll("{server}","Your server"))+'</strong><p>'+esc(cfg.message||"Your message preview appears here.").replaceAll("{user}","@Member").replaceAll("{server}","Your server")+'</p><small class="muted">Preview · Discord message</small></div>');
+side=card("How it works",'<p class="empty-note">Kimi listens for member join and leave events, then posts the configured message to the selected channel. The bot needs permission to view and send messages in that channel.</p>');
 }else if(page==="autorole"){
-main=card("Automatic role assignment",toggle("enabled","Enable automatic roles","Assign roles to new members.")+field("role","Role ID or role name","text","The role Timi should assign.")+selectField("delay","Assignment timing",[["0","Immediately"],["5","After 5 seconds"],["30","After 30 seconds"],["60","After 1 minute"]]),"New member behavior");
-side=card("Requirements",'<p class="empty-note">Timi needs Manage Roles. Its highest role must be above the role being assigned. Managed roles and @everyone cannot be assigned.</p>');
+main=card("Automatic role assignment",toggle("enabled","Enable automatic roles","Assign roles to new members.")+field("role","Role ID or role name","text","The role Kimi should assign.")+selectField("delay","Assignment kiming",[["0","Immediately"],["5","After 5 seconds"],["30","After 30 seconds"],["60","After 1 minute"]]),"New member behavior");
+side=card("Requirements",'<p class="empty-note">Kimi needs Manage Roles. Its highest role must be above the role being assigned. Managed roles and @everyone cannot be assigned.</p>');
 }else if(page==="role-panels"){
 main=card("Role panel",toggle("enabled","Enable role panel","Allow members to select roles.")+field("title","Panel title")+area("description","Description")+selectField("style","Panel style",[["buttons","Buttons"],["select","Dropdown menu"]]),"Panel content")+card("Role options",'<div class="notice info">Role choices are loaded from Discord when the dashboard API is connected. This preview lets you configure the panel layout only.</div><button class="button secondary" data-action="add-role">Add role option</button><div id="role-options" class="empty-state">No role options added in this preview.</div>');
-side=card("Publishing",'<p class="empty-note">A published panel stays active in Discord. Members can use it without dashboard access. Timi must have Manage Roles and a role position above the selectable roles.</p>');
+side=card("Publishing",'<p class="empty-note">A published panel stays active in Discord. Members can use it without dashboard access. Kimi must have Manage Roles and a role position above the selectable roles.</p>');
 }else if(page==="role-settings"){
 main=card("Selection behavior",toggle("single","Allow only one selected role","Selecting a new role removes the previous selection.")+toggle("remove","Allow members to remove roles","Members can toggle an assigned role off.")+toggle("allowMultiple","Allow multiple role selections","Members may select more than one role."),"Role picker rules");
-side=card("Safety",'<p class="empty-note">Timi should only expose safe, self-assignable roles. Administrator, managed and higher-position roles must be excluded.</p>');
+side=card("Safety",'<p class="empty-note">Kimi should only expose safe, self-assignable roles. Administrator, managed and higher-position roles must be excluded.</p>');
 }else if(page==="embed-editor"){
 main=card("Embed content",field("title","Title")+area("description","Description")+field("color","Accent color","color")+field("footer","Footer text")+field("image","Image URL","url"),"Build your embed")+card("Discord preview",'<div class="preview-box" id="embed-preview" style="border-left-color:'+esc(cfg.color||"#808080")+'"><strong>'+esc(cfg.title||"Embed title")+'</strong><p>'+esc(cfg.description||"Your embed description will appear here.")+'</p><small class="muted">'+esc(cfg.footer||"Footer")+'</small></div>');
 side=card("Embed tools",'<button class="button secondary" data-action="save-embed">Save embed</button> <button class="button secondary" data-action="post-embed">Publish preview</button><div class="divider"></div><p class="empty-note">Discord embed limits apply: title 256 characters, description 4,096 characters and up to 25 fields.</p>');
@@ -125,7 +125,7 @@ side=card("Current behavior",'<p class="empty-note">The bot currently warns on s
 main=card("Destructive action monitoring",toggle("enabled","Enable anti-nuke monitoring")+field("actionThreshold","Action threshold","number","Repeated sensitive actions before intervention.")+field("window","Monitoring window (seconds)","number")+field("timeout","Timeout duration (minutes)","number")+field("logChannel","Security log channel","text"),"Audit event protection");
 side=card("Monitored activity",'<p class="empty-note">Sensitive audit activity includes destructive channel, role, webhook, permission and member-role changes. Role hierarchy and Discord permissions limit possible interventions.</p>');
 }else if(page==="bot-approval"){
-main=card("Bot join approval",toggle("enabled","Require approval for new bots")+field("channel","Private approval channel","text","Timi confirmation channel.")+toggle("restrict","Restrict bot permissions until approved","Apply temporary channel restrictions while approval is pending."),"Bot access control");
+main=card("Bot join approval",toggle("enabled","Require approval for new bots")+field("channel","Private approval channel","text","Kimi confirmation channel.")+toggle("restrict","Restrict bot permissions until approved","Apply temporary channel restrictions while approval is pending."),"Bot access control");
 side=card("Approval flow",'<p class="empty-note">New bot joins are sent to the private confirmation channel. The server owner can approve or reject the request. Do not grant untrusted bots Administrator.</p>');
 }else if(page==="image-checks"){
 main=card("Local image analysis",toggle("enabled","Enable image checks")+field("maxSize","Maximum image size (MB)","number")+toggle("ocr","Extract text with OCR")+toggle("qr","Decode QR codes")+toggle("duplicate","Check duplicate images")+toggle("urlChecks","Inspect URLs found in images"),"No AI API required");
@@ -141,7 +141,7 @@ main=card("Security audit",toggle("enabled","Enable audit logging")+field("logCh
 side=card("Audit scope",'<p class="empty-note">The audit reviews common server configuration and permission risks. It is not a penetration test and cannot detect compromised accounts or every permission path.</p>');
 }else if(page==="ticket-setup"){
 main=card("Ticket environment",toggle("enabled","Enable ticket system")+field("category","Ticket category name","text")+field("logChannel","Ticket log channel","text")+field("supportRole","Support role ID","text"),"Server setup")+card("Setup checklist",'<div class="toggle-row"><div class="toggle-copy"><strong>Private ticket category</strong><small>Tickets are created in a restricted category.</small></div><span class="pill">Required</span></div><div class="toggle-row"><div class="toggle-copy"><strong>Support access</strong><small>Support staff can view and respond.</small></div><span class="pill">Required</span></div>');
-side=card("Permissions",'<p class="empty-note">Timi needs Manage Channels and permission to create private channels and manage their overwrites.</p>');
+side=card("Permissions",'<p class="empty-note">Kimi needs Manage Channels and permission to create private channels and manage their overwrites.</p>');
 }else if(page==="ticket-panel"){
 main=card("Ticket panel content",toggle("enabled","Enable ticket panel")+field("title","Panel title")+area("description","Panel description")+field("button","Open button label")+field("channel","Panel destination channel","text"),"Customize the public entry point")+card("Panel preview",'<div class="preview-box"><strong>'+esc(cfg.title||"Contact support")+'</strong><p>'+esc(cfg.description||"Open a ticket and our team will help you.")+'</p><button class="button small secondary" type="button"> '+esc(cfg.button||"Open Ticket")+' </button></div>');
 side=card("Publishing",'<p class="empty-note">The panel can be posted or refreshed in a Discord channel. Existing published panels should be updated rather than duplicated.</p>');
@@ -152,10 +152,10 @@ side=card("Ticket lifecycle",'<p class="empty-note">Tickets use private channels
 main=card("Ticket history",'<div class="toolbar"><input class="search-input" placeholder="Search ticket or member"><select class="search-input" style="max-width:140px"><option>All tickets</option><option>Open</option><option>Closed</option></select></div><div class="empty-state"><strong>No ticket history loaded</strong>Connect the API to browse open and closed tickets and transcripts.</div>');
 side=card("Transcript storage",'<p class="empty-note">Transcripts are generated from ticket channel history. The dashboard should display metadata and links, not expose private transcript content to unauthorized roles.</p>');
 }else if(page==="projects"){
-main=card("TbScript projects",'<div class="toolbar"><input class="search-input" placeholder="Search projects"><button class="button" data-action="new-project">New project</button></div><div class="empty-state"><strong>No projects loaded</strong>Connect the API to browse projects saved for this server.</div>');
-side=card("Project safety",'<p class="empty-note">TbScript is a restricted language. Projects are validated before execution and do not run arbitrary JavaScript, shell commands or filesystem operations.</p>');
+main=card("Cling projects",'<div class="toolbar"><input class="search-input" placeholder="Search projects"><button class="button" data-action="new-project">New project</button></div><div class="empty-state"><strong>No projects loaded</strong>Connect the API to browse projects saved for this server.</div>');
+side=card("Project safety",'<p class="empty-note">Cling is a restricted language. Projects are validated before execution and do not run arbitrary JavaScript, shell commands or filesystem operations.</p>');
 }else if(page==="script-editor"){
-main=card("Project details",field("name","Project name")+ '<div class="field"><label for="script-source">Source (.tdl)</label><textarea class="code-editor" id="script-source" name="source">'+esc(cfg.source||"")+'</textarea></div><div class="inline-actions"><button class="button secondary" data-action="validate-script">Validate</button><button class="button secondary" data-action="run-script">Run project</button>'+saveButton()+'</div>',"Restricted TbScript source");
+main=card("Project details",field("name","Project name")+ '<div class="field"><label for="script-source">Source (.cling)</label><textarea class="code-editor" id="script-source" name="source">'+esc(cfg.source||"")+'</textarea></div><div class="inline-actions"><button class="button secondary" data-action="validate-script">Validate</button><button class="button secondary" data-action="run-script">Run project</button>'+saveButton()+'</div>',"Restricted Cling source");
 side=card("Language reference",'<p class="empty-note">Use panel:, onclick id:, on member join:, on message create:, if, else and end. Four-space indentation is required. Projects are saved but not automatically run.</p><button class="button secondary small" data-action="script-help">Open language guide</button>');
 }else if(page==="script-templates"){
 main=card("Starter templates",'<div class="system-list">'+[["panel","Basic panel","A simple message panel with a button."],["welcome","Welcome automation","A member-join event response."],["ticket","Ticket panel","A private ticket creation flow."],["role-picker","Role picker","A role selection panel."]].map(x=>'<div class="system-row"><div class="system-copy"><strong>'+x[1]+'</strong><small>'+x[2]+'</small></div><button class="button secondary small" data-template="'+x[0]+'">Use template</button></div>').join("")+'</div>');
@@ -164,11 +164,11 @@ side=card("Component kit",'<p class="empty-note">Templates are starting points. 
 main=card("Version history",'<div class="empty-state"><strong>No project history loaded</strong>Up to ten previous versions can be retained per project. Connect the API to review, undo or redo changes.</div>');
 side=card("Version controls",'<p class="empty-note">Restoring a version replaces the current project source. Export important versions before making major changes.</p>');
 }else if(page==="script-import"){
-main=card("Project transfer",'<div class="field"><label for="import-file">Import .tdl file</label><input id="import-file" type="file" accept=".tdl,text/plain"></div><button class="button secondary" data-action="import-script">Import project</button><div class="divider"></div><button class="button secondary" data-action="export-script">Export current draft</button>');
-side=card("File limits",'<p class="empty-note">TbScript source files are limited to 64 KB and 2,000 lines. Imported files must be valid UTF-8 .tdl source.</p>');
+main=card("Project transfer",'<div class="field"><label for="import-file">Import .cling file</label><input id="import-file" type="file" accept=".cling,text/plain"></div><button class="button secondary" data-action="import-script">Import project</button><div class="divider"></div><button class="button secondary" data-action="export-script">Export current draft</button>');
+side=card("File limits",'<p class="empty-note">Cling source files are limited to 64 KB and 2,000 lines. Imported files must be valid UTF-8 .cling source.</p>');
 }else if(page==="server-settings"){
 main=card("Server preferences",selectField("language","Dashboard language",[["en-US","English (US)"],["en-GB","English (UK)"],["fil","Filipino"]])+field("timezone","Time zone")+field("prefix","Command style")+field("embedColor","Default embed color","color"),"General settings");
-side=card("Storage",'<p class="empty-note">Timi uses a bounded 5 MB allocation per server for saved settings, embeds, projects and panel scripts. The dashboard does not change this allocation.</p>');
+side=card("Storage",'<p class="empty-note">Kimi uses a bounded 5 MB allocation per server for saved settings, embeds, projects and panel scripts. The dashboard does not change this allocation.</p>');
 }else if(page==="permissions"){
 main=card("Dashboard access",field("managerRole","Manager role ID","text","Only members with this role may manage configured systems.")+toggle("ownerOnly","Keep sensitive actions owner-only","Install/uninstall libraries and destructive actions should remain owner restricted."),"Role-based access");
 side=card("Permission model",'<p class="empty-note">The API must validate Discord guild ownership or Manage Server permission on every request. Hiding controls in the browser is not an authorization check.</p>');
@@ -199,16 +199,16 @@ else if(name==="post-embed"){toast("Publishing requires the Termux API connectio
 else if(name==="run-audit"){toast("Connect the bot API to run a live security audit.");}
 else if(name==="search-cases"){toast("Live case search requires the bot API.");}
 else if(name==="new-project"){navigate("script-editor");toast("Create a project draft, then save it.");}
-else if(name==="validate-script"){toast("Validation preview: connect the API for the bot's authoritative TbScript validator.");}
+else if(name==="validate-script"){toast("Validation preview: connect the API for the bot's authoritative Cling validator.");}
 else if(name==="run-script"){toast("Running scripts requires an authenticated bot API request.");}
-else if(name==="script-help"){toast("TbScript uses panel:, onclick:, on events, if, else and end.");}
-else if(name==="import-script"){const file=$("#import-file")?.files?.[0];if(!file){toast("Choose a .tdl file first.");return;}if(file.size>65536){toast("The .tdl file exceeds 64 KB.");return;}const reader=new FileReader();reader.onload=()=>{state["script-editor"]=state["script-editor"]||{};state["script-editor"].source=String(reader.result||"");state["script-editor"].name=file.name.replace(/\.tdl$/i,"");saveState();toast("Imported into the local draft. Save it after reviewing.");};reader.readAsText(file);return;}
-else if(name==="export-script"){const source=state["script-editor"]?.source||"";const blob=new Blob([source],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(state["script-editor"]?.name||"timi-project")+".tdl";a.click();URL.revokeObjectURL(url);}
+else if(name==="script-help"){toast("Cling uses panel:, onclick:, on events, if, else and end.");}
+else if(name==="import-script"){const file=$("#import-file")?.files?.[0];if(!file){toast("Choose a .cling file first.");return;}if(file.size>65536){toast("The .cling file exceeds 64 KB.");return;}const reader=new FileReader();reader.onload=()=>{state["script-editor"]=state["script-editor"]||{};state["script-editor"].source=String(reader.result||"");state["script-editor"].name=file.name.replace(/\.cling$/i,"");saveState();toast("Imported into the local draft. Save it after reviewing.");};reader.readAsText(file);return;}
+else if(name==="export-script"){const source=state["script-editor"]?.source||"";const blob=new Blob([source],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(state["script-editor"]?.name||"kimi-project")+".cling";a.click();URL.revokeObjectURL(url);}
 else if(name==="add-role"){toast("Role options will load from Discord after API connection.");}
 });
 document.addEventListener("submit",event=>{if(event.target.id==="settings-form"){event.preventDefault();collectForm(event.target);toast("Saved locally in this browser. Bot sync is not connected.");}});
 window.addEventListener("hashchange",render);
 $("#mobile-menu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
-$("#help-button").addEventListener("click",()=>toast("Timi dashboard preview. Configure a server after the API bridge is connected."));
+$("#help-button").addEventListener("click",()=>toast("Kimi dashboard preview. Configure a server after the API bridge is connected."));
 document.addEventListener("click",event=>{if(event.target.closest(".nav-item")&&innerWidth<=720)$("#sidebar").classList.remove("open");});
 render();
