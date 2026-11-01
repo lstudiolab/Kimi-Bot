@@ -587,7 +587,7 @@ test("verification review approval assigns the verified role and closes the revi
   const interaction={
     customId:"verify:review:approve:123456789012345678:234567890123456789",
     guildId:guild.id,guild,user:{id:"333333333333333333"},
-    memberPermissions:{has:()=>true},isButton:()=>true,deferred:true,replied:false,
+    isChatInputCommand:()=>false,memberPermissions:{has:()=>true},isButton:()=>true,deferred:true,replied:false,
     message:{edit:async payload=>{edited=payload.components.length===0;}},
     editReply:async payload=>{response=payload;}
   };
