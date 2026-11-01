@@ -1,7 +1,7 @@
-import { createSecurityLibrary } from "./Moderation/index.js";
+import { createSecurityLibrary } from "./Security/index.js";
 import { createSupportLibrary } from "./Support/index.js";
 import { createFoundationLibrary } from "./Foundation/index.js";
-import { createScratchLibrary } from "./Developer/index.js";
+import { createScratchLibrary } from "./Scratch/index.js";
 
 export const LIBRARIES = Object.freeze({
   Foundation: Object.freeze({name:"Foundation",description:"Essential member experience and presentation systems.",systems:["Greet system","Embed system","Automatic role assignment","Role selection"],create:createFoundationLibrary}),
