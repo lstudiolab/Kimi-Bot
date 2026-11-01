@@ -9,7 +9,6 @@ const allCommandBuilders=[
 
   new SlashCommandBuilder().setName("tickets").setDescription("Create Timi private channels and the ticket category."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
-  new SlashCommandBuilder().setName("ticket-config").setDescription("Edit ticket system settings."),
 
   new SlashCommandBuilder().setName("setup").setDescription("Create Timi log, confirmation and settings channels."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
@@ -32,7 +31,6 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("title").setDescription("Verification panel title").setMaxLength(200))
     .addStringOption(o=>o.setName("description").setDescription("Verification panel description").setMaxLength(1000)),
   new SlashCommandBuilder().setName("verify").setDescription("Publish the verification panel."),
-  new SlashCommandBuilder().setName("moderation").setDescription("Configure moderation and anti-spam protection."),
   new SlashCommandBuilder().setName("security").setDescription("Audit this server for common security risks."),
   new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
     .addSubcommand(s=>s.setName("add").setDescription("Block a word or phrase.").addStringOption(o=>o.setName("phrase").setDescription("Word or phrase").setRequired(true).setMaxLength(100)))
@@ -69,8 +67,8 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify-config","verify","moderation","filter","security"],
-  Support:["tickets","ticket-panel","ticket-config"],
+  Security:["verify","filter","security"],
+  Support:["tickets","ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
