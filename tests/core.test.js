@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS } from "../src/utils.js";
+import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS, isHttpsUrlTemplate } from "../src/utils.js";
 import { loadConfig } from "../src/config.js";
 import { Store } from "../src/store.js";
 
@@ -271,4 +271,14 @@ test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
 });
 test("unknown template placeholders remain visible for correction",()=>{
   assert.equal(renderTemplate("Hello {unknown-value}"),"Hello {unknown-value}");
+});
+
+test("embed image URL validation accepts supported dynamic image placeholders",()=>{
+  for(const value of ["{user-avatar}","{user_avatar}","{server-icon}","{bot-avatar}",
+    "https://cdn.example/{user-avatar}?size=256","https://cdn.example/image.png"])
+    assert.equal(isHttpsUrlTemplate(value),true,value);
+  for(const value of ["http://cdn.example/image.png","javascript:alert(1)",
+    "{unknown-placeholder}","https://cdn.example/{unknown-placeholder}","not-a-url"])
+    assert.equal(isHttpsUrlTemplate(value),false,value);
+  assert.equal(isHttpsUrlTemplate(""),true);
 });

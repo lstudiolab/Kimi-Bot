@@ -106,6 +106,29 @@ export function renderTemplate(template, context = {}) {
   });
 }
 
+
+const URL_TEMPLATE_PLACEHOLDERS = Object.freeze({
+  "user-avatar": "https://cdn.example/user-avatar.png",
+  "server-icon": "https://cdn.example/server-icon.png",
+  "bot-avatar": "https://cdn.example/bot-avatar.png"
+});
+
+export function isHttpsUrlTemplate(value) {
+  const input=String(value ?? "").trim();
+  if(!input)return true;
+  const candidate=input.replace(/\{\s*([a-z][a-z0-9_-]*)\s*\}/gi,(match,key)=>{
+    const normalized=key.toLowerCase().replace(/_/g,"-");
+    return URL_TEMPLATE_PLACEHOLDERS[normalized] || match;
+  });
+  if(/[{}]/.test(candidate))return false;
+  try {
+    const parsed=new URL(candidate);
+    return parsed.protocol==="https:" && Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export const TEMPLATE_PLACEHOLDERS = Object.freeze([
   "{user}", "{member}", "{user-mention}", "{username}", "{member-name}", "{user-name}",
   "{user_tag}", "{user_id}", "{member-id}", "{user-avatar}", "{server}", "{server-name}",

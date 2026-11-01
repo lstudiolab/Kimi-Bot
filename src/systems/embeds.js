@@ -1,6 +1,6 @@
 import { PermissionFlagsBits, TextInputStyle, ButtonStyle, EmbedBuilder } from "discord.js";
 import { greyEmbed,button,row,textInput,modal,respond,deny,requireManager } from "../ui.js";
-import { renderTemplate } from "../utils.js";
+import { renderTemplate, isHttpsUrlTemplate } from "../utils.js";
 import { applyGuildTheme } from "../styles.js";
 
 export class Embeds {
@@ -25,7 +25,7 @@ export class Embeds {
     return preview;
   }
   text(x){
-    return `**Embed editor: ${x.name}**\n\nTitle: ${x.title||"—"}\nDescription: ${x.description||"—"}\nColor: #808080\nAuthor: ${x.author||"—"}\nFooter: ${x.footer||"—"}\nFields: ${x.fields.length}\n${x.fields.map((f,i)=>`${i+1}. ${f.name}${f.inline?" (inline)":""}`).join("\n")||"No fields"}\nThumbnail: ${x.thumbnail?"Set":"—"}\nImage: ${x.image?"Set":"—"}\nURL: ${x.url||"—"}\n\nPlaceholders: {user}, {username}, {user_tag}, {user_id}, {user-avatar}, {user_avatar}, {server}, {server_id}, {member_count}, {member-count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, {timestamp}.\nChanges save automatically and update every placed message.`;
+    return `**Embed editor: ${x.name}**\n\nTitle: ${x.title||"—"}\nDescription: ${x.description||"—"}\nColor: #808080\nAuthor: ${x.author||"—"}\nFooter: ${x.footer||"—"}\nFields: ${x.fields.length}\n${x.fields.map((f,i)=>`${i+1}. ${f.name}${f.inline?" (inline)":""}`).join("\n")||"No fields"}\nThumbnail: ${x.thumbnail||"—"}\nImage: ${x.image||"—"}\nURL: ${x.url||"—"}\n\nPlaceholders: {user}, {username}, {user_tag}, {user_id}, {user-avatar}, {user_avatar}, {server}, {server_id}, {member_count}, {member-count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, {timestamp}.\nImage fields accept {user-avatar}, {server-icon}, and {bot-avatar}; these resolve when the embed is sent. Changes save automatically and update every placed message.`;
   }
   components(x){
     return [
@@ -65,7 +65,7 @@ export class Embeds {
     const forms={
       content:["Edit embed content",[textInput("title","Title",x.title,TextInputStyle.Short,true,256),textInput("description","Description",x.description,TextInputStyle.Paragraph,true,4000)]],
       style:["Edit embed appearance",[textInput("author","Author",x.author,TextInputStyle.Short,false,256),textInput("footer","Footer",x.footer,TextInputStyle.Short,false,2048)]],
-      media:["Edit embed images and link",[textInput("thumbnail","Thumbnail image URL",x.thumbnail,TextInputStyle.Short,false,500),textInput("image","Main image URL",x.image,TextInputStyle.Short,false,500),textInput("url","Title URL",x.url,TextInputStyle.Short,false,500)]],
+      media:["Edit embed images and link",[textInput("thumbnail","Thumbnail URL or placeholder",x.thumbnail,TextInputStyle.Short,false,500),textInput("image","Image URL or placeholder",x.image,TextInputStyle.Short,false,500),textInput("url","Title URL (HTTPS)",x.url,TextInputStyle.Short,false,500)]],
       "add-field":["Add embed field",[textInput("field-name","Field name","",TextInputStyle.Short,true,256),textInput("field-value","Field value","",TextInputStyle.Paragraph,true,1024),textInput("inline","Inline? type true or false","false",TextInputStyle.Short,false,5)]],
       "remove-field":["Remove embed field",[textInput("field-index","Field number to remove (1-based)","",TextInputStyle.Short,true,2)]]
     };
@@ -88,7 +88,10 @@ export class Embeds {
     if(action==="content")Object.assign(x,{title:fields.title,description:fields.description});
     else if(action==="style")Object.assign(x,{author:fields.author,footer:fields.footer});
     else if(action==="media"){
-      for(const url of [fields.thumbnail,fields.image,fields.url])if(url&&!/^https:\/\//i.test(url))return deny(i,"Image and title links must use HTTPS URLs.");
+      if(!isHttpsUrlTemplate(fields.thumbnail)||!isHttpsUrlTemplate(fields.image))
+        return deny(i,"Thumbnail and image must be HTTPS URLs or supported image placeholders: {user-avatar}, {server-icon}, {bot-avatar}.");
+      if(fields.url&&!/^https:\/\//i.test(fields.url))
+        return deny(i,"The title link must be a valid HTTPS URL.");
       Object.assign(x,{thumbnail:fields.thumbnail,image:fields.image,url:fields.url});
     }else if(action==="add-field"){
       if(x.fields.length>=25)return deny(i,"Discord embeds support up to 25 fields.");
