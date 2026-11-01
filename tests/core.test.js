@@ -122,8 +122,8 @@ test("library management commands are registered with the intended option behavi
   const uninstall=commandData.find(command=>command.name==="uninstall");
   const list=commandData.find(command=>command.name==="libraries");
   assert.ok(install&&uninstall&&list);
-  assert.equal(install.options[0].name,"libraryname");
-  assert.equal(install.options[0].required,false);
+  assert.equal(install.options[0].name,"library");
+  assert.equal(install.options[0].required,true);
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="filter"));
   assert.ok(commandData.some(command=>command.name==="security"));
