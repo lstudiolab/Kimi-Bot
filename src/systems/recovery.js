@@ -1,5 +1,5 @@
 import { AuditLogEvent, ChannelType, PermissionFlagsBits } from "discord.js";
-import { nowMs, snowflakeTime, DAY } from "../utils.js";
+import { nowMs, DAY, chunkText } from "../utils.js";
 
 const WEEK=7*DAY,MAX_MESSAGES=25000;
 export class Recovery {
@@ -77,7 +77,7 @@ export class Recovery {
         for(const message of archive) {
           const attachments=(message.attachments||[]).map(f=>`${f.name||"attachment"}: ${f.url||""}`).join(" | ");
           const text=`[Recovered archive • original message ${message.id} • <t:${Math.floor(message.timestamp_ms/1000)}:F>]\nAuthor ID: ${message.author_id}\n${message.content||"(no text content)"}${attachments?"\nAttachments: "+attachments:""}`;
-          await created.send({content:text.slice(0,1900),allowedMentions:{parse:[]} }).catch(()=>{});
+          for(const part of chunkText(text,1900))await created.send({content:part,allowedMentions:{parse:[]} }).catch(()=>{});
         }
         snapshot.deletedAt=nowMs();this.store.queueSave();
       } catch(error) { this.logger.error("Could not restore deleted channel",item.id,error); }
