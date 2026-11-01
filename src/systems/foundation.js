@@ -63,6 +63,7 @@ export class Foundation {
     const saved=this.store.data.timi_setup[guild.id]||{},channels=[];
     for(const definition of definitions){
       let channel=saved[definition.key]?await guild.channels.fetch(saved[definition.key]).catch(()=>null):null;
+      if(channel?.type!==ChannelType.GuildText)channel=null;
       if(!channel)channel=guild.channels.cache.find(value=>value.type===ChannelType.GuildText&&value.name===definition.name)||null;
       if(channel){
         await channel.permissionOverwrites.set(overwrites,"Apply Timi private channel permissions");
