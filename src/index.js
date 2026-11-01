@@ -86,17 +86,17 @@ async function coreCommand(i){
   modal.addComponents(new ActionRowBuilder().addComponents(tokenInput));
   return i.showModal(modal);
  }
- if(i.commandName==="timi-settings")return settings.show(i,"home");
+ if(i.commandName==="kimi-settings")return settings.show(i,"home");
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /timi-settings.");
+  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi-settings.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
   });
-  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /timi-settings.");
+  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi-settings.");
  }
  if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Timi libraries.");
@@ -141,9 +141,9 @@ async function handleInteraction(i){
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["timi-settings","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi-settings","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
-  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /timi-settings.`);
+  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi-settings.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
   if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Timi library commands.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
@@ -152,7 +152,7 @@ async function handleInteraction(i){
  const id=i.customId||"";
  if(id.startsWith("settings:"))return settings.handle(i);
  const moduleId=componentModule(id);
- if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /timi-settings.`);
+ if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /kimi-settings.`);
  const required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
