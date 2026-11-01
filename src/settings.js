@@ -74,7 +74,7 @@ export class TimiSettings {
       const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
       const first=makeLanguageMenu(LANGUAGES.slice(0,25),tr("language"));
       const second=makeLanguageMenu(LANGUAGES.slice(25),tr("language"));
-      return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LOCALE_NAMES[language]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
       const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\n");
