@@ -31,6 +31,7 @@ const embed = (title,description) => new EmbedBuilder().setColor(GREY).setTitle(
 const hasAccess = i => i.guild?.ownerId===i.user.id || i.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
 const installed = (store,guildId,name) => (store.data.installed_libraries[guildId]||[]).includes(name);
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
+const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? "Library not installed" : enabled(store,guildId,module.id) ? "Enabled" : "Disabled";
 
 export class TimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
@@ -46,7 +47,7 @@ export class TimiSettings {
       ]});
     }
     if(page==="modules"){
-      const lines=MODULES.map(m=>`**${m.label}** — ${enabled(this.store,id,m.id)?"Enabled":"Disabled"}`).join("\n");
+      const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\n");
       const options=MODULES.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
       const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder("Choose a system").addOptions(options);
       const components=[row(menu)];
@@ -75,7 +76,7 @@ export class TimiSettings {
     }
     if(page==="status"){
       const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\n");
-      const mods=MODULES.map(m=>`**${m.label}** — ${enabled(this.store,id,m.id)?"Enabled":"Disabled"}`).join("\n");
+      const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\n");
       return i.editReply({embeds:[embed("System Status",`**Libraries**\n${libs}\n\n**Modules**\n${mods}\n\n**Language**\n${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(page==="permissions"){
