@@ -58,8 +58,9 @@ export function translatePayload(store,guildId,payload){
   if(typeof value==="string")return translateText(store,guildId,value);
   if(Array.isArray(value))return value.map(visit);
   if(value&&typeof value==="object"){
-   const source=typeof value.toJSON==="function"?value.toJSON():value;
-   return Object.fromEntries(Object.entries(source).map(([key,item])=>[key,visit(item)]));
+   if(typeof value.toJSON==="function")return visit(value.toJSON());
+   if(Object.getPrototypeOf(value)!==Object.prototype)return value;
+   return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,visit(item)]));
   }
   return value;
  };
