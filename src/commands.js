@@ -2,6 +2,10 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi-settings").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure Kimi Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-security").setDescription("Configure Kimi Security library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-scratch").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Timi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("install").setDescription("Install a Timi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
@@ -63,7 +67,7 @@ const allCommandBuilders=[
 ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi-settings","plan","web-token"],
+  Core:["kimi-settings","configure-foundation","configure-security","configure-support","configure-scratch","plan","web-token"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
