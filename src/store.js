@@ -161,7 +161,7 @@ export class Store{
   mods(guild){
     this.data.moderation[guild]||={};
     return fillDefaults(this.data.moderation[guild],{enabled:true,sanction:"timeout",timeout_minutes:10,log_channel_id:"",
-      action_duration_seconds:3,max_message_count:3,block_invites:true,block_mass_mentions:true,block_excessive_caps:true,
+      action_duration_seconds:3,max_message_count:20,block_invites:true,block_mass_mentions:true,block_excessive_caps:true,
       panel_channel_id:"",panel_message_id:""});
   }
   verify(guild){
