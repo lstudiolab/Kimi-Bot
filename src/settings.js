@@ -61,8 +61,9 @@ export class TimiSettings {
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
       const availableModules=MODULES.filter(m=>installed(this.store,id,m.library));
       const options=availableModules.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
-      const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose")).addOptions(options);
-      const components=[row(menu)];
+      const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose"));
+      if(options.length)menu.addOptions(options);
+      const components=options.length?[row(menu)]:[];
       if(selected){
         const m=MODULES.find(x=>x.id===selected);
         if(m&&installed(this.store,id,m.library))components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
@@ -111,6 +112,19 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(!i.inGuild())return i.editReply({content:"Use Timi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
+    if(i.isModalSubmit()&&id==="settings:welcome:modal"){
+      const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
+      const read=key=>i.fields.getTextInputValue(key).trim();
+      const channelId=key=>read(key).replace(/[<#>]/g,"");
+      const welcomeChannel=channelId("welcome-channel"),goodbyeChannel=channelId("goodbye-channel"),roleId=channelId("auto-role");
+      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!/^\\d{15,22}$/.test(value))return i.reply({content:"Enter a valid Discord channel ID or leave it blank.",ephemeral:true});
+      if(roleId&&!/^\\d{15,22}$/.test(roleId))return i.reply({content:"Enter a valid Discord role ID or leave it blank.",ephemeral:true});
+      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!i.guild.channels.cache.has(value))return i.reply({content:"One of the channel IDs does not belong to this server or is unavailable.",ephemeral:true});
+      if(roleId&&!i.guild.roles.cache.has(roleId))return i.reply({content:"That role does not belong to this server or is unavailable.",ephemeral:true});
+      this.store.data.welcome[i.guildId]={...current,welcome_channel_id:welcomeChannel,welcome_message:read("welcome-message")||current.welcome_message,goodbye_channel_id:goodbyeChannel,goodbye_message:read("goodbye-message")||current.goodbye_message,auto_role_id:roleId};
+      this.store.save();
+      return i.reply({content:"Welcome, goodbye and automatic-role settings saved.",ephemeral:true});
+    }
     if(i.isStringSelectMenu()){
       if(id==="settings:module-select")return this.show(i,"modules",i.values[0]);
       if(id==="settings:language-select"){
@@ -127,6 +141,18 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
       if(!installed(this.store,i.guildId,library))return this.show(i,"configure");
+      if(section==="welcome"){
+        const value=this.store.data.welcome[i.guildId]||{};
+        const field=(key,label,placeholder,current,style=TextInputStyle.Short)=>new TextInputBuilder().setCustomId(key).setLabel(label).setPlaceholder(placeholder).setStyle(style).setRequired(false).setMaxLength(style===TextInputStyle.Paragraph?1800:22).setValue(String(current||"").slice(0,style===TextInputStyle.Paragraph?1800:22));
+        const modal=new ModalBuilder().setCustomId("settings:welcome:modal").setTitle("Welcome settings").addComponents(
+          new ActionRowBuilder().addComponents(field("welcome-channel","Welcome channel ID","Channel ID",value.welcome_channel_id)),
+          new ActionRowBuilder().addComponents(field("welcome-message","Welcome message","Supports {user}, {username}, {server}, {member_count}",value.welcome_message,TextInputStyle.Paragraph)),
+          new ActionRowBuilder().addComponents(field("goodbye-channel","Goodbye channel ID","Channel ID",value.goodbye_channel_id)),
+          new ActionRowBuilder().addComponents(field("goodbye-message","Goodbye message","Goodbye message",value.goodbye_message,TextInputStyle.Paragraph)),
+          new ActionRowBuilder().addComponents(field("auto-role","Automatic role ID","Role ID; blank disables",value.auto_role_id))
+        );
+        return i.showModal(modal);
+      }
       if(!this.hooks.openConfiguration)return i.editReply({content:"This configuration page is not available yet.",components:[],embeds:[]});
       return this.hooks.openConfiguration(i,section);
     }
