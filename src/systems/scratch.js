@@ -25,13 +25,12 @@ const KIT = {
 
 const TEMPLATES = {
   ...KIT,
-  verification: 'panel:\n    title "Verification"\n    description "Verify to access the server."\n    color "#808080"\n    button "Verify" : verify\n\nonclick verify:\n    give role "Verified"\n    reply "You are now verified."',
-  ticket: KIT.ticket
+  verification: 'panel:\n    title "Verification"\n    description "Verify to access the server."\n    color "#808080"\n    button "Verify" : verify\n\nonclick verify:\n    give role "Verified"\n    reply "You are now verified."'
 };
 const DOCUMENTATION = {
   syntax: 'TBScript uses readable statements and four-space indentation. A panel starts with panel:. Events use on member join: or on message create:. Buttons use button "Label" : id, and onclick id: defines their actions. Use end to close onclick, on, and if blocks. A panel closes automatically when the next top-level statement begins.',
   keywords: 'UI: panel, title, description, color, footer, author, image, thumbnail, url, content, field, button, ephemeral. Events: on member join, on message create, onclick. Flow: if, else, end. Actions: reply, send, create channel, make private, allow, give role.',
-  actions: 'reply "text" responds to the current interaction or message. send #channel "text" sends to a server text channel. create channel "name" creates a private text channel. make private keeps the created channel hidden from @everyone. allow @author or allow "Role Name" grants access. give role "Role Name" assigns a safe, non-privileged role.',
+  actions: 'reply "text" responds to the current interaction or message. send #channel "text" sends to a server text channel. create channel "name" creates a private text channel. make private keeps the created channel hidden from @everyone. allow @author or allow "Role Name" grants access. give role "Role Name" assigns a safe, non-privileged role. remove role "Role Name" removes a safe role from the current author.',
   placeholders: 'Text placeholders: @author, @authorID, @server, @serverID, @channel, @memberCount. They are resolved from the current Discord event or interaction.',
   safety: 'TBScript is a restricted language, not JavaScript. It never evaluates source code. Channel creation starts private, role assignment checks role permissions and hierarchy, and scripts run only after an owner explicitly starts them. Event scripts remain active until stopped.'
 };
