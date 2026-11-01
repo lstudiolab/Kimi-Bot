@@ -106,7 +106,10 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     const detail=checks.map(v=>`**${v.name}:** ${v.points}/${v.max} — ${v.reason}`).join("\n");
     if(outcome==="pass"){
       if(!s.role_id)return deny(i,`Your score is ${score}/100, but the server owner has not configured a verified role.`);
-      await member.roles.add(s.role_id,"Timi verification passed");record.last_verified=Date.now();this.store.save();
+      const role=await guild.roles.fetch(s.role_id).catch(()=>null);
+      const [roleOk,roleError]=await this.validateRole(guild,role,true);
+      if(!roleOk)return deny(i,"The configured verified role is no longer safe to assign. "+roleError);
+      await member.roles.add(role,"Timi verification passed");record.last_verified=Date.now();this.store.save();
       await respond(i,`**Verification passed — ${score}/100**\nYour verified role has been assigned.`);
       await this.log(guild,s.review_channel_id,`Verification passed for <@${user.id}> — **${score}/100**\n${detail}`);
     }else if(outcome==="review"){
