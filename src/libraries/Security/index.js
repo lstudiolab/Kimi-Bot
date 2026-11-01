@@ -29,12 +29,13 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
     },
     async messageDelete(message){await moderation.onMessageDelete(message);},
-    async messageUpdate(oldMessage,newMessage){await Promise.all([moderation.onMessageUpdate(oldMessage,newMessage),recovery.updateMessage(newMessage)]);},
+    async messageUpdate(oldMessage,newMessage,modules={moderation:true,recovery:true}){const tasks=[];if(modules.moderation)tasks.push(moderation.onMessageUpdate(oldMessage,newMessage));if(modules.recovery)tasks.push(recovery.updateMessage(newMessage));await Promise.all(tasks);},
     async memberUpdate(oldMember,newMember){await moderation.onMemberUpdate(oldMember,newMember);},
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
-    async messageCreate(message){
-      recovery.backupMessage(message);
-      const results=await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);
+    async messageCreate(message,modules={moderation:true,recovery:true}){
+      if(modules.recovery)recovery.backupMessage(message);
+      const tasks=[];if(modules.moderation){tasks.push(moderation.onMessage(message));tasks.push(imageAnalysis.handleMessage(message));}
+      const results=await Promise.allSettled(tasks);
       for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
     },
     async guildMemberAdd(member){await protection.memberJoin(member);},
