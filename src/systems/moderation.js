@@ -1,5 +1,5 @@
 import { PermissionFlagsBits, ButtonStyle, TextInputStyle, ChannelType, ChannelSelectMenuBuilder } from "discord.js";
-import { normalizeMessage, jaccard, mentionChannel, matchesBlockedPhrase } from "../utils.js";
+import { normalizeMessage, jaccard, mentionChannel, matchesBlockedPhrase, isPrivateTextChannel } from "../utils.js";
 import { button,row,textInput,modal,respond,deny,requireManager } from "../ui.js";
 import { applyPanelTbScript } from "../tbscript.js";
 
@@ -58,8 +58,9 @@ export class Moderation {
       if(!job.steps.logged){
         const x=this.store.mods(guild.id);
         let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
-        if(!channel)channel=guild.channels.cache.find(c=>["timi-log","timi-logs","timi"].includes(c.name)&&c.type===ChannelType.GuildText);
-        if(channel?.isTextBased())await channel.send({content:`Anti-spam action: ${job.action_result}. Automatic warning #${job.warning_id} issued to <@${job.user_id}>. Channel: <#${job.channel_id}>. Reason: ${job.reason}.`,allowedMentions:{parse:[]}});
+        if(!isPrivateTextChannel(channel,guild))channel=await this.protection?.privateChannel(guild);
+        if(!isPrivateTextChannel(channel,guild))throw new Error("A private Timi log channel is unavailable; moderation job will retry.");
+        await channel.send({content:"Anti-spam action: "+job.action_result+". Automatic warning #"+job.warning_id+" issued to <@"+job.user_id+">. Channel: <#"+job.channel_id+">. Reason: "+job.reason+".",allowedMentions:{parse:[]}});
         job.steps.logged=true;job.updated_at=Date.now();this.store.save();
       }
       job.status="completed";job.completed_at=Date.now();job.updated_at=Date.now();
@@ -157,9 +158,11 @@ export class Moderation {
   async log(guild,content){
     const x=this.store.mods(guild.id);
     let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
-    if(!channel?.isTextBased())channel=null;
-    if(!channel)channel=guild.channels.cache.find(c=>["timi-log","timi-logs","timi"].includes(c.name)&&c.type===ChannelType.GuildText);
-    if(channel?.isTextBased())await channel.send({content,allowedMentions:{parse:[]}}).catch(()=>{});
+    if(!isPrivateTextChannel(channel,guild))channel=await this.protection?.privateChannel(guild);
+    if(!isPrivateTextChannel(channel,guild)){
+      this.logger.warn("AutoMod log skipped because no private Timi log channel is available.");return;
+    }
+    await channel.send({content,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("AutoMod log failed:",error.message));
   }
   async warn(guild,user,reason){
     const now=Date.now(),cases=this.store.data.moderation_cases[guild]||[];
