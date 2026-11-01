@@ -75,6 +75,9 @@ export class Recovery {
     return true;
   }
   async findLogChannel(guild) {
+    const configured=this.store.data.timi_setup?.[guild.id]?.log_channel_id;
+    const channel=configured?await guild.channels.fetch(configured).catch(()=>null):null;
+    if(channel?.guildId===guild.id&&channel.type===ChannelType.GuildText)return channel;
     return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&["timi-log","timi-logs","timi"].includes(c.name))||null;
   }
   async onChannelDelete(channel) {
