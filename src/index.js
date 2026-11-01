@@ -8,6 +8,7 @@ import { startWorking, respond, finishWorking } from "./ui.js";
 import { libraryForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
 import { TimiSettings } from "./settings.js";
+import { translatePayload } from "./i18n.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
@@ -85,7 +86,16 @@ async function coreCommand(i){
   return respond(i,`**${result.library.name}** is installed and active in this server. Its slash commands have been published.\n${result.library.description}`);
  }
 }
+function localizeInteraction(i){
+ const methods=["reply","editReply","followUp","update","showModal"];
+ for(const method of methods){
+  const original=i[method];
+  if(typeof original!=="function")continue;
+  i[method]=function(payload,...args){return original.call(this,translatePayload(store,this.guildId,payload),...args);};
+ }
+}
 async function handleInteraction(i){
+ localizeInteraction(i);
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
   if(["timi-settings","install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
