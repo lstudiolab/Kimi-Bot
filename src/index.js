@@ -9,7 +9,7 @@ import { LIBRARIES } from "./libraries/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
 import { libraryForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
-import { TimiSettings } from "./settings.js";
+import { KimiSettings } from "./settings.js";
 import { translatePayload } from "./i18n.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
@@ -27,7 +27,7 @@ function recordAnalytics(guildId,metric,commandName=""){
  store.queueSave();
 }
 const commandModule={
- "verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
+ "verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","kimi-channel":"setup","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
  "ticket-panel":"tickets",
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
@@ -40,7 +40,7 @@ context.libraries=libraries;
 const rest=new REST({version:"10"}).setToken(config.token);
 async function syncGlobalCommands(){
  const registered=await rest.put(Routes.applicationCommands(config.clientId),{body:coreCommandData});
- logger.info(`Synced ${registered.length} Timi core slash commands globally.`);
+ logger.info(`Synced ${registered.length} Kimi core slash commands globally.`);
 }
 async function syncGuildCommands(guildId){
  const installed=store.data.installed_libraries[guildId]||[];
@@ -77,7 +77,7 @@ const openConfiguration=async(i,section)=>{
   }});
   return libraries[library].handleInteraction(proxy);
  };
-const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
+const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
  if(i.commandName==="web-token"){
@@ -86,22 +86,22 @@ async function coreCommand(i){
   modal.addComponents(new ActionRowBuilder().addComponents(tokenInput));
   return i.showModal(modal);
  }
- if(i.commandName==="kimi-settings")return settings.show(i,"home");
- const configureLibrary={"configure-foundation":"Foundation","configure-security":"Security","configure-support":"Support","configure-scratch":"Scratch"}[i.commandName];
+ if(i.commandName==="kimi")return settings.show(i,"home");
+ const configureLibrary={"configure-core":"Foundation","configure-shield":"Security","configure-support":"Support","configure-studio":"Scratch"}[i.commandName];
  if(configureLibrary)return settings.show(i,"library",configureLibrary);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi-settings.");
+  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
   });
-  return respond(i,"**Timi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi-settings.");
+  return respond(i,"**Kimi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi.");
  }
  if(i.commandName==="uninstall"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Timi libraries.");
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
   const result=manager.uninstall(i.guildId,i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
   if(libraries[result.library.name]?.onUninstall)await libraries[result.library.name].onUninstall(i.guild);
@@ -109,7 +109,7 @@ async function coreCommand(i){
   return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Timi libraries.");
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi libraries.");
   const name=i.options.getString("library");
   if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Security, Support, Scratch. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
@@ -117,7 +117,7 @@ async function coreCommand(i){
    await syncGuildCommands(i.guildId);
   } catch(error) {
    logger.error(`Could not publish ${result.library.name} commands for guild ${i.guildId}:`,error);
-   return respond(i,`**${result.library.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Timi to retry the sync.`);
+   return respond(i,`**${result.library.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
   if(libraries[result.library.name].ready)await libraries[result.library.name].ready(i.guild);
   if(libraries[result.library.name].onInstall)await libraries[result.library.name].onInstall(i.guild);
@@ -143,18 +143,18 @@ async function handleInteraction(i){
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi-settings","configure-foundation","configure-security","configure-support","configure-scratch","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-core","configure-shield","configure-support","configure-studio","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
-  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi-settings.`);
+  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
-  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Timi library commands.");
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi library commands.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
   return libraries[required].handleInteraction(i);
  }
  const id=i.customId||"";
  if(id.startsWith("settings:"))return settings.handle(i);
  const moduleId=componentModule(id);
- if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /kimi-settings.`);
+ if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /kimi.`);
  const required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
@@ -183,7 +183,7 @@ client.on(Events.InteractionCreate,async i=>{
  }catch(error){
   logger.error(`Interaction ${i.id} failed:`,error);
   if(!i.isRepliable())return;
-  const p={content:"Timi could not complete that action. Check bot permissions and try again.",components:[],allowedMentions:{parse:[]}};
+  const p={content:"Kimi could not complete that action. Check bot permissions and try again.",components:[],allowedMentions:{parse:[]}};
   if(i.deferred||i.replied)await i.editReply(p).catch(()=>{});
   else await i.reply({...p,ephemeral:true}).catch(()=>{});
  }
@@ -195,11 +195,11 @@ client.on(Events.MessageCreate,async m=>{
   if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation library is not installed in this server.").catch(()=>{});
   try{
    const sent=await foundation.testGreet(m.member);
-   if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Timi can view and send messages there.").catch(()=>{});
+   if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Kimi can view and send messages there.").catch(()=>{});
    return m.reply("Test greeting sent to <#"+sent.channelId+">.").catch(()=>{});
   }catch(error){
    logger.error("Greet test failed:",error);
-   return m.reply("Timi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
+   return m.reply("Kimi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
   }
  }
  if(manager.installed(m.guildId,"Scratch")&&moduleEnabled(m.guildId,"scratch"))libraries.Scratch.onMessageCreate(m).catch(e=>logger.error("TBScript message event failed:",e));
@@ -233,7 +233,7 @@ client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Sec
 client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelUpdate(o,c);});
 client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
-function shutdown(signal){logger.info(`Received ${signal}; shutting down Timi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
+function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
 startDashboardServer({config,client,store,manager,libraries,logger,syncGuildCommands,authStore});
 try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
