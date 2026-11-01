@@ -152,6 +152,211 @@ function expectString(token) {
 }
 function expectBoolean(token) { return token?.type === "boolean"; }
 
+
+
+function simpleTokenize(source, line, column) {
+  const tokens=[];
+  let index=0;
+  while(index<source.length){
+    while(/\s/.test(source[index]||""))index++;
+    if(index>=source.length)break;
+    if(source[index]===":"){tokens.push({type:"separator",value:":"});index++;continue;}
+    if(source[index]==='"'||source[index]==="“"){
+      const quote=source[index]==="“"?"”":'"';index++;
+      let value="",closed=false;
+      while(index<source.length){
+        const char=source[index++];
+        if(char===quote){closed=true;break;}
+        if(char==="\\"){
+          const escaped=source[index++]||"";
+          value+=({n:"\n",r:"\r",t:"\t",'"':'"',"\\":"\\"})[escaped]??escaped;
+        }else value+=char;
+      }
+      if(!closed)throw new TbScriptSyntaxError("Unclosed text value.",line,column+index);
+      tokens.push({type:"string",value});
+      continue;
+    }
+    let value="";
+    while(index<source.length&&!/\s|:/.test(source[index]))value+=source[index++];
+    if(!value)throw new TbScriptSyntaxError("Expected a value.",line,column+index);
+    tokens.push({type:"atom",value});
+  }
+  return tokens;
+}
+
+function parseSimpleLine(raw,lineNumber,column) {
+  const block=raw.match(/^(panel|onclick\s+[a-zA-Z][\w-]*|on\s+(?:member\s+join|message\s+create)|if\s+.+|else)\s*:\s*$/i);
+  if(block){
+    const head=block[1].trim();
+    if(/^panel$/i.test(head))return {name:"panel",args:[],children:[],alternate:[],line:lineNumber,column};
+    if(/^onclick\s+/i.test(head))return {name:"onclick",args:[{type:"atom",value:head.replace(/^onclick\s+/i,"")}],children:[],alternate:[],line:lineNumber,column};
+    if(/^on\s+/i.test(head))return {name:"on",args:[{type:"atom",value:head.replace(/^on\s+/i,"").toLowerCase()}],children:[],alternate:[],line:lineNumber,column};
+    if(/^if\s+/i.test(head))return {name:"if",condition:head.slice(3).trim(),args:[],children:[],alternate:[],line:lineNumber,column};
+    return {name:"else",args:[],children:[],alternate:[],line:lineNumber,column};
+  }
+  const lower=raw.toLowerCase();
+  if(lower==="end")return {name:"$end",args:[],children:[],line:lineNumber,column};
+  const match=raw.match(/^([a-z][a-z ]*[a-z]|[a-z]+)\b(.*)$/i);
+  if(!match)throw new TbScriptSyntaxError("Expected a TBScript keyword.",lineNumber,column);
+  const keyword=match[1].trim().toLowerCase().replace(/\s+/g,"_");
+  const rest=match[2].trim();
+  const args=simpleTokenize(rest,lineNumber,column+raw.indexOf(rest));
+  const node={name:keyword,args,children:[],line:lineNumber,column};
+  return node;
+}
+
+function parseSimpleTbScript(source) {
+  const text=String(source??"").replace(/\r\n?/g,"\n").replace(/[“”]/g,'"').replace(/[‘’]/g,"'");
+  if(Buffer.byteLength(text,"utf8")>MAX_SOURCE_LENGTH)throw new TbScriptSyntaxError("TBScript source exceeds the 64 KB safety limit.",1,1);
+  const root={name:"$root",args:[],children:[],line:1,column:1};
+  const stack=[];
+  const lines=text.split("\n");
+  if(lines.length>2000)throw new TbScriptSyntaxError("TBScript files are limited to 2,000 lines.",2000,1);
+  for(let index=0;index<lines.length;index++){
+    const line=lines[index],trimmed=line.trim();
+    if(!trimmed||trimmed.startsWith("--")||trimmed.startsWith("//"))continue;
+    if(/\t/.test(line.match(/^\s*/)?.[0]||""))throw new TbScriptSyntaxError("Use spaces instead of tabs for indentation.",index+1,1);
+    const indent=line.length-line.trimStart().length;
+    if(indent%4!==0)throw new TbScriptSyntaxError("Indent using groups of four spaces.",index+1,1);
+    if(trimmed.toLowerCase()==="end"){
+      const frame=stack.at(-1);
+      if(!frame||indent!==frame.indent)throw new TbScriptSyntaxError("end must align with the block it closes.",index+1,indent+1);
+      stack.pop();
+      continue;
+    }
+    if(/^else\s*:\s*$/i.test(trimmed)){
+      const frame=stack.at(-1);
+      if(!frame||frame.node.name!=="if"||indent!==frame.indent||frame.elseUsed)throw new TbScriptSyntaxError("else must match an if block and can only appear once.",index+1,indent+1);
+      frame.elseUsed=true;
+      frame.target=frame.node.alternate;
+      continue;
+    }
+    while(stack.length&&indent<=stack.at(-1).indent){
+      const frame=stack.at(-1);
+      if(frame.requiresEnd)throw new TbScriptSyntaxError("Missing end for "+frame.node.name+" block.",index+1,indent+1);
+      stack.pop();
+    }
+    const parent=stack.at(-1);
+    if(parent&&indent<=parent.indent)throw new TbScriptSyntaxError("Nested statements must be indented four spaces.",index+1,indent+1);
+    if(!parent&&indent!==0)throw new TbScriptSyntaxError("Top-level statements must start at the left edge.",index+1,1);
+    const node=parseSimpleLine(trimmed,index+1,indent+1);
+    if(node.name==="$end")throw new TbScriptSyntaxError("Unexpected end.",index+1,indent+1);
+    const destination=parent?(parent.target||parent.node.children):root.children;
+    if(parent?.node.name==="panel"&&!["title","description","color","footer","author","image","thumbnail","url","content","field","button","ephemeral"].includes(node.name))
+      throw new TbScriptSyntaxError("Only panel properties and UI elements can appear inside panel.",index+1,indent+1);
+    destination.push(node);
+    if(["panel","onclick","on","if"].includes(node.name)){
+      stack.push({node,indent,requiresEnd:node.name!=="panel",target:node.children,elseUsed:false});
+    }
+  }
+  for(const frame of stack){
+    if(frame.requiresEnd)throw new TbScriptSyntaxError("Missing end for "+frame.node.name+" block.",lines.length,1);
+  }
+  return root;
+}
+
+function simpleArgs(node,min,max,errors){
+  if(node.args.length<min||node.args.length>max){
+    errors.push({message:node.name+" expects "+(min===max?min:min+"–"+max)+" value(s).",line:node.line,column:node.column});
+    return false;
+  }
+  return true;
+}
+function simpleText(token){return token?.type==="string"||token?.type==="atom";}
+function simpleValue(token){return token?.value;}
+function simpleActionNodes(nodes,errors){
+  const output=[];
+  const supported=new Set(["reply","send","create_channel","make_private","allow","give_role","remove_role","delete_channel","if"]);
+  for(const node of nodes||[]){
+    if(!supported.has(node.name)){
+      errors.push({message:"Unknown action keyword: "+node.name+".",line:node.line,column:node.column});
+      continue;
+    }
+    if(node.name==="if"){
+      if(!node.condition)errors.push({message:"if needs a condition.",line:node.line,column:node.column});
+      output.push({type:"if",condition:node.condition,then:simpleActionNodes(node.children,errors),else:simpleActionNodes(node.alternate,errors),line:node.line});
+      continue;
+    }
+    const count=node.args.length;
+    const required=node.name==="make_private"||node.name==="delete_channel"?0:node.name==="send"?2:1;
+    if(count!==required){errors.push({message:node.name.replace(/_/g," ")+" expects "+required+" value(s).",line:node.line,column:node.column});continue;}
+    if(node.name==="send"&&(!simpleText(node.args[0])||!simpleText(node.args[1]))){
+      errors.push({message:"send syntax is: send #channel \"message\".",line:node.line,column:node.column});continue;
+    }
+    if(node.name!=="send"&&count===1&&!simpleText(node.args[0])){
+      errors.push({message:node.name.replace(/_/g," ")+" expects a text value.",line:node.line,column:node.column});continue;
+    }
+    output.push({type:node.name,args:node.args.map(simpleValue),line:node.line});
+  }
+  return output;
+}
+
+function compileSimpleTbScript(source){
+  let ast;
+  try{ast=parseSimpleTbScript(source);}catch(error){
+    return {ok:false,ast:null,instructions:[],errors:[{message:error.message,line:error.line||1,column:error.column||1}]};
+  }
+  const errors=[],instructions=[];
+  const output={title:"",description:"",footer:"",author:"",image:"",thumbnail:"",url:"",content:"",color:0x808080,
+    ephemeral:false,fields:[],buttons:[],modal:null,handlers:{buttons:{},events:[]},instructions};
+  let panels=0;
+  for(const node of ast.children){
+    instructions.push({block:node.name,line:node.line,arguments:node.args.map(simpleValue),children:node.children.length});
+    if(node.name==="panel"){
+      panels++;
+      if(panels>1)errors.push({message:"A script can contain only one panel.",line:node.line,column:node.column});
+      for(const child of node.children){
+        if(["title","description","footer","author","image","thumbnail","url","content"].includes(child.name)){
+          if(!simpleArgs(child,1,1,errors)||!simpleText(child.args[0]))continue;
+          const key=child.name==="image"?"image":child.name;
+          const value=String(simpleValue(child.args[0]));
+          if(["image","thumbnail","url"].includes(key)){
+            let valid=false;try{valid=new URL(value).protocol==="https:";}catch{}
+            if(!valid){errors.push({message:key+" requires a valid HTTPS URL.",line:child.line,column:child.column});continue;}
+          }
+          output[key]=value;
+        }else if(child.name==="color"){
+          if(!simpleArgs(child,1,1,errors))continue;
+          const match=String(simpleValue(child.args[0])??"").match(/^#?([0-9a-f]{6})$/i);
+          if(!match){errors.push({message:"color expects a six-digit hex value such as #808080.",line:child.line,column:child.column});continue;}
+          output.color=parseInt(match[1],16);
+        }else if(child.name==="ephemeral"){
+          if(!simpleArgs(child,1,1,errors)||!["true","false"].includes(String(simpleValue(child.args[0]))))errors.push({message:"ephemeral expects true or false.",line:child.line,column:child.column});
+          else output.ephemeral=String(simpleValue(child.args[0]))==="true";
+        }else if(child.name==="field"){
+          if(!simpleArgs(child,2,2,errors)||!child.args.every(simpleText))continue;
+          if(output.fields.length>=25){errors.push({message:"Discord embeds support up to 25 fields.",line:child.line,column:child.column});continue;}
+          output.fields.push({name:String(simpleValue(child.args[0])).slice(0,256),value:String(simpleValue(child.args[1])).slice(0,1024),inline:false});
+        }else if(child.name==="button"){
+          if(!simpleArgs(child,2,2,errors)||!child.args.every(simpleText))continue;
+          const id=String(simpleValue(child.args[1])).toLowerCase();
+          if(!/^[a-z0-9_-]{1,32}$/.test(id)){errors.push({message:"Button IDs may contain letters, numbers, underscores and hyphens (1–32 characters).",line:child.line,column:child.column});continue;}
+          if(output.buttons.length>=25){errors.push({message:"Discord messages support up to 25 buttons.",line:child.line,column:child.column});continue;}
+          if(output.buttons.some(button=>button.id===id)){errors.push({message:"Duplicate button ID: "+id+".",line:child.line,column:child.column});continue;}
+          output.buttons.push({id,label:String(simpleValue(child.args[0])).slice(0,80),emoji:"",disabled:false,action:null});
+        }else errors.push({message:"Unknown panel keyword: "+child.name+".",line:child.line,column:child.column});
+      }
+    }else if(node.name==="onclick"){
+      if(!simpleArgs(node,1,1,errors))continue;
+      const id=String(simpleValue(node.args[0])).toLowerCase();
+      if(output.handlers.buttons[id])errors.push({message:"Button handler already exists: "+id+".",line:node.line,column:node.column});
+      else output.handlers.buttons[id]=simpleActionNodes(node.children,errors);
+    }else if(node.name==="on"){
+      const event=String(simpleValue(node.args[0])||"").toLowerCase();
+      if(!["member join","message create"].includes(event)){errors.push({message:"Supported events are on member join and on message create.",line:node.line,column:node.column});continue;}
+      output.handlers.events.push({event,actions:simpleActionNodes(node.children,errors)});
+    }else errors.push({message:"Unknown top-level keyword: "+node.name+".",line:node.line,column:node.column});
+  }
+  for(const button of output.buttons){
+    button.action=output.handlers.buttons[button.id]||null;
+    if(!button.action)errors.push({message:"Button \""+button.id+"\" has no onclick handler.",line:1,column:1});
+  }
+  const hasPresentation=Boolean(output.title||output.description||output.footer||output.author||output.image||output.thumbnail||output.url||output.content||output.fields.length||output.buttons.length);
+  if(!hasPresentation&&!output.handlers.events.length)errors.push({message:"Add a panel or an event handler before saving this script.",line:1,column:1});
+  if(errors.length)return {ok:false,errors,ast,instructions};
+  return {ok:true,errors:[],ast,instructions,output};
+}
+
 function flattenRoot(node, output = []) {
   for (const child of node.children || []) {
     output.push(child);
@@ -161,6 +366,10 @@ function flattenRoot(node, output = []) {
 }
 
 export function parseTbScript(source) {
+  if (!String(source ?? "").trimStart().startsWith("{")) {
+    try { return { ok: true, ast: parseSimpleTbScript(source), errors: [] }; }
+    catch (error) { return { ok: false, ast: null, errors: [{ message: error.message, line: Number(error.line)||1, column: Number(error.column)||1 }] }; }
+  }
   try {
     return { ok: true, ast: new Parser(source).parse(), errors: [] };
   } catch (error) {
@@ -177,6 +386,7 @@ export function parseTbScript(source) {
 }
 
 export function compileTbScript(source) {
+  if (!String(source ?? "").trimStart().startsWith("{")) return compileSimpleTbScript(source);
   const parsed = parseTbScript(source);
   if (!parsed.ok) return { ok: false, errors: parsed.errors, ast: null, instructions: [] };
 
@@ -319,6 +529,7 @@ export function compileTbScript(source) {
 
 export function autoFixTbScript(source) {
   const normalized = String(source ?? "").replace(/\r\n?/g, "\n").trim();
+  if (!normalized.startsWith("{")) return normalized;
   let depth = 0;
   let quoted = false;
   let escaped = false;
