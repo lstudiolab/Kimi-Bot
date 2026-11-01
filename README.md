@@ -161,7 +161,7 @@ pkg update
 pkg install tesseract zbar imagemagick
 ```
 
-Each image is limited to 8 MB, up to three images are checked per request, and temporary files are deleted after processing. Timi rejects oversized images and does not store the image itself.
+Each image is limited to 8 MB and 40 megapixels (maximum side 12,000 pixels); up to three images are checked per request, and temporary files are deleted after processing. Timi rejects oversized images and does not store the image itself.
 
 These tools do **not** provide AI image understanding or a reliable visual classifier for nudity, violence or graphic content. OCR can miss text, and a clean report does not prove an image or link is safe. Heuristic flags do not automatically punish users.
 
