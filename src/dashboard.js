@@ -177,7 +177,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           client_id: config.clientId,
           response_type: "code",
           redirect_uri: config.oauthRedirectUri,
-          scope: "identify guilds",
+          scope: pending.next === "/verify" ? "identify" : "identify guilds",
           state
         });
         return redirect(res, "https://discord.com/oauth2/authorize?" + params.toString());
@@ -219,6 +219,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
         sessions.set(sessionId, {
           user: { id: user.id, username: user.username, globalName: user.global_name || user.username, avatar: user.avatar },
           accessToken: token.access_token,
+          scope: String(token.scope || ""),
           expiresAt: Date.now() + Math.min(SESSION_TTL, Number(token.expires_in || 3600) * 1000),
           guilds: null,
           guildsExpiresAt: 0
@@ -240,10 +241,12 @@ export function startDashboardServer({ config, client, store, manager, libraries
         if (method === "GET" && url.pathname === "/api/me") {
           return send(res, 200, {
             user: { ...session.user, createdAt: accountCreatedAt(session.user.id) },
-            bot: { ready: client.isReady(), tag: client.user?.tag || null, guildCount: client.guilds.cache.size }
+            bot: { ready: client.isReady(), tag: client.user?.tag || null, guildCount: client.guilds.cache.size },
+            canViewLogs: Boolean(config.dashboardOwnerId && session.user.id === config.dashboardOwnerId)
           });
         }
         if (method === "GET" && url.pathname === "/api/guilds") {
+          if (!session.scope.split(/\\s+/).includes("guilds")) return send(res, 403, { error: "Dashboard access requires Discord server-list permission.", reauth: true });
           const userGuilds = await discordUserGuilds(session);
           const available = userGuilds.filter(g => {
             const p = BigInt(g.permissions || "0");
