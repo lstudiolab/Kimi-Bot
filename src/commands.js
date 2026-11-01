@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 
 const allCommandBuilders=[
+  new SlashCommandBuilder().setName("timi-settings").setDescription("Open Timi built-in server settings panel."),
   new SlashCommandBuilder().setName("plan").setDescription("View Timi's free features and storage usage."),
   new SlashCommandBuilder().setName("install").setDescription("Install a Timi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
   new SlashCommandBuilder().setName("libraries").setDescription("Show Timi's four libraries."),
@@ -66,7 +67,7 @@ const allCommandBuilders=[
 ];
 
 const commandGroups=Object.freeze({
-  Core:["plan","install","libraries","uninstall"],
+  Core:["timi-settings","plan","install","libraries","uninstall"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","verify","moderation","filter","security"],
   Support:["tickets","ticket-panel","ticket-config"],
