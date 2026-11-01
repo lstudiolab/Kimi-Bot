@@ -143,7 +143,7 @@ async function handleInteraction(i){
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi-settings","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi-settings","configure-foundation","configure-security","configure-support","configure-scratch","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi-settings.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
