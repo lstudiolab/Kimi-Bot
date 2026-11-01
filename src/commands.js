@@ -22,7 +22,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify-settings").setDescription("Configure risk-based member verification.")
+  new SlashCommandBuilder().setName("verify-config").setDescription("Configure risk-based member verification.")
     .addRoleOption(o=>o.setName("role").setDescription("Role granted after passing"))
     .addRoleOption(o=>o.setName("required-role").setDescription("Role required before verifying"))
     .addBooleanOption(o=>o.setName("clear-required-role").setDescription("Remove the required-role restriction"))
@@ -68,7 +68,7 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["plan","install","libraries","uninstall"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify-settings","verify","moderation","filter","security"],
+  Security:["verify-config","verify","moderation","filter","security"],
   Support:["tickets","ticket-panel","ticket-settings"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
