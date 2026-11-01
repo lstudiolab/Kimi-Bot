@@ -11,12 +11,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
 
   new SlashCommandBuilder().setName("setup").setDescription("Create Timi log, confirmation and settings channels."),
-  new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
-    .addChannelOption(o=>o.setName("welcome-channel").setDescription("Welcome channel").addChannelTypes(ChannelType.GuildText))
-    .addStringOption(o=>o.setName("welcome-message").setDescription("Welcome text; supports {user}, {username}, {server}, {member_count}").setMaxLength(1800))
-    .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Goodbye channel").addChannelTypes(ChannelType.GuildText))
-    .addStringOption(o=>o.setName("goodbye-message").setDescription("Goodbye text; supports {user}, {username}, {server}, {member_count}").setMaxLength(1800)),
-  new SlashCommandBuilder().setName("autorole").setDescription("Set the role automatically assigned to new members.").addRoleOption(o=>o.setName("role").setDescription("Role to assign; omit to disable")),
   new SlashCommandBuilder().setName("roles").setDescription("Create a self-service role selection menu."),
   new SlashCommandBuilder().setName("embed-new").setDescription("Create a reusable server embed."),
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
@@ -58,7 +52,7 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
-  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Foundation:["setup","roles","embed-new","embed-edit","embed-post"],
   Security:["verify","filter","security"],
   Support:["tickets","ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
