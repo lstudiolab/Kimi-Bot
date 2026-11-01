@@ -20,14 +20,15 @@ export function normalizeMessage(value) {
     .replace(/[\p{P}\p{C}]/gu, " ").replace(/\s+/g, " ").trim();
 }
 export function matchesBlockedPhrase(content,phrase){
-  const haystack=String(content||"").toLocaleLowerCase().replace(/\s+/g," ");
-  const needle=String(phrase||"").trim().toLocaleLowerCase().replace(/\s+/g," ");
+  const haystack=String(content||"").toLowerCase().replace(/\s+/g," ");
+  const needle=String(phrase||"").trim().toLowerCase().replace(/\s+/g," ");
   if(!needle)return false;
-  const isWord=character=>Boolean(character&&/[\p{L}\p{N}_]/u.test(character));
-  const leftBoundary=isWord(needle[0]),rightBoundary=isWord(needle[needle.length-1]);
+  const codepoints=Array.from(needle),isWord=character=>Boolean(character&&/[\p{L}\p{N}_]/u.test(character));
+  const leftBoundary=isWord(codepoints[0]),rightBoundary=isWord(codepoints.at(-1));
   let index=haystack.indexOf(needle);
   while(index!==-1){
-    const before=haystack[index-1],after=haystack[index+needle.length];
+    const before=Array.from(haystack.slice(0,index)).at(-1);
+    const after=Array.from(haystack.slice(index+needle.length))[0];
     if((!leftBoundary||!isWord(before))&&(!rightBoundary||!isWord(after)))return true;
     index=haystack.indexOf(needle,index+1);
   }
