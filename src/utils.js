@@ -19,6 +19,20 @@ export function normalizeMessage(value) {
     .replace(/<@!?\d+>|<@&\d+>|<#\d+>/g, " mention ")
     .replace(/[\p{P}\p{C}]/gu, " ").replace(/\s+/g, " ").trim();
 }
+export function matchesBlockedPhrase(content,phrase){
+  const haystack=String(content||"").toLocaleLowerCase().replace(/\\s+/g," ");
+  const needle=String(phrase||"").trim().toLocaleLowerCase().replace(/\\s+/g," ");
+  if(!needle)return false;
+  const isWord=character=>Boolean(character&&/[\\p{L}\\p{N}_]/u.test(character));
+  const leftBoundary=isWord(needle[0]),rightBoundary=isWord(needle[needle.length-1]);
+  let index=haystack.indexOf(needle);
+  while(index!==-1){
+    const before=haystack[index-1],after=haystack[index+needle.length];
+    if((!leftBoundary||!isWord(before))&&(!rightBoundary||!isWord(after)))return true;
+    index=haystack.indexOf(needle,index+1);
+  }
+  return false;
+}
 export function jaccard(leftText, rightText) {
   const left = new Set(normalizeMessage(leftText).split(/\s+/).filter(Boolean));
   const right = new Set(normalizeMessage(rightText).split(/\s+/).filter(Boolean));
