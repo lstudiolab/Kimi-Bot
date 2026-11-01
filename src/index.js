@@ -133,7 +133,7 @@ async function handleInteraction(i){
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
  if(i.isRepliable()&&!opensModal(i))await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["timi-settings","install","uninstall","libraries","plan"].includes(i.commandName))return coreCommand(i);
+  if(["timi-settings","install","uninstall","libraries","plan","dashboard-link"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /timi-settings.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
@@ -221,5 +221,5 @@ client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Sec
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Timi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
-startDashboardServer({config,client,store,manager,libraries,logger,syncGuildCommands});
+startDashboardServer({config,client,store,manager,libraries,logger,syncGuildCommands,authStore});
 try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
