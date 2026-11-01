@@ -29,6 +29,11 @@ export function loadConfig(root = process.cwd()) {
   const guildId = get("GUILD_ID").trim() || null;
   const dataDir = path.resolve(root, get("DATA_DIR").trim() || "data");
   const logLevel = (get("LOG_LEVEL").trim() || "info").toLowerCase();
+  const dashboardHost = get("DASHBOARD_HOST").trim() || "127.0.0.1";
+  const dashboardPort = Number(get("DASHBOARD_PORT").trim() || "8787");
+  const oauthClientSecret = get("DISCORD_OAUTH_CLIENT_SECRET").trim();
+  const oauthRedirectUri = get("DISCORD_OAUTH_REDIRECT_URI").trim();
+  const dashboardCookieSecure = get("DASHBOARD_COOKIE_SECURE").trim() ? get("DASHBOARD_COOKIE_SECURE").trim().toLowerCase() === "true" : oauthRedirectUri.startsWith("https://");
 
   if (!token || token === "your_discord_bot_token") {
     throw new Error("DISCORD_TOKEN is missing or empty. Set it in .env.");
@@ -39,21 +44,31 @@ export function loadConfig(root = process.cwd()) {
   if (guildId && !/^\d{15,22}$/.test(guildId)) {
     throw new Error("GUILD_ID must be a numeric Discord server ID, or blank.");
   }
+  if (!Number.isInteger(dashboardPort) || dashboardPort < 1024 || dashboardPort > 65535) {
+    throw new Error("DASHBOARD_PORT must be a valid TCP port between 1024 and 65535.");
+  }
+  if (oauthClientSecret && !oauthRedirectUri) throw new Error("DISCORD_OAUTH_REDIRECT_URI is required when Discord OAuth is enabled.");
   fs.mkdirSync(dataDir, { recursive: true });
-  return { token, clientId, guildId, dataDir, logLevel };
+  return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, oauthClientSecret, oauthRedirectUri, dashboardCookieSecure };
 }
 
 export function createLogger(level = "info") {
   const levels = { debug: 10, info: 20, warn: 30, error: 40 };
   const threshold = levels[level] ?? levels.info;
-  return Object.fromEntries(Object.entries(levels).map(([name, value]) => [
-    name,
-    (...args) => {
+  const recent = [];
+  const logger = {};
+  for (const [name, value] of Object.entries(levels)) {
+    logger[name] = (...args) => {
       if (value < threshold) return;
       const timestamp = new Date().toISOString();
       const message = args.map((item) => item instanceof Error ? item.stack || item.message : String(item)).join(" ");
-      const output = `[${timestamp}] [${name.toUpperCase()}] ${message}\n`;
+      const entry = { timestamp, level: name, message: message.slice(0, 4000) };
+      recent.push(entry);
+      if (recent.length > 500) recent.splice(0, recent.length - 500);
+      const output = "[" + timestamp + "] [" + name.toUpperCase() + "] " + message + "\n";
       (value >= levels.warn ? process.stderr : process.stdout).write(output);
-    }
-  ]));
+    };
+  }
+  logger.getRecent = (limit = 200) => recent.slice(-Math.max(1, Math.min(500, Number(limit) || 200))).reverse();
+  return logger;
 }
