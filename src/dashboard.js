@@ -8,8 +8,7 @@ import { LOCALE_NAMES } from "./i18n.js";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DASHBOARD = path.join(ROOT, "dashboard");
 const COOKIE = "kimi_session";
-const OAUTH_COOKIE = "kimi_oauth_state";
-const SESSION_TTL = 8 * 60 * 60 * 1000;
+const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const MODULES = Object.freeze([
   { id: "welcome", name: "Welcome", library: "Foundation" },
   { id: "roles", name: "Role picker", library: "Foundation" },
@@ -79,18 +78,9 @@ function parseBody(req) {
     req.on("error", reject);
   });
 }
-function accountCreatedAt(id) {
-  try { return new Date(Number((BigInt(id) >> 22n) + 1420070400000n)).toISOString(); }
-  catch { return null; }
-}
-function safeNext(value) {
-  return value === "/verify" ? "/verify" : "/";
-}
 
-export function startDashboardServer({ config, client, store, manager, libraries, logger, syncGuildCommands }) {
-  const sessions = new Map();
-  const pendingStates = new Map();
-  const oauthReady = Boolean(config.oauthClientSecret && config.oauthRedirectUri);
+export function startDashboardServer({ config, client, store, manager, libraries, logger, syncGuildCommands, authStore }) {
+  const authAttempts = new Map();
   function recordAnalytics(guildId,metric,commandName=""){
     if(!guildId)return;
     const day=new Date().toISOString().slice(0,10);
@@ -111,38 +101,27 @@ export function startDashboardServer({ config, client, store, manager, libraries
   client.on("guildMemberRemove",member=>recordAnalytics(member.guild.id,"leaves"));
 
   function sessionFor(req) {
-    const id = cookieValue(req, COOKIE);
-    const session = sessions.get(id);
-    if (!session || session.expiresAt < Date.now()) {
-      if (id) sessions.delete(id);
-      return null;
-    }
-    return session;
+    return authStore.getSession(cookieValue(req, COOKIE));
   }
-  function setSessionCookie(res, id) {
+  function setSessionCookie(res, token) {
     const secure = config.dashboardCookieSecure ? "; Secure" : "";
-    res.setHeader("Set-Cookie", COOKIE + "=" + encodeURIComponent(id) + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + Math.floor(SESSION_TTL / 1000) + secure);
+    res.setHeader("Set-Cookie", COOKIE + "=" + encodeURIComponent(token) + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + Math.floor(SESSION_TTL / 1000) + secure);
   }
-  async function discordUserGuilds(session) {
-    if (session.guilds && session.guildsExpiresAt > Date.now()) return session.guilds;
-    const response = await fetch("https://discord.com/api/v10/users/@me/guilds", {
-      headers: { Authorization: "Bearer " + session.accessToken }
-    });
-    if (!response.ok) throw new Error("Discord could not return your server list.");
-    session.guilds = await response.json();
-    session.guildsExpiresAt = Date.now() + 60_000;
-    return session.guilds;
+  async function memberAccess(session, guild) {
+    const discordId = session.discord?.id;
+    if (!discordId) return null;
+    if (guild.ownerId === discordId) return { owner: true, canManage: true };
+    const member = guild.members.cache.get(discordId) || await guild.members.fetch(discordId).catch(() => null);
+    if (!member) return null;
+    const bits = member.permissions.bitfield;
+    const canManage = (bits & 0x8n) === 0x8n || (bits & 0x20n) === 0x20n;
+    return canManage ? { owner: false, canManage: true } : null;
   }
   async function authorizedGuild(session, guildId) {
-    const userGuilds = await discordUserGuilds(session);
-    const userGuild = userGuilds.find(guild => guild.id === guildId);
-    if (!userGuild) return null;
-    const permissions = BigInt(userGuild.permissions || "0");
-    const canManage = userGuild.owner === true || (permissions & 0x8n) === 0x8n || (permissions & 0x20n) === 0x20n;
-    if (!canManage) return null;
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return null;
-    return { guild, owner: userGuild.owner === true || guild.ownerId === session.user.id };
+    const access = await memberAccess(session, guild);
+    return access ? { guild, owner: access.owner } : null;
   }
   async function requireGuild(req, res, session, guildId) {
     const context = await authorizedGuild(session, guildId);
@@ -163,7 +142,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       id: guild.id,
       name: guild.name,
       icon: guild.iconURL({ size: 64 }),
-      owner: guild.ownerId === session.user.id,
+      owner: guild.ownerId === session.discord?.id,
       canManage: true,
       libraries: [...LIBRARY_NAMES].map(name => ({
         name,
@@ -195,98 +174,62 @@ export function startDashboardServer({ config, client, store, manager, libraries
     try {
       if (method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, service: "kimi-dashboard", botReady: client.isReady() });
 
-      if (method === "GET" && url.pathname === "/auth/discord") {
-        if (!oauthReady) return redirect(res, "/verify?error=oauth-not-configured");
-        const state = crypto.randomBytes(24).toString("hex");
-        const browserId = crypto.randomBytes(24).toString("hex");
-        for (const [key, item] of pendingStates) if (Date.now() - item.createdAt > 10 * 60 * 1000) pendingStates.delete(key);
-        pendingStates.set(state, { next: safeNext(url.searchParams.get("next")), createdAt: Date.now(), browserId });
-        const secure = config.dashboardCookieSecure ? "; Secure" : "";
-        res.setHeader("Set-Cookie", OAUTH_COOKIE + "=" + browserId + "; HttpOnly; SameSite=Lax; Path=/auth/discord; Max-Age=600" + secure);
-        const params = new URLSearchParams({
-          client_id: config.clientId,
-          response_type: "code",
-          redirect_uri: config.oauthRedirectUri,
-          scope: pending.next === "/verify" ? "identify" : "identify guilds",
-          state
-        });
-        return redirect(res, "https://discord.com/oauth2/authorize?" + params.toString());
-      }
-
-      if (method === "GET" && url.pathname === "/auth/discord/callback") {
-        const clearOAuthCookie = OAUTH_COOKIE + "=; HttpOnly; SameSite=Lax; Path=/auth/discord; Max-Age=0" + (config.dashboardCookieSecure ? "; Secure" : "");
-        if (url.searchParams.has("error")) return redirect(res, "/verify?error=discord-denied", { "Set-Cookie": clearOAuthCookie });
-        const code = url.searchParams.get("code") || "";
-        const state = url.searchParams.get("state") || "";
-        const pending = pendingStates.get(state);
-        pendingStates.delete(state);
-        const browserId = cookieValue(req, OAUTH_COOKIE);
-        if (!oauthReady || !code || !pending || !browserId || pending.browserId !== browserId || Date.now() - pending.createdAt > 10 * 60 * 1000) {
-          return redirect(res, "/verify?error=invalid-session", { "Set-Cookie": clearOAuthCookie });
+      if (method === "POST" && ["/auth/register", "/auth/login"].includes(url.pathname)) {
+        const body = await parseBody(req);
+        const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
+        const attempt = authAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
+        if (attempt.resetAt <= Date.now()) { attempt.count = 0; attempt.resetAt = Date.now() + 15 * 60 * 1000; }
+        if (attempt.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
+        if (url.pathname === "/auth/register") {
+          const result = authStore.createAccount({ email: body.email, password: body.password, displayName: body.displayName });
+          if (result.error) return send(res, 400, { error: result.error });
+          const token = authStore.createSession(result.account.id);
+          setSessionCookie(res, token);
+          authAttempts.delete(ip);
+          logger.info("A new Kimi dashboard account was created.");
+          return send(res, 201, { ok: true }, { "Set-Cookie": res.getHeader("Set-Cookie") });
         }
-        const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: config.clientId,
-            client_secret: config.oauthClientSecret,
-            grant_type: "authorization_code",
-            code,
-            redirect_uri: config.oauthRedirectUri
-          })
-        });
-        if (!tokenResponse.ok) {
-          logger.warn("Discord OAuth token exchange failed:", await tokenResponse.text());
-          return redirect(res, "/verify?error=oauth-failed", { "Set-Cookie": clearOAuthCookie });
+        const account = authStore.authenticate(body.email, body.password);
+        if (!account) {
+          attempt.count++;
+          authAttempts.set(ip, attempt);
+          return send(res, 401, { error: "Email or password is incorrect." });
         }
-        const token = await tokenResponse.json();
-        const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
-          headers: { Authorization: "Bearer " + token.access_token }
-        });
-        if (!userResponse.ok) return redirect(res, "/verify?error=profile-failed", { "Set-Cookie": clearOAuthCookie });
-        const user = await userResponse.json();
-        const sessionId = crypto.randomBytes(32).toString("hex");
-        sessions.set(sessionId, {
-          user: { id: user.id, username: user.username, globalName: user.global_name || user.username, avatar: user.avatar },
-          accessToken: token.access_token,
-          scope: String(token.scope || (pending.next === "/verify" ? "identify" : "identify guilds")),
-          expiresAt: Date.now() + Math.min(SESSION_TTL, Number(token.expires_in || 3600) * 1000),
-          guilds: null,
-          guildsExpiresAt: 0
-        });
-        setSessionCookie(res, sessionId);
-        res.setHeader("Set-Cookie", [res.getHeader("Set-Cookie"), clearOAuthCookie]);
-        return redirect(res, pending.next, { "Set-Cookie": [res.getHeader("Set-Cookie"), clearOAuthCookie] });
+        authAttempts.delete(ip);
+        const token = authStore.createSession(account.id);
+        setSessionCookie(res, token);
+        return send(res, 200, { ok: true }, { "Set-Cookie": res.getHeader("Set-Cookie") });
       }
 
       if (method === "POST" && url.pathname === "/auth/logout") {
-        const id = cookieValue(req, COOKIE);
-        if (id) sessions.delete(id);
+        authStore.deleteSession(cookieValue(req, COOKIE));
         return send(res, 200, { ok: true }, { "Set-Cookie": COOKIE + "=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0" + (config.dashboardCookieSecure ? "; Secure" : "") });
       }
 
       if (url.pathname.startsWith("/api/")) {
         const session = sessionFor(req);
-        if (!session) return send(res, 401, { error: "Sign in with Discord to continue." });
+        if (!session) return send(res, 401, { error: "Sign in to your Kimi account to continue." });
         if (method === "GET" && url.pathname === "/api/me") {
+          const account = authStore.publicAccount(session.account);
           return send(res, 200, {
-            user: { ...session.user, createdAt: accountCreatedAt(session.user.id) },
+            user: { id: account.id, username: account.email, email: account.email, globalName: account.displayName, displayName: account.displayName, createdAt: account.createdAt, discord: account.discord },
             bot: { ready: client.isReady(), tag: client.user?.tag || null, guildCount: client.guilds.cache.size },
-            canViewLogs: Boolean(config.dashboardOwnerId && session.user.id === config.dashboardOwnerId)
+            canViewLogs: Boolean(config.dashboardOwnerId && session.discord?.id === config.dashboardOwnerId),
+            discordLinked: Boolean(session.discord)
           });
         }
+        if (method === "POST" && url.pathname === "/api/discord/link-code") {
+          const result = authStore.createLinkCode(session.account.id);
+          return send(res, 200, { code: result.code, expiresAt: result.expiresAt });
+        }
         if (method === "GET" && url.pathname === "/api/guilds") {
-          if (!session.scope.split(/\s+/).includes("guilds")) return send(res, 403, { error: "Dashboard access requires Discord server-list permission.", reauth: true });
-          const userGuilds = await discordUserGuilds(session);
-          const available = userGuilds.filter(g => {
-            const p = BigInt(g.permissions || "0");
-            const canManage = g.owner || (p & 0x8n) === 0x8n || (p & 0x20n) === 0x20n;
-            return canManage && client.guilds.cache.has(g.id);
-          });
-          return send(res, 200, { guilds: available.map(g => {
-            const guild = client.guilds.cache.get(g.id);
-            return { id: guild.id, name: guild.name, icon: guild.iconURL({ size: 64 }), owner: g.owner === true };
-          }) });
+          if (!session.discord?.id) return send(res, 409, { error: "Connect your Discord account to load servers. Generate a linking code and use /dashboard-link in a server where Kimi is installed." });
+          const guilds = [];
+          for (const guild of client.guilds.cache.values()) {
+            const access = await memberAccess(session, guild);
+            if (access) guilds.push({ id: guild.id, name: guild.name, icon: guild.iconURL({ size: 64 }), owner: access.owner });
+          }
+          return send(res, 200, { guilds });
         }
         const analyticsMatch = url.pathname.match(/^\/api\/guilds\/(\d+)\/analytics$/);
         if (method === "GET" && analyticsMatch) {
@@ -310,7 +253,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activeLibraries:(store.data.installed_libraries?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
         }
         if (method === "GET" && url.pathname === "/api/logs") {
-          if (!config.dashboardOwnerId || session.user.id !== config.dashboardOwnerId) {
+          if (!config.dashboardOwnerId || session.discord?.id !== config.dashboardOwnerId) {
             return send(res, 403, { error: "Process logs are restricted to the configured dashboard owner." });
           }
           return send(res, 200, { logs: logger.getRecent ? logger.getRecent(200) : [] });
@@ -411,7 +354,6 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && ["/", "/dashboard", "/dashboard/index.html", "/index.html"].includes(pagePath)) {
         const session = sessionFor(req);
         if (!session) return redirect(res, "/login");
-        if (!session.scope.split(/\s+/).includes("guilds")) return redirect(res, "/auth/discord");
         return staticFile(res, "index.html");
       }
       if (method === "GET" && ["/app.js", "/styles.css", "/verify.js", "/dashboard/app.js", "/dashboard/styles.css", "/dashboard/verify.js"].includes(pagePath)) {
@@ -435,7 +377,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
 
   server.listen(config.dashboardPort, config.dashboardHost, () => {
     logger.info("Kimi dashboard listening on http://" + config.dashboardHost + ":" + config.dashboardPort);
-    if (!oauthReady) logger.warn("Discord sign-in is disabled until DISCORD_OAUTH_CLIENT_SECRET and DISCORD_OAUTH_REDIRECT_URI are configured.");
+    logger.info("Kimi account authentication is enabled with local JSON storage.");
   });
   return server;
 }
