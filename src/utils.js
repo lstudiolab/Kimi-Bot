@@ -20,10 +20,10 @@ export function normalizeMessage(value) {
     .replace(/[\p{P}\p{C}]/gu, " ").replace(/\s+/g, " ").trim();
 }
 export function matchesBlockedPhrase(content,phrase){
-  const haystack=String(content||"").toLocaleLowerCase().replace(/\\s+/g," ");
-  const needle=String(phrase||"").trim().toLocaleLowerCase().replace(/\\s+/g," ");
+  const haystack=String(content||"").toLocaleLowerCase().replace(/\s+/g," ");
+  const needle=String(phrase||"").trim().toLocaleLowerCase().replace(/\s+/g," ");
   if(!needle)return false;
-  const isWord=character=>Boolean(character&&/[\\p{L}\\p{N}_]/u.test(character));
+  const isWord=character=>Boolean(character&&/[\p{L}\p{N}_]/u.test(character));
   const leftBoundary=isWord(needle[0]),rightBoundary=isWord(needle[needle.length-1]);
   let index=haystack.indexOf(needle);
   while(index!==-1){
