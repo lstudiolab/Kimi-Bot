@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, EmbedBuilder, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { GREY } from "./ui.js";
+import { GREY, respond } from "./ui.js";
 import { LIBRARIES } from "./libraries/index.js";
 import { t, LOCALE_NAMES } from "./i18n.js";
 import { isSafeAssignableRole } from "./permissions.js";
@@ -187,7 +187,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(!i.isButton())return;
     if(id==="settings:filter-add"||id==="settings:filter-remove"){
-      if(!installed(this.store,i.guildId,"Security"))return i.reply({content:"The Security library is no longer installed.",ephemeral:true});
+      if(!installed(this.store,i.guildId,"Security"))return respond(i,"The Security library is no longer installed.");
       const add=id==="settings:filter-add";
       const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
       return i.showModal(modal);
@@ -198,7 +198,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
-      if(!installed(this.store,i.guildId,library))return i.reply({content:"That library is no longer installed. Reopen Timi Settings to refresh the panel.",ephemeral:true});
+      if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Timi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         const value=this.store.verify(i.guildId);
