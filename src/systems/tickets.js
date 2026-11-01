@@ -261,8 +261,11 @@ export class Tickets {
         // The dispatcher has already deferred this interaction ephemerally. Post the
         // visible countdown in the ticket channel instead of acknowledging it again.
         publicNotice=await ch.send({content:"Closing this ticket in 5 seconds…",allowedMentions:{parse:[]}});
-        try { await i.deleteReply(); i.__timiDeletedReply=true; }
+        try { await i.deleteReply(); }
         catch(error) { this.logger.warn("Could not remove the ephemeral ticket confirmation:",error.message); }
+        // The public countdown is now the authoritative response. Prevent the
+        // dispatcher from writing a fallback into the private confirmation later.
+        i.__timiDeletedReply=true;
         await new Promise(resolve=>setTimeout(resolve,5000));
         try { await this.transcript(g,ch); } catch(e) { this.logger.warn("Ticket transcript failed:",e.message); }
         await this.log(g,`Ticket closed. Channel: <#${ch.id}>. Closed by <@${i.user.id}>.`);
