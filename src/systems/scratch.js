@@ -35,13 +35,17 @@ const DOCUMENTATION = {
   placeholders: 'Placeholders inside quoted text are interpolated: {user}, {username}, {user_tag}, {user_id}, {server}, {server_id}, {member_count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, and {timestamp}.',
   safety: 'TbScript is a restricted Discord component language. It does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Only explicitly supported actions run. The current automatic repair adds missing closing braces only; it does not rewrite logic.'
 };
+export function isTrustedTbScriptAttachmentUrl(value){
+  try{
+    const url=new URL(value);
+    return url.protocol==="https:"&&["cdn.discordapp.com","media.discordapp.net"].includes(url.hostname.toLowerCase())&&!url.username&&!url.password;
+  }catch{return false;}
+}
 async function readTbScriptAttachment(attachment){
   if(!attachment?.name?.toLowerCase().endsWith(".tdl"))throw new Error("Attach a TbScript file with the .tdl extension.");
   if(Number(attachment.size)>64*1024)throw new Error("TbScript imports are limited to 64 KB.");
-  let url;
-  try{url=new URL(attachment.url);}catch{throw new Error("Discord returned an invalid attachment URL.");}
-  if(url.protocol!=="https:"||!["cdn.discordapp.com","media.discordapp.net"].includes(url.hostname.toLowerCase())||url.username||url.password)
-    throw new Error("TbScript files must be uploaded as Discord attachments.");
+  if(!isTrustedTbScriptAttachmentUrl(attachment.url))throw new Error("TbScript files must be uploaded as Discord attachments.");
+  const url=new URL(attachment.url);
   const response=await fetch(url,{signal:AbortSignal.timeout(10000),redirect:"error"});
   if(!response.ok)throw new Error("Timi could not download that attachment.");
   const declared=Number(response.headers.get("content-length")||0);
