@@ -18,9 +18,9 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
     },
     async handleInteraction(i){
-      if(i.isChatInputCommand()&&i.commandName==="security-scan")return respond(i,await protection.scan(i.guild));
-      if(i.isChatInputCommand()&&["moderation-settings","automod-word"].includes(i.commandName))return moderation.handle(i);
-      if(i.isChatInputCommand()&&["verify-settings","verify-panel"].includes(i.commandName))return verification.handle(i);
+      if(i.isChatInputCommand()&&i.commandName==="security")return respond(i,await protection.scan(i.guild));
+      if(i.isChatInputCommand()&&["moderation","filter"].includes(i.commandName))return moderation.handle(i);
+      if(i.isChatInputCommand()&&["verify-settings","verify"].includes(i.commandName))return verification.handle(i);
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
@@ -31,7 +31,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
     async messageCreate(message){
       recovery.backupMessage(message);
-      await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);
+      const results=await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);\n      for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
     },
     async guildMemberAdd(member){await protection.memberJoin(member);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
