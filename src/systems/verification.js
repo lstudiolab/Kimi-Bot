@@ -16,7 +16,7 @@ export class Verification {
   }
   recordAudit(guild,member,outcome,checks,action,metadata={}){
     const rows=this.store.data.verification_logs||(this.store.data.verification_logs={});
-    const list=rows[guild.id]||(rows[guild.id]=[]);
+    const list=Array.isArray(rows[guild.id])?rows[guild.id]:(rows[guild.id]=[]);
     const entry={
       timestamp:Date.now(),
       user_id:member.id,
@@ -204,6 +204,7 @@ export class Verification {
   }
   async handle(i){
     if(i.isChatInputCommand()&&i.commandName==="verify-config")return this.command(i);
+    if(i.isButton()&&i.customId==="verify:start")return respond(i,"Verification now runs automatically when you join this server. This old panel is no longer active.");
     if(i.isButton()&&i.customId.startsWith("verify:review:"))return this.reviewDecision(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
