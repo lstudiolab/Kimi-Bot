@@ -64,8 +64,10 @@ export class Verification {
         const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
         const [safe,error]=await this.validateRole(guild,role,true);
         if(safe){
-          await member.roles.add(role,"Kimi restored previously verified role");
-          action="Previously verified member; verified role restored.";
+          try{
+            await member.roles.add(role,"Kimi restored previously verified role");
+            action="Previously verified member; verified role restored.";
+          }catch(assignError){action+=" Role restoration failed: "+assignError.message;}
         }else action+=" Role could not be restored: "+error;
       }
       this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
@@ -89,6 +91,7 @@ export class Verification {
         action="Account-age requirement passed, but the verified role is not assignable: "+error;
       }
     }else if(agePass){
+      record.last_verified=Date.now();
       action="Account-age requirement passed. No verified role is configured, so no role was assigned.";
     }else{
       action="Account is younger than the configured minimum. Sent for manual review; no automatic kick or timeout.";
