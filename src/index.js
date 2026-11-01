@@ -52,7 +52,7 @@ async function coreCommand(i){
  if(i.commandName==="timi-settings")return settings.show(i,"home");
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /libraries to browse libraries and /install to enable them.");
+  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /timi-settings.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
