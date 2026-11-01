@@ -21,8 +21,10 @@ export class Protection {
     if(!channel)channel=await guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
       topic:"Private Timi security alerts and bot approval requests. Only the server owner, server managers, and Timi can view this channel.",
       permissionOverwrites:permissions,reason:"Create private Timi security channel"});
-    else await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private")
-      .catch(error=>this.logger.warn("Could not refresh Timi log permissions:",error.message));
+    else await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(error=>{
+      this.logger.warn("Could not refresh Timi log permissions:",error.message);
+      throw new Error("Timi refused to send private security logs because the log channel permissions could not be secured.");
+    });
     const current=this.store.data.timi_setup[guild.id]||{};
     if(current.log_channel_id!==channel.id){
       current.log_channel_id=channel.id;this.store.data.timi_setup[guild.id]=current;
