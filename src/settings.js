@@ -58,8 +58,7 @@ export class TimiSettings {
       return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
     }
     if(page==="modules"){
-      const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("
-");
+      const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
       const availableModules=MODULES.filter(m=>installed(this.store,id,m.library));
       const options=availableModules.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
       const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose")).addOptions(options);
@@ -90,10 +89,8 @@ export class TimiSettings {
 Choose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
-      const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("
-");
-      const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("
-");
+      const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\\n");
+      const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
       return i.editReply({embeds:[embed(tr("status"),`**Libraries**
 ${libs}
 
