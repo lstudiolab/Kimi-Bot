@@ -59,7 +59,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("script-redo").setDescription("Redo the last undone project change.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("script-kit").setDescription("Open the TbScript component kit."),
   new SlashCommandBuilder().setName("script-help").setDescription("Open TbScript documentation.").addStringOption(o=>o.setName("topic").setDescription("Documentation topic")
-    .addChoices({name:"Syntax",value:"syntax"},{name:"Keywords",value:"keywords"},{name:"Actions",value:"actions"},{name:"Placeholders",value:"placeholders"},{name:"Safety",value:"safety"})),
+    .addChoices({name:"Syntax",value:"syntax"},{name:"Keywords",value:"keywords"},{name:"Actions",value:"actions"},{name:"Conditions",value:"conditions"},{name:"Placeholders",value:"placeholders"},{name:"Safety",value:"safety"})),
   new SlashCommandBuilder().setName("script-template").setDescription("Create a TbScript starter project.")
     .addStringOption(o=>o.setName("name").setDescription("New project name").setRequired(true).setMaxLength(24))
     .addStringOption(o=>o.setName("template").setDescription("Starter template").setRequired(true)
