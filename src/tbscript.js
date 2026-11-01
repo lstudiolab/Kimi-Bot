@@ -408,7 +408,7 @@ export function buildTbScriptModal(compiled, customId) {
 }
 
 export function applyPanelTbScript(store, guildId, target, basePayload, context = {}) {
-  if (!(store.data.installed_libraries[guildId] || []).includes("Developer")) return basePayload;
+  if (!(store.data.installed_libraries[guildId] || []).includes("Scratch")) return basePayload;
   const scriptKey = ["ticket","verification","moderation","role-picker"].includes(target) ? target + "-panel" : target;
   const source = store.data.panel_scripts?.[guildId]?.[scriptKey];
   if (!source) return basePayload;
