@@ -44,8 +44,8 @@ export class Foundation {
         ". Placeholders: "+TEMPLATE_PLACEHOLDERS.join(", ")+".");
     }
   }
-  render(template,member){
-    return renderTemplate(template,{guild:member.guild,member,user:member.user,client:this.client});
+  render(template,member,channel=null){
+    return renderTemplate(template,{guild:member.guild,member,user:member.user,channel,client:this.client});
   }
   async sendWelcome(member,channel){
     const template=String(this.settings(member.guild.id).welcome_message||"");
