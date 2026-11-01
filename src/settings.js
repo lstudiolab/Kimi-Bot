@@ -46,9 +46,25 @@ export class TimiSettings {
       return i.editReply({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
-        row(button("settings:configure","Configure")),
         row(button("settings:advanced",tr("advanced")))
       ]});
+    }
+    if(page==="library"){
+      const library=selected;
+      if(!["Foundation","Security","Support","Scratch"].includes(library))return i.editReply({content:"Unknown library.",embeds:[],components:[]});
+      if(!installed(this.store,id,library))return i.editReply({content:`${library} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
+      const sections=[];
+      if(library==="Security"){
+        sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
+        sections.push(row(button("settings:config:filter","Blocked Phrases")));
+      }else if(library==="Support"){
+        sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
+      }else if(library==="Foundation"){
+        sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+      }else{
+        sections.push(row(button("settings:config:scratch","TbScript Projects")));
+      }
+      return i.editReply({embeds:[embed(library+" Configuration",`Configure the ${library} library for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
     }
     if(page==="configure"){
       const sections=[];
