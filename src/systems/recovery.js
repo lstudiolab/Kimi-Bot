@@ -54,6 +54,7 @@ export class Recovery {
     let restored=0;
     for(const item of entries) {
       const snapshot=this.store.data.channels[guild.id+":"+item.id];
+      if(snapshot?.deletedAt)continue;
       if(!snapshot) {
         if(log)await log.send({content:`Recovery incomplete: no saved channel configuration exists for deleted channel ID ${item.id}.`});
         continue;
