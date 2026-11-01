@@ -31,7 +31,7 @@ export class Recovery {
     this.store.queueSave();
   }
   async findLogChannel(guild) {
-    return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&c.name==="timi")||null;
+    return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&["timi-log","timi-logs","timi"].includes(c.name))||null;
   }
   async onChannelDelete(channel) {
     if(!channel.guild)return;
