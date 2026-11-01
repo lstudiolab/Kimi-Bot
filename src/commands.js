@@ -1,18 +1,18 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 
 const allCommandBuilders=[
-  new SlashCommandBuilder().setName("kimi-settings").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure Kimi Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-security").setDescription("Configure Kimi Security library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-core").setDescription("Configure Kimi Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-shield").setDescription("Configure Kimi Security library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-scratch").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("plan").setDescription("View Timi's free features and storage usage."),
+  new SlashCommandBuilder().setName("configure-studio").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Timi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
-  new SlashCommandBuilder().setName("libraries").setDescription("Show Timi's four libraries."),
-  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Timi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
+  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Core",value:"Foundation"},{name:"Shield",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
+  new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's four libraries."),
+  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Core",value:"Foundation"},{name:"Shield",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
 
-  new SlashCommandBuilder().setName("setup").setDescription("Create Timi's private server channels and setup references."),
+  new SlashCommandBuilder().setName("kimi-channel").setDescription("Create Kimi's private server channels and setup references."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member greetings").addChannelTypes(ChannelType.GuildText))
     .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Channel for member departure messages").addChannelTypes(ChannelType.GuildText))
@@ -43,7 +43,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("script").setDescription("Create a TbScript project.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
     .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)")),
-  new SlashCommandBuilder().setName("script-edit").setDescription("Edit a TbScript project or supported Timi panel.")
+  new SlashCommandBuilder().setName("script-edit").setDescription("Edit a TbScript project or supported Kimi panel.")
     .addStringOption(o=>o.setName("target").setDescription("What to edit").setRequired(true)
       .addChoices({name:"Project",value:"project"},{name:"Ticket panel",value:"ticket-panel"},{name:"Verification panel",value:"verification-panel"},{name:"Moderation panel",value:"moderation-panel"},{name:"Role picker panels",value:"role-picker-panel"}))
     .addStringOption(o=>o.setName("name").setDescription("Project name").setMaxLength(24))
@@ -68,8 +68,8 @@ const allCommandBuilders=[
 ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi-settings","configure-foundation","configure-security","configure-support","configure-scratch","plan","web-token"],
-  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Core:["kimi","configure-core","configure-shield","configure-support","configure-studio","plan","web-token"],
+  Foundation:["kimi-channel","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
