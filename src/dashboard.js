@@ -185,11 +185,12 @@ export function startDashboardServer({ config, client, store, manager, libraries
         if (attempt.resetAt <= Date.now()) { attempt.count = 0; attempt.resetAt = Date.now() + 15 * 60 * 1000; }
         if (attempt.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
         if (url.pathname === "/auth/register") {
+          attempt.count++;
+          authAttempts.set(ip, attempt);
           const result = authStore.createAccount({ email: body.email, password: body.password, displayName: body.displayName });
-          if (result.error) { attempt.count++; authAttempts.set(ip, attempt); return send(res, 400, { error: result.error }); }
+          if (result.error) return send(res, 400, { error: result.error });
           const token = authStore.createSession(result.account.id);
           setSessionCookie(res, token);
-          authAttempts.delete(ip);
           logger.info("A new Kimi dashboard account was created.");
           return send(res, 201, { ok: true }, { "Set-Cookie": res.getHeader("Set-Cookie") });
         }
