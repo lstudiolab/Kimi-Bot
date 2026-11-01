@@ -113,3 +113,27 @@ test("TBScript preserves legacy brace projects during the syntax upgrade", () =>
   assert.equal(compiled.ok, true);
   assert.equal(compiled.output.title, "Legacy");
 });
+
+
+test("TBScript rejects duplicate event handlers and excessive nesting", () => {
+  const duplicate = [
+    "on member join:",
+    '    reply "one"',
+    "end",
+    "on member join:",
+    '    reply "two"',
+    "end"
+  ].join("\n");
+  assert.equal(compileTbScript(duplicate).ok, false);
+  const nested = ["on message create:", ...Array.from({length: 32}, () => "    if true:")].join("\n");
+  assert.equal(compileTbScript(nested).ok, false);
+});
+
+test("TBScript validates Discord's aggregate embed text limit", () => {
+  const source = [
+    "panel:",
+    '    description "' + "D".repeat(4096) + '"',
+    '    footer "' + "F".repeat(2048) + '"'
+  ].join("\n");
+  assert.equal(compileTbScript(source).ok, false);
+});
