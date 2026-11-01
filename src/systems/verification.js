@@ -64,7 +64,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
   }
   async command(i){
     if(!await requireOwner(i))return;
-    const guild=i.guild,s=this.store.verify(guild.id);
+    const guild=i.guild,s=structuredClone(this.store.verify(guild.id));
     if(i.commandName==="verify"){
       const existing=s.published_panels.find(p=>p.channel_id===i.channelId);
       const payload=this.panelPayload(guild,i.channel,i.user,i.member);
@@ -130,9 +130,10 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
       delete this.store.data.pending_bots[key];this.store.save();
       return respond(i,"Bot rejected and removed from the server.");
     }
-    for(const channel of guild.channels.cache.values()){
-      if(channel.permissionOverwrites.cache.has(botId)&&!["timi","timi-logs","timi-confirmations"].includes(channel.name))
-        await channel.permissionOverwrites.delete(botId).catch(()=>{});
+    const channels=await guild.channels.fetch();
+    for(const channel of channels.values()){
+      if(channel.permissionOverwrites?.cache?.has(botId)&&!["timi","timi-log","timi-logs","timi-confirmations","timi-settings"].includes(channel.name))
+        await channel.permissionOverwrites.delete(botId).catch(error=>this.logger.warn("Could not remove a temporary bot restriction from "+channel.id+":",error.message));
     }
     delete this.store.data.pending_bots[key];this.store.save();
     return respond(i,"Bot approved. Temporary restrictions were removed; private Timi channels remain inaccessible.");
