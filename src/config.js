@@ -48,7 +48,8 @@ export function loadConfig(root = process.cwd()) {
   if (!Number.isInteger(dashboardPort) || dashboardPort < 1024 || dashboardPort > 65535) {
     throw new Error("DASHBOARD_PORT must be a valid TCP port between 1024 and 65535.");
   }
-  if (oauthClientSecret && !oauthRedirectUri) throw new Error("DISCORD_OAUTH_REDIRECT_URI is required when Discord OAuth is enabled.");
+  if (Boolean(oauthClientSecret) !== Boolean(oauthRedirectUri)) throw new Error("Set both DISCORD_OAUTH_CLIENT_SECRET and DISCORD_OAUTH_REDIRECT_URI to enable Discord OAuth.");
+  if (dashboardOwnerId && !/^\\d{15,22}$/.test(dashboardOwnerId)) throw new Error("DASHBOARD_OWNER_ID must be a Discord user ID or blank.");
   fs.mkdirSync(dataDir, { recursive: true });
   return { token, clientId, guildId, dataDir, logLevel, dashboardHost, dashboardPort, oauthClientSecret, oauthRedirectUri, dashboardCookieSecure, dashboardOwnerId };
 }
