@@ -25,7 +25,7 @@ function guildStorageSnapshot(data, guildId, overrides = {}) {
     for (const [key, value] of Object.entries(source)) if (value?.guild_id === guildId) selected[key] = value;
     if (Object.keys(selected).length) snapshot[collection] = selected;
   }
-  for (const collection of ["embeds", "members"]) {
+  for (const collection of ["embeds", "members", "pending_bots"]) {
     const selected = {};
     for (const [key, value] of Object.entries(data[collection] || {})) if (key.startsWith(guildId + ":")) selected[key] = value;
     if (Object.keys(selected).length) snapshot[collection] = selected;
