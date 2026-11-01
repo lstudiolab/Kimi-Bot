@@ -230,6 +230,18 @@ test("Timi has one free plan with a 5 MB per-server storage limit",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
+test("first save enforces the 5 MB quota before a data file exists",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-first-save-quota-"));
+  try{
+    const store=new Store(dir,quiet);
+    store.data.customizations["first-guild"]={payload:"x".repeat(5*1024*1024)};
+    assert.throws(()=>store.save(),/Storage quota reached/);
+    assert.equal(getGuildStorageBytes(store.data,"first-guild"),getGuildStorageBytes({}, "first-guild"));
+    const persisted=JSON.parse(fs.readFileSync(path.join(dir,"timi.json"),"utf8"));
+    assert.equal(getGuildStorageBytes(persisted,"first-guild"),getGuildStorageBytes({}, "first-guild"));
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
 test("storage allocation is fixed at 5 MB for every server",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-storage-"));
   try{
