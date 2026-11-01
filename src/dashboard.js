@@ -284,7 +284,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             return { id: guild.id, name: guild.name, icon: guild.iconURL({ size: 64 }), owner: g.owner === true };
           }) });
         }
-        const analyticsMatch = url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/analytics$/);
+        const analyticsMatch = url.pathname.match(/^\/api\/guilds\/(\d+)\/analytics$/);
         if (method === "GET" && analyticsMatch) {
           const context = await requireGuild(req, res, session, analyticsMatch[1]);
           if (!context) return;
@@ -311,7 +311,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           }
           return send(res, 200, { logs: logger.getRecent ? logger.getRecent(200) : [] });
         }
-        const commandsMatch=url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/commands(?:\\/([a-z0-9-]+))?$/);
+        const commandsMatch=url.pathname.match(/^\/api\/guilds\/(\d+)\/commands(?:\/([a-z0-9-]+))?$/);
         if(commandsMatch){
           const commandContext=await requireGuild(req,res,session,commandsMatch[1]);
           if(!commandContext)return;
