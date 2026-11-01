@@ -227,3 +227,5 @@ button,select,input{touch-action:manipulation}
  :where(a,button,input,select,[tabindex]):focus-visible{outline:2px solid Highlight}
  .button,.status-pill,.switch>span{border:1px solid ButtonText}
 }
+
+.switch>span{position:relative;display:block;flex:none}
