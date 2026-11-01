@@ -6,6 +6,13 @@ export function fillDefaults(target, source) {
   }
   return target;
 }
+export function isPrivateTextChannel(channel,guild){
+  if(!channel?.isTextBased?.()||!guild?.roles?.everyone)return false;
+  try{
+    const permissions=channel.permissionsFor(guild.roles.everyone);
+    return Boolean(permissions&&!permissions.has("ViewChannel"));
+  }catch{return false;}
+}
 export function isSnowflake(value) { return /^\d{15,22}$/.test(String(value ?? "")); }
 export function trim(value) { return String(value ?? "").trim(); }
 export function nowMs() { return Date.now(); }
