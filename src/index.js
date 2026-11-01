@@ -14,6 +14,17 @@ const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(c
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
+function recordAnalytics(guildId,metric,commandName=""){
+ if(!guildId)return;
+ const day=new Date().toISOString().slice(0,10);
+ const all=store.data.analytics_requests||(store.data.analytics_requests={});
+ const days=all[guildId]||(all[guildId]={});
+ const row=days[day]||(days[day]={requests:0,commands:0,components:0,messages:0,joins:0,leaves:0,commandCounts:{}});
+ if(metric==="request"){row.requests++;if(commandName){row.commands++;row.commandCounts[commandName]=(row.commandCounts[commandName]||0)+1;}else row.components++;}
+ else if(Object.hasOwn(row,metric))row[metric]++;
+ for(const key of Object.keys(days))if(Date.now()-Date.parse(key+"T00:00:00Z")>90*86400000)delete days[key];
+ store.queueSave();
+}
 const commandModule={
  "verify":"verification","verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
