@@ -87,6 +87,8 @@ async function coreCommand(i){
   return i.showModal(modal);
  }
  if(i.commandName==="kimi-settings")return settings.show(i,"home");
+ const configureLibrary={"configure-foundation":"Foundation","configure-security":"Security","configure-support":"Support","configure-scratch":"Scratch"}[i.commandName];
+ if(configureLibrary)return settings.show(i,"library",configureLibrary);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi-settings.");
