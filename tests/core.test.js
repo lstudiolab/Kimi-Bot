@@ -508,11 +508,11 @@ test("recovery archives track message edits before a later deletion",async()=>{
 });
 
 test("recovery alerts prefer the configured private Timi log channel",async()=>{
-  const configured={id:"configured-log",guildId:"guild",type:0};
-  const fallback={id:"fallback-log",guildId:"guild",type:0,name:"timi-log"};
+  const configured={id:"configured-log",guildId:"guild",type:0,isTextBased:()=>true,permissionsFor:()=>({has:()=>false})};
+  const fallback={id:"fallback-log",guildId:"guild",type:0,name:"timi-log",isTextBased:()=>true,permissionsFor:()=>({has:()=>false})};
   const store={data:{timi_setup:{guild:{log_channel_id:"configured-log"}}}};
   const recovery=new Recovery({},store,quiet);
-  const guild={id:"guild",channels:{fetch:async id=>id==="configured-log"?configured:null,cache:{find(predicate){return predicate(fallback)?fallback:undefined;}}}};
+  const guild={id:"guild",roles:{everyone:{id:"everyone"}},channels:{fetch:async id=>id==="configured-log"?configured:null,cache:{find(predicate){return predicate(fallback)?fallback:undefined;}}}};
   assert.equal(await recovery.findLogChannel(guild),configured);
   store.data.timi_setup.guild.log_channel_id="missing";
   assert.equal(await recovery.findLogChannel(guild),fallback);
