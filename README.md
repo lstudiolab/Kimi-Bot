@@ -107,7 +107,7 @@ Use `/libraries` to see the libraries and installation state. Use `/install libr
 - `/embed-new`, `/embed-edit`, `/embed-post` — create, edit, and post reusable embeds.
 
 **Security**
-- `/verify-settings` — configure the verified role, required role, minimum account age, review channel and panel text.
+- `/verify-config` — configure the verified role, required role, minimum account age, review channel and panel text.
 - `/verify` — publish or update the verification panel.
 - `/moderation` — open the persistent moderation settings panel.
 - `/filter add`, `/filter remove`, `/filter list` — manage blocked phrases.
