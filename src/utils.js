@@ -34,16 +34,27 @@ export function cleanChannelName(value) {
 export function mentionChannel(id) { return id ? `<#${id}>` : "Not configured"; }
 export function mentionRole(id) { return id ? `<@&${id}>` : "Not configured"; }
 export function chunkText(text, max = 1900) {
-  const chunks = [];
-  let current = "";
-  for (const line of String(text).split("\n")) {
-    if (current.length + line.length + 1 > max && current) {
-      chunks.push(current);
-      current = "";
+  const limit=Math.max(1,Math.floor(Number(max)||1900));
+  const chunks=[];
+  let current="";
+  for(const line of String(text).split("\n")){
+    if(line.length===0){
+      if(current.length<limit)current+=(current?"\n":"");
+      else if(current){chunks.push(current);current="";}
+      continue;
     }
-    current += (current ? "\n" : "") + line.slice(0, max);
+    let offset=0;
+    while(offset<line.length){
+      const separator=current?"\n":"";
+      const room=limit-current.length-separator.length;
+      if(room<=0){chunks.push(current);current="";continue;}
+      const part=line.slice(offset,offset+room);
+      current+=separator+part;
+      offset+=part.length;
+      if(offset<line.length){chunks.push(current);current="";}
+    }
   }
-  if (current) chunks.push(current);
+  if(current)chunks.push(current);
   return chunks;
 }
 export function hasManager(interaction) {
