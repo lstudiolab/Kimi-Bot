@@ -401,12 +401,19 @@ export function startDashboardServer({ config, client, store, manager, libraries
         return send(res, 404, { error: "API route not found." });
       }
 
-      if (method === "GET" && url.pathname === "/") return staticFile(res, "index.html");
-      if (method === "GET" && url.pathname === "/verify") return staticFile(res, "verify.html");
-      if (method === "GET" && url.pathname === "/login") return staticFile(res, "verify.html");
-      if (method === "GET" && ["/index.html", "/app.js", "/styles.css", "/verify.js"].includes(url.pathname)) {
-        return staticFile(res, url.pathname.slice(1));
+      const pagePath = url.pathname.replace(/\/+$/, "") || "/";
+      if (method === "GET" && ["/", "/dashboard", "/dashboard/index.html", "/index.html"].includes(pagePath)) {
+        return staticFile(res, "index.html");
       }
+      if (method === "GET" && ["/verify", "/login", "/dashboard/verify"].includes(pagePath)) {
+        return staticFile(res, "verify.html");
+      }
+      if (method === "GET" && ["/app.js", "/styles.css", "/verify.js", "/dashboard/app.js", "/dashboard/styles.css", "/dashboard/verify.js"].includes(pagePath)) {
+        return staticFile(res, pagePath.split("/").pop());
+      }
+      // This is a single-page dashboard. Serve its entry point for extensionless
+      // client-side paths instead of returning a server-level 404.
+      if (method === "GET" && !path.extname(pagePath)) return staticFile(res, "index.html");
       return send(res, 404, { error: "Not found." });
     } catch (error) {
       logger.error("Dashboard request failed:", error);
