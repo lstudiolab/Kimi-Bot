@@ -256,6 +256,9 @@ export function startDashboardServer({ config, client, store, manager, libraries
           }) });
         }
         if (method === "GET" && url.pathname === "/api/logs") {
+          if (!config.dashboardOwnerId || session.user.id !== config.dashboardOwnerId) {
+            return send(res, 403, { error: "Process logs are restricted to the configured dashboard owner." });
+          }
           return send(res, 200, { logs: logger.getRecent ? logger.getRecent(200) : [] });
         }
         const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|libraries)\/([a-zA-Z-]+))?$/);
