@@ -39,8 +39,8 @@ export class Verification {
   async log(guild,channelId,content,components=[]){
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     let ch=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
-    if(!ch&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
-    if(!ch)ch=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.isTextBased());
+    if(!ch?.isTextBased()&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
+    if(!ch?.isTextBased())ch=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.isTextBased());
     if(ch?.isTextBased())await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
