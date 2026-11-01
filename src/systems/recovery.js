@@ -51,6 +51,29 @@ export class Recovery {
     this.archiveBytes.set(guild,Math.max(0,bytes));
     this.store.queueSave();
   }
+  async updateMessage(message){
+    if(message.partial)message=await message.fetch().catch(()=>null);
+    if(!message?.guild||message.author?.bot)return false;
+    const list=this.store.data.messages[message.guild.id]||[];
+    const index=list.findIndex(item=>item.id===message.id);
+    if(index<0)return false;
+    const sizeOf=value=>Buffer.byteLength(JSON.stringify(value),"utf8");
+    if(!this.archiveBytes.has(message.guild.id)){
+      list.sort((a,b)=>(a.timestamp_ms||0)-(b.timestamp_ms||0));
+      this.archiveBytes.set(message.guild.id,list.reduce((total,item)=>total+sizeOf(item),0));
+    }
+    const previous=sizeOf(list[index]);
+    list[index]={
+      ...list[index],author_tag:message.author.tag,
+      content:(message.content||"").slice(0,4000),
+      attachments:[...message.attachments.values()].slice(0,10).map(a=>({name:a.name,url:a.url,content_type:a.contentType,size:a.size}))
+    };
+    let bytes=this.archiveBytes.get(message.guild.id)-previous+sizeOf(list[index]);
+    while(list.length&&(list.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(list.shift());
+    this.archiveBytes.set(message.guild.id,Math.max(0,bytes));
+    this.store.queueSave();
+    return true;
+  }
   async findLogChannel(guild) {
     return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&["timi-log","timi-logs","timi"].includes(c.name))||null;
   }
