@@ -54,7 +54,7 @@ export class TimiSettings {
       const sections=[];
       if(installed(this.store,id,"Security")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets","Tickets")));
-      if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:welcome","Welcome")));
+      if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
       return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
     }
@@ -197,7 +197,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
+      const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Scratch";
       if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Timi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
