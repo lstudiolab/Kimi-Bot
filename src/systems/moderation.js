@@ -1,5 +1,5 @@
 import { PermissionFlagsBits, ButtonStyle, TextInputStyle, ChannelType, ChannelSelectMenuBuilder } from "discord.js";
-import { normalizeMessage, jaccard, mentionChannel } from "../utils.js";
+import { normalizeMessage, jaccard, mentionChannel, matchesBlockedPhrase } from "../utils.js";
 import { button,row,textInput,modal,respond,deny,requireManager } from "../ui.js";
 import { applyPanelTbScript } from "../tbscript.js";
 
@@ -164,9 +164,9 @@ export class Moderation {
     if(!member)return;
     if(message.author.id===guild.ownerId||member.permissions.has(P.Administrator)||member.permissions.has(P.ManageMessages))return;
     const x=this.store.mods(guild.id);if(!x.enabled)return;
-    const content=message.content||"",lower=content.toLowerCase();
+    const content=message.content||"";
     for(const word of this.store.data.automod_words[guild.id]||[]){
-      if(word&&lower.includes(word.toLowerCase())){
+      if(matchesBlockedPhrase(content,word)){
         const reason="blocked word or phrase: "+word;await message.delete().catch(()=>{});
         const record=this.store.member(guild.id,message.author.id);record.suspicious++;record.last_suspicious=Date.now();record.last_reason=reason;
         const warning=await this.warn(guild.id,message.author.id,reason);
