@@ -1,5 +1,6 @@
 import {
-  ActionRowBuilder, AttachmentBuilder, StringSelectMenuBuilder, TextInputStyle
+  ActionRowBuilder, AttachmentBuilder, StringSelectMenuBuilder, TextInputStyle,
+  ChannelType, PermissionFlagsBits
 } from "discord.js";
 import { autoFixTbScript, buildTbScriptModal, compileTbScript, renderTbScript } from "../tbscript.js";
 import { getStorageReport, canStoreGuildState, formatBytes } from "../subscriptions.js";
@@ -7,34 +8,34 @@ import { textInput, modal, respond, deny, requireOwner } from "../ui.js";
 import { isSafeAssignableRole } from "../permissions.js";
 
 const STARTER = [
-  "{",
-  '   {title:"Welcome"}',
-  '   {description:"Hello, {user}!"}',
-  '   {color:"#808080"}',
-  "}"
+  "panel:",
+  '    title "Welcome"',
+  '    description "Hello @author, welcome to @server!"',
+  '    color "#808080"',
+  ""
 ].join("\n");
 
 const KIT = {
-  embed: '{\n   {title:"Welcome"}\n   {description:"Hello, {user}!"}\n   {footer:"Welcome to {server}"}\n   {color:"#808080"}\n}',
-  button: '{\n   {title:"Choose an action"}\n   {addbutton:true:"Get role":"":false}\n   {onclick(button):giverole:"Member"}\n}',
-  modal: '{\n   {title:"Contact us"}\n   {modal:"Contact form"\n      {input:"Subject":"What is this about?"}\n      {input:"Details":"Describe your request":true}\n   }\n}',
-  visibility: '{\n   {description:"Only the person running this script can see this response."}\n   {ephemeral:true}\n}',
-  image: '{\n   {title:"Image preview"}\n   {imagelink:"https://example.com/image.png"}\n}'
+  panel: 'panel:\n    title "Welcome"\n    description "Hello @author!"\n    color "#808080"',
+  button: 'panel:\n    title "Choose an action"\n    button "Get role" : member\n\nonclick member:\n    give role "Member"\n    reply "Role assigned."',
+  ticket: 'panel:\n    title "Ticket Support"\n    description "Click below to create a private ticket."\n    color "#808080"\n    button "Open Ticket" : ticket\n\nonclick ticket:\n    create channel "ticket"\n    make private\n    allow @author\n    reply "Your ticket has been created."',
+  welcome: 'on member join:\n    send #welcome "Welcome @author to @server!"\nend',
+  message: 'on message create:\n    if message.content == "hello":\n        reply "Hello!"\n    end\nend'
 };
 
 const TEMPLATES = {
   ...KIT,
-  welcome: "{\n   {title:\"Welcome\"}\n   {description:\"Welcome {user} to {server}. You are member #{member_count}.\"}\n   {color:\"#808080\"}\n}",
-  ticket: "{\n   {title:\"Support\"}\n   {description:\"Need help? Open a ticket and our team will assist you.\"}\n   {color:\"#808080\"}\n   {addbutton:true:\"Open ticket\":\"\":false}\n}",
-  verification: "{\n   {title:\"Verification\"}\n   {description:\"Complete verification to access {server}.\"}\n   {color:\"#808080\"}\n   {addbutton:true:\"Verify\":\"\":false}\n}"
+  verification: 'panel:\n    title "Verification"\n    description "Verify to access the server."\n    color "#808080"\n    button "Verify" : verify\n\nonclick verify:\n    give role "Verified"\n    reply "You are now verified."',
+  ticket: KIT.ticket
 };
 const DOCUMENTATION = {
-  syntax: 'TbScript keeps your exact block structure. A source file begins with an outer { block. Each instruction is another {keyword:argument} block inside it. Nested instructions stay inside their parent block. Arguments use : separators. Text values use double quotes. Statements do not use semicolons.',
-  keywords: 'title:text, description:text, footer:text, author:text, imagelink:https-url, thumbnail:https-url, url:https-url, content:text, color:#RRGGBB, ephemeral:true|false, field:name:value:inline, addbutton:enabled:title:emoji:disabled, modal:title with nested input blocks, input:label:placeholder:paragraph.',
-  actions: 'The supported button action is {onclick(button):giverole:"Role name"}. It attaches to the most recently declared enabled addbutton. Timi verifies that the role exists, is not managed or @everyone, and is below Timi highest role before assigning it.',
-  placeholders: 'Placeholders inside quoted text are interpolated: {user}, {username}, {user_tag}, {user_id}, {server}, {server_id}, {member_count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, and {timestamp}.',
-  safety: 'TbScript is a restricted Discord component language. It does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Only explicitly supported actions run. The current automatic repair adds missing closing braces only; it does not rewrite logic.'
+  syntax: 'TBScript uses readable statements and four-space indentation. A panel starts with panel:. Events use on member join: or on message create:. Buttons use button "Label" : id, and onclick id: defines their actions. Use end to close onclick, on, and if blocks. A panel closes automatically when the next top-level statement begins.',
+  keywords: 'UI: panel, title, description, color, footer, author, image, thumbnail, url, content, field, button, ephemeral. Events: on member join, on message create, onclick. Flow: if, else, end. Actions: reply, send, create channel, make private, allow, give role.',
+  actions: 'reply "text" responds to the current interaction or message. send #channel "text" sends to a server text channel. create channel "name" creates a private text channel. make private keeps the created channel hidden from @everyone. allow @author or allow "Role Name" grants access. give role "Role Name" assigns a safe, non-privileged role.',
+  placeholders: 'Text placeholders: @author, @authorID, @server, @serverID, @channel, @memberCount. They are resolved from the current Discord event or interaction.',
+  safety: 'TBScript is a restricted language, not JavaScript. It never evaluates source code. Channel creation starts private, role assignment checks role permissions and hierarchy, and scripts run only after an owner explicitly starts them. Event scripts remain active until stopped.'
 };
+
 export function isTrustedTbScriptAttachmentUrl(value){
   try{
     const url=new URL(value);
@@ -67,7 +68,7 @@ function quote(value) {
   return '"' + String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n") + '"';
 }
 function panelSource(title, description) {
-  return "{\n   {title:" + quote(title) + "}\n   {description:" + quote(description) + "}\n   {color:\"#808080\"}\n}";
+  return "panel:\n    title " + quote(title) + "\n    description " + quote(description) + "\n    color \"#808080\"";
 }
 function errorsText(errors) {
   return errors.slice(0, 8).map(error => typeof error === "string"
@@ -232,7 +233,7 @@ export class Scratch {
     const source = autoFixTbScript(original);
     const compiled = compileTbScript(source);
     if (!compiled.ok) return deny(i, "TbScript could not be saved:\n" + errorsText(compiled.errors));
-    const autoFixNote = source !== original ? " Missing closing braces were added automatically." : "";
+    const autoFixNote = source !== original ? " Source formatting was normalized." : "";
 
     if (mode === "panel") {
       if (!panelTarget(target)) return deny(i, "Unsupported panel target.");
