@@ -48,9 +48,9 @@ function opensModal(i){
  return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 const openConfiguration=async(i,section)=>{
-  const names={moderation:"moderation",tickets:"ticket-config"};
+  const names={moderation:"moderation",tickets:"ticket-config",setup:"setup"};
   const commandName=names[section];
-  const library=section==="moderation"?"Security":"Support";
+  const library=section==="moderation"?"Security":section==="tickets"?"Support":"Foundation";
   if(!commandName||!libraries[library])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
