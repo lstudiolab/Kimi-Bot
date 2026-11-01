@@ -15,10 +15,12 @@ export function createSecurityLibrary({client,store,logger,foundation}){
   recovery.protection=protection;
   return {
     async ready(guild){
-      await moderation.resumeJobs(guild);
-      await protection.ready(guild);
-      recovery.prune(guild.id);
-      for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
+      if(store.data.modules?.[guild.id]?.moderation!==false)await moderation.resumeJobs(guild);
+      if(store.data.modules?.[guild.id]?.protection!==false)await protection.ready(guild);
+      if(store.data.modules?.[guild.id]?.recovery!==false){
+        recovery.prune(guild.id);
+        for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
+      }
     },
     async handleInteraction(i){
       if(i.isChatInputCommand()&&i.commandName==="security")return respond(i,await protection.scan(i.guild));
