@@ -15,9 +15,11 @@ export class Protection {
       {id:guild.ownerId,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]},
       {id:bot.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.EmbedLinks,P.ManageMessages]}
     ];
-    if(channel){await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(()=>{});return channel;}
+    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(P.ManageGuild)).first(80);
+    permissions.push(...adminRoles.map(role=>({id:role.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]})));
+    if(channel){await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(error=>this.logger.warn("Could not refresh Timi log permissions:",error.message));return channel;}
     return guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
-      topic:"Private Timi security alerts and bot approval requests. Only the server owner and Timi can view this channel.",
+      topic:"Private Timi security alerts and bot approval requests. Only the server owner, server managers, and Timi can view this channel.",
       permissionOverwrites:permissions,reason:"Create private Timi security channel"});
   }
   async restrictBot(guild,botId,privateId){
@@ -144,14 +146,16 @@ export class Protection {
     const actorId=entry.executorId||entry.executor?.id;
     if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
     if([25,31].includes(entry.action))await this.alertPrivilegeEscalation(entry,guild,actorId).catch(error=>this.logger.warn("Privilege escalation alert failed:",error.message));
-    const now=Date.now(),events=(this.nukeEvents.get(guild.id+":"+actorId)||[]).filter(v=>now-v.at<=10000);
-    events.push({at:now,action:entry.action});this.nukeEvents.set(guild.id+":"+actorId,events);
+    const now=Date.now();
+    for(const [storedKey,until] of this.nukeEvents)if(storedKey.endsWith(":triggered")&&typeof until==="number"&&until<=now)this.nukeEvents.delete(storedKey);
+    const baseKey=guild.id+":"+actorId,events=(this.nukeEvents.get(baseKey)||[]).filter(v=>now-v.at<=10000);
+    events.push({at:now,action:entry.action});this.nukeEvents.set(baseKey,events);
     const critical=new Set([13,14,15,25,31,51]);
     const threshold=events.some(v=>critical.has(v.action))?3:4;
     if(events.length<threshold)return;
-    const key=guild.id+":"+actorId+":triggered",triggered=this.nukeEvents.get(key);
-    if(triggered)return;
-    this.nukeEvents.set(key,true);
+    const key=baseKey+":triggered",triggered=this.nukeEvents.get(key)||0;
+    if(triggered>now)return;
+    this.nukeEvents.set(key,now+60000);
     const log=await this.privateChannel(guild);
     let action="actor flagged for immediate owner review";
     const member=await guild.members.fetch(actorId).catch(()=>null);
