@@ -1,9 +1,10 @@
 import { ChannelType } from "discord.js";
+import { Embeds } from "./embeds.js";
 import { respond, requireManager } from "../ui.js";
 import { renderTemplate, TEMPLATE_PLACEHOLDERS } from "../utils.js";
 
 export class Foundation {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.embeds=new Embeds(client,store,logger);}
   settings(guildId){
     this.store.data.welcome[guildId] ||= {
       welcome_channel_id:"",
@@ -56,8 +57,20 @@ export class Foundation {
     }
     if(!s.welcome_channel_id)return;
     const channel=await member.guild.channels.fetch(s.welcome_channel_id).catch(()=>null);
-    if(channel?.type===ChannelType.GuildText)
-      await channel.send({content:this.render(s.welcome_message,member),allowedMentions:{users:[member.id]}});
+    if(channel?.type===ChannelType.GuildText){
+      const template=String(s.welcome_message||"");
+      const embedNames=[...template.matchAll(/\{embed\s*:\s*([a-z0-9_-]+)\s*\}/gi)].map(match=>match[1].toLowerCase());
+      const contentTemplate=template.replace(/\{embed\s*:\s*[a-z0-9_-]+\s*\}/gi,"").trim();
+      const embeds=[];
+      for(const name of embedNames){
+        const saved=this.store.embed(member.guild.id,name);
+        if(!saved){this.logger.warn(\`Welcome message references missing embed "\${name}" in guild \${member.guild.id}.\`);continue;}
+        embeds.push(this.embeds.payload(saved,{guild:member.guild,member,user:member.user,channel,client:this.client}));
+      }
+      const content=this.render(contentTemplate,member);
+      if(content||embeds.length)
+        await channel.send({...(content?{content}:{}),...(embeds.length?{embeds:embeds.slice(0,10)}:{}),allowedMentions:{users:[member.id]}});
+    }
   }
   async memberRemove(member){
     const s=this.settings(member.guild.id);

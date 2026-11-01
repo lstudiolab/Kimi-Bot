@@ -80,14 +80,15 @@ export function renderTemplate(template, context = {}) {
     time: new Date().toLocaleTimeString("en-GB", { timeZone: "UTC" }),
     timestamp: Math.floor(Date.now() / 1000)
   };
-  return String(template ?? "").replace(new RegExp("[{]([a-z][a-z0-9_]*)[}]", "gi"), (match, key) => {
-    const value = values[key.toLowerCase()];
+  return String(template ?? "").replace(new RegExp("[{]([a-z][a-z0-9_-]*)[}]", "gi"), (match, key) => {
+    const normalized = key.toLowerCase().replace(/-/g, "_");
+    const value = values[normalized];
     return value === null || value === undefined ? match : String(value);
   });
 }
 
 export const TEMPLATE_PLACEHOLDERS = Object.freeze([
   "{user}", "{username}", "{user_tag}", "{user_id}", "{server}", "{server_id}",
-  "{member_count}", "{channel}", "{channel_name}", "{owner}", "{owner_id}",
+  "{member_count}", "{member-count}", "{channel}", "{channel_name}", "{owner}", "{owner_id}",
   "{bot}", "{bot_name}", "{date}", "{time}", "{timestamp}"
 ]);
