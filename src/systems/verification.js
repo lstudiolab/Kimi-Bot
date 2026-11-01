@@ -1,8 +1,6 @@
-import { PermissionFlagsBits, ButtonStyle } from "discord.js";
-import { DAY, snowflakeTime, mentionRole, mentionChannel, renderTemplate, isPrivateTextChannel } from "../utils.js";
-import { greyEmbed, button, row, respond, deny, requireOwner, isManager } from "../ui.js";
-import { applyPanelTbScript } from "../tbscript.js";
-import { applyGuildTheme, applyButtonTheme } from "../styles.js";
+import { PermissionFlagsBits } from "discord.js";
+import { DAY, snowflakeTime, mentionRole, mentionChannel, isPrivateTextChannel } from "../utils.js";
+import { button, row, respond, deny, requireOwner, isManager } from "../ui.js";
 import { isSafeAssignableRole } from "../permissions.js";
 
 const P=PermissionFlagsBits;
@@ -16,25 +14,93 @@ export class Verification {
     if(role.position>=me.roles.highest.position)return [false,"Move Timi's highest role above the selected role."];
     return [true];
   }
-  score(guild,user,member,s){
-    const record=this.store.member(guild.id,user),now=Date.now();
-    const age=Math.max(0,(now-snowflakeTime(user))/DAY),minimum=Number(s.min_age_days)||0,ageFailed=age<minimum;
-    const factor=ageFailed?0:minimum===0||age/minimum>=4?1:age/minimum>=2?.95:age/minimum>=1.5?.9:age/minimum>=1.2?.8:.7;
-    const p=s.points,agePoints=Math.round(p.age*factor);
-    const historyPoints=Math.round(p.history-Math.min(Math.max(0,record.leaves-1)*p.history*.2+record.failed*p.history*.15,p.history));
-    const attempts=record.attempts.filter(t=>now-t<=600000);attempts.push(now);record.attempts=attempts;
-    const attemptFactor=attempts.length===1?1:attempts.length===2?.9:attempts.length===3?.8:attempts.length<=5?.7:.6;
-    const attemptPoints=Math.round(p.attempts*attemptFactor);
-    const behaviorFactor=record.suspicious===0?1:record.suspicious===1?.65:record.suspicious<=3?.3:0;
-    const behaviorPoints=Math.round(p.behavior*behaviorFactor),avatarPoints=member.user.avatar?p.avatar:Math.round(p.avatar*.25);
+  recordAudit(guild,member,outcome,checks,action,metadata={}){
+    const rows=this.store.data.verification_logs||(this.store.data.verification_logs={});
+    const list=rows[guild.id]||(rows[guild.id]=[]);
+    const entry={
+      timestamp:Date.now(),
+      user_id:member.id,
+      username:member.user.username,
+      display_name:member.displayName||member.user.globalName||member.user.username,
+      outcome,
+      account_age_days:metadata.accountAgeDays??null,
+      minimum_age_days:metadata.minimumAgeDays??null,
+      checks,
+      action
+    };
+    list.unshift(entry);
+    if(list.length>300)list.length=300;
+    this.store.save();
+    this.logger.info("Automatic verification "+outcome+" for "+member.user.username+" ("+member.id+") in "+guild.name+": "+action);
+    return entry;
+  }
+  async memberJoin(member){
+    const guild=member.guild,user=member.user;
+    if(!guild||!user||user.bot)return;
+    const settings=this.store.verify(guild.id),record=this.store.member(guild.id,user.id);
+    const joinAt=record.last_join||Date.now();
+    if(record.last_join_audited===joinAt)return;
+    record.last_join_audited=joinAt;
+    const ageDays=Math.max(0,(Date.now()-snowflakeTime(user.id))/DAY);
+    const minimumAge=Math.max(0,Number(settings.min_age_days)||0);
+    const agePass=ageDays>=minimumAge;
     const checks=[
-      {name:"Account age",points:agePoints,max:p.age,reason:ageFailed?`Account is ${age.toFixed(1)} days old; minimum is ${minimum} days.`:`Account age: ${age.toFixed(1)} days.`},
-      {name:"Server history",points:historyPoints,max:p.history,reason:`${record.joins} joins, ${record.leaves} leaves, ${record.failed} previous failed checks.`},
-      {name:"Verification attempts",points:attemptPoints,max:p.attempts,reason:`${attempts.length} attempt(s) in the last 10 minutes.`},
-      {name:"Message behavior",points:behaviorPoints,max:p.behavior,reason:`${record.suspicious} suspicious event(s). ${record.last_reason}`},
-      {name:"Avatar",points:avatarPoints,max:p.avatar,reason:member.user.avatar?"Custom avatar present.":"Default avatar; weak signal only."}
+      {name:"Account age",status:agePass?"pass":"review",detail:"Account is "+ageDays.toFixed(1)+" days old; server minimum is "+minimumAge+" days."},
+      {name:"Server history",status:"info",detail:record.joins+" recorded joins and "+record.leaves+" leaves."},
+      {name:"Previous verification failures",status:"info",detail:record.failed+" previous failed or rejected checks; informational only."},
+      {name:"Previously observed behavior",status:"info",detail:record.suspicious+" suspicious events recorded. "+(record.last_reason||"No previous behavior note.")+" This does not affect the decision."},
+      {name:"Profile avatar",status:"info",detail:user.avatar?"Custom avatar present.":"Default avatar present; informational only."}
     ];
-    this.store.save();return {score:agePoints+historyPoints+attemptPoints+behaviorPoints+avatarPoints,checks,ageFailed};
+    let outcome=agePass?"passed":"review";
+    let action="";
+    const reviewControls=[row(
+      button("verify:review:approve:"+guild.id+":"+user.id,"Approve"),
+      button("verify:review:reject:"+guild.id+":"+user.id,"Reject")
+    )];
+    if(record.last_verified>0){
+      outcome="already_verified";
+      action="This member was verified previously; no second verification was performed.";
+      if(settings.role_id&&!member.roles.cache.has(settings.role_id)){
+        const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
+        const [safe,error]=await this.validateRole(guild,role,true);
+        if(safe){
+          await member.roles.add(role,"Kimi restored previously verified role");
+          action="Previously verified member; verified role restored.";
+        }else action+=" Role could not be restored: "+error;
+      }
+      this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
+      await this.log(guild,settings.review_channel_id,"Previously verified member joined: <@"+user.id+">. "+action);
+      return;
+    }
+    if(agePass&&settings.role_id){
+      const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
+      const [safe,error]=await this.validateRole(guild,role,true);
+      if(safe){
+        try{
+          await member.roles.add(role,"Kimi automatic join verification passed");
+          record.last_verified=Date.now();
+          action="Account-age requirement passed. Verified role assigned automatically.";
+        }catch(assignError){
+          outcome="review";
+          action="Account-age requirement passed, but role assignment failed: "+assignError.message;
+        }
+      }else{
+        outcome="review";
+        action="Account-age requirement passed, but the verified role is not assignable: "+error;
+      }
+    }else if(agePass){
+      action="Account-age requirement passed. No verified role is configured, so no role was assigned.";
+    }else{
+      action="Account is younger than the configured minimum. Sent for manual review; no automatic kick or timeout.";
+      record.last_reason="Account age below configured minimum";
+    }
+    this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
+    const detail=checks.map(check=>"**"+check.name+":** "+check.detail).join("\\n");
+    if(outcome==="review"){
+      await this.log(guild,settings.review_channel_id,"**Automatic verification needs review**\\nMember: <@"+user.id+">\\n"+action+"\\n"+detail,reviewControls);
+    }else{
+      await this.log(guild,settings.review_channel_id,"**Automatic verification passed**\\nMember: <@"+user.id+">\\n"+action+"\\n"+detail);
+    }
   }
   async log(guild,channelId,content,components=[]){
     const setup=this.store.data.timi_setup?.[guild.id]||{};
@@ -52,83 +118,25 @@ export class Verification {
     await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
-    return `**Timi verification settings**\nVerified role: ${mentionRole(s.role_id)}\nRequired role: ${mentionRole(s.required_role_id)}\nMinimum account age: ${s.min_age_days} days\nReview channel: ${mentionChannel(s.review_channel_id)}\nThresholds: 80+ pass, 60–79 manual review, below 60 kick\nWeights: age 40, history 20, attempts 20, behavior 10, avatar 10
-Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server_id}, {member_count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, {timestamp}`;
-  }
-  panelPayload(guild,channel,user,member){
-    const settings=this.store.verify(guild.id);
-    const context={guild,user,member,channel,client:this.client};
-    const embed=applyGuildTheme(greyEmbed(renderTemplate(settings.panel_title,context),renderTemplate(settings.panel_description,context)),this.store,guild.id);
-    const verifyButton=applyButtonTheme(button("verify:start","Verify",ButtonStyle.Primary),this.store,guild.id);
-    return applyPanelTbScript(this.store,guild.id,"verification",{embeds:[embed],components:[row(verifyButton)]},context);
-  }
-  async refresh(guild){
-    const settings=this.store.verify(guild.id);
-    const owner=await guild.members.fetch(guild.ownerId).catch(()=>null);
-    for(const panel of settings.published_panels||[]){
-      const channel=await guild.channels.fetch(panel.channel_id).catch(()=>null);
-      const message=await channel?.messages.fetch(panel.message_id).catch(()=>null);
-      if(message)await message.edit(this.panelPayload(guild,channel,owner?.user||null,owner||null)).catch(error=>this.logger.warn("Verification panel refresh failed:",error.message));
-    }
+    return "**Automatic member verification**\\nRuns once when a member joins.\\nVerified role: "+mentionRole(s.role_id)+"\\nMinimum account age: "+s.min_age_days+" days\\nManual review channel: "+mentionChannel(s.review_channel_id)+"\\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
   }
   async command(i){
     if(!await requireOwner(i))return;
-    const guild=i.guild,s=structuredClone(this.store.verify(guild.id));
-    if(i.commandName==="verify"){
-      const existing=s.published_panels.find(p=>p.channel_id===i.channelId);
-      const payload=this.panelPayload(guild,i.channel,i.user,i.member);
-      if(existing){
-        const msg=await i.channel.messages.fetch(existing.message_id).catch(()=>null);
-        if(msg)await msg.edit(payload);else{const sent=await i.channel.send(payload);existing.message_id=sent.id;}
-      }else{const sent=await i.channel.send(payload);s.published_panels.push({channel_id:i.channelId,message_id:sent.id});}
-      this.store.data.verification[guild.id]=s;this.store.save();
-      return respond(i,existing?"Existing verification panel updated.":"Risk-based verification panel published.");
+    const guild=i.guild,settings=structuredClone(this.store.verify(guild.id));
+    const role=i.options.getRole("role");
+    const age=i.options.getInteger("min-age-days");
+    const review=i.options.getChannel("review-channel");
+    if(!role&&age===null&&!review)return respond(i,this.settingsText(settings));
+    if(role){
+      const [safe,error]=await this.validateRole(guild,role,true);
+      if(!safe)return deny(i,error);
+      settings.role_id=role.id;
     }
-    const role=i.options.getRole("role"),required=i.options.getRole("required-role");
-    const clear=i.options.getBoolean("clear-required-role"),age=i.options.getInteger("min-age-days");
-    const review=i.options.getChannel("review-channel"),title=i.options.getString("title"),description=i.options.getString("description");
-    if(!role&&!required&&!clear&&age===null&&!review&&title===null&&description===null)return respond(i,this.settingsText(s));
-    if(role){const [ok,msg]=await this.validateRole(guild,role,true);if(!ok)return deny(i,msg);s.role_id=role.id;}
-    if(required){const [ok,msg]=await this.validateRole(guild,required,false);if(!ok)return deny(i,msg);s.required_role_id=required.id;}
-    if(clear)s.required_role_id="";
-    if(age!==null)s.min_age_days=Math.max(0,Math.min(3650,age));
-    if(review)s.review_channel_id=review.id;
-    if(title!==null)s.panel_title=title.trim()||"Verify your account";
-    if(description!==null)s.panel_description=description.trim()||"Press Verify to have Timi assess your account and server history.";
-    this.store.data.verification[guild.id]=s;this.store.save();
-    for(const p of s.published_panels){
-      const ch=await guild.channels.fetch(p.channel_id).catch(()=>null);
-      const msg=await ch?.messages.fetch(p.message_id).catch(()=>null);
-      await msg?.edit(this.panelPayload(guild,ch,i.user,i.member)).catch(()=>{});
-    }
-    return respond(i,"Verification settings saved. Existing panels have been refreshed.");
-  }
-  async verify(i){
-    const guild=i.guild,user=i.user,s=this.store.verify(guild.id),record=this.store.member(guild.id,user.id);
-    if(record.last_verified>0)return deny(i,"You have already completed verification. Each member can verify only once in this server.");
-    const member=await guild.members.fetch(user.id);
-    if(s.role_id&&member.roles.cache.has(s.role_id))return deny(i,"You are already verified.");
-    if(s.required_role_id&&!member.roles.cache.has(s.required_role_id))return deny(i,"You cannot start verification yet. You must first have the configured required role.");
-    const {score,checks,ageFailed}=this.score(guild,user.id,member,s);
-    const outcome=ageFailed?"review":score>=s.thresholds.pass?"pass":score>=s.thresholds.review?"review":"kick";
-    const detail=checks.map(v=>`**${v.name}:** ${v.points}/${v.max} — ${v.reason}`).join("\n");
-    if(outcome==="pass"){
-      if(!s.role_id)return deny(i,`Your score is ${score}/100, but the server owner has not configured a verified role.`);
-      const role=await guild.roles.fetch(s.role_id).catch(()=>null);
-      const [roleOk,roleError]=await this.validateRole(guild,role,true);
-      if(!roleOk)return deny(i,"The configured verified role is no longer safe to assign. "+roleError);
-      await member.roles.add(role,"Timi verification passed");record.last_verified=Date.now();this.store.save();
-      await respond(i,`**Verification passed — ${score}/100**\nYour verified role has been assigned.`);
-      await this.log(guild,s.review_channel_id,`Verification passed for <@${user.id}> — **${score}/100**\n${detail}`);
-    }else if(outcome==="review"){
-      await respond(i,`**Manual review required — ${score}/100**\n${ageFailed?"Your account does not meet the server's minimum age requirement. ":""}A moderator must review your verification.`);
-      await this.log(guild,s.review_channel_id,`**Verification requires manual review**\nMember: <@${user.id}>\nScore: **${score}/100**\n${detail}`,[row(button(`verify:review:approve:${guild.id}:${user.id}`,"Approve"),button(`verify:review:reject:${guild.id}:${user.id}`,"Reject"))]);
-    }else{
-      await respond(i,`**Verification failed — ${score}/100**\nYour account did not meet the server's risk threshold.`);
-      await member.kick("Timi verification failed").catch(error=>this.logger.warn("Verification kick failed:",error.message));
-      record.failed++;this.store.save();
-      await this.log(guild,s.review_channel_id,`**Verification failed; kick attempted**\nMember: <@${user.id}>\nScore: **${score}/100**\n${detail}`);
-    }
+    if(age!==null)settings.min_age_days=Math.max(0,Math.min(3650,age));
+    if(review)settings.review_channel_id=review.id;
+    this.store.data.verification[guild.id]=settings;
+    this.store.save();
+    return respond(i,"Automatic verification settings saved. New members will be checked when they join.");
   }
   async reviewDecision(i){
     const match=i.customId.match(/^verify:review:(approve|reject):(\d{15,22}):(\d{15,22})$/);
@@ -161,6 +169,8 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
         record.last_reason="Manual verification rejection";
         this.store.save();
       }
+      const auditMember=member;
+      this.recordAudit(guild,auditMember,decision==="approve"?"manually_approved":"manually_rejected",[],decision==="approve"?"Moderator approved the member and assigned the verified role.":"Moderator rejected the member and removed them from the server.");
       await i.message.edit({components:[]}).catch(error=>this.logger.warn("Could not close verification review controls:",error.message));
       return respond(i,decision==="approve"?"Member approved and verified role assigned.":"Member rejected and removed from the server.");
     }finally{this.reviewing.delete(key);}
@@ -190,8 +200,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     return respond(i,"Bot approved. Temporary channel restrictions were removed; private Timi channels remain inaccessible.");
   }
   async handle(i){
-    if(i.isChatInputCommand()&&["verify-config","verify"].includes(i.commandName))return this.command(i);
-    if(i.isButton()&&i.customId==="verify:start")return this.verify(i);
+    if(i.isChatInputCommand()&&i.commandName==="verify-config")return this.command(i);
     if(i.isButton()&&i.customId.startsWith("verify:review:"))return this.reviewDecision(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
