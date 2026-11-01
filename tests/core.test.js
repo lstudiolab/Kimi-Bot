@@ -597,3 +597,23 @@ test("verification review approval assigns the verified role and closes the revi
   assert.equal(edited,true);
   assert.match(response.content,/approved and verified role assigned/);
 });
+
+import { Moderation } from "../src/systems/moderation.js";
+
+test("failed AutoMod message deletion remains pending for retry",async()=>{
+  const job={id:"job-1",status:"pending",guild_id:"guild",channel_id:"channel",user_id:"member",
+    message_ids:["message"],action:"timeout",timeout_minutes:5,reason:"spam",steps:{deleted:false,sanction:false,logged:false}};
+  const store={data:{moderation_jobs:{guild:[job]}},mods:()=>({log_channel_id:""}),save(){}};
+  const moderation=new Moderation({},store,quiet);
+  moderation.scheduleJobs=()=>{};
+  const channel={
+    isTextBased:()=>true,
+    messages:{fetch:async()=>({delete:async()=>{throw new Error("Missing Manage Messages");}})}
+  };
+  const guild={id:"guild",channels:{fetch:async()=>channel}};
+  await moderation.processJob(guild,job);
+  assert.equal(job.status,"pending");
+  assert.equal(job.steps.deleted,false);
+  assert.equal(job.steps.sanction,false);
+  assert.equal(job.attempts,1);
+});
