@@ -74,10 +74,11 @@ export class Foundation {
     this.store.mods(guild.id).log_channel_id=saved.log_channel_id;
     this.store.save();
     const settings=channels[2];
-    const existing=await settings.messages.fetch({limit:10}).catch(()=>null);
-    if(!existing?.some(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"))){
-      await settings.send({content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-config for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
-    }
+    const existing=await settings.messages.fetch({limit:25}).catch(()=>null);
+    const reference=existing?.find(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"));
+    const referencePayload={content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-config for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}};
+    if(reference)await reference.edit(referencePayload);
+    else await settings.send(referencePayload);
     return {saved,channels};
   }
   async setup(i){
