@@ -4,7 +4,7 @@ import { button, row, greyEmbed } from "../ui.js";
 
 const P=PermissionFlagsBits;
 export class Protection {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();this.activeRaids=new Map();}
   async privateChannel(guild){
     const bot=await guild.members.fetchMe();
     const setup=this.store.data.timi_setup?.[guild.id]||{};
@@ -47,11 +47,29 @@ export class Protection {
       await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply temporary restrictions. Review its access manually.`)],components:[]}).catch(()=>{});
     }
   }
+  async containRaid(guild, members, log, reason){
+    const results={timedOut:0,skipped:0,failed:0};
+    for(const member of members){
+      if(!member||member.user?.bot||member.id===guild.ownerId||member.permissions?.has(P.Administrator)){
+        results.skipped++;continue;
+      }
+      if(!member.moderatable){results.failed++;continue;}
+      try{
+        await member.timeout(10*60*1000,"Timi automatic raid containment: "+reason);
+        results.timedOut++;
+      }catch(error){
+        results.failed++;
+        this.logger.warn("Automatic raid containment failed for",member.id,error.message);
+      }
+    }
+    return results;
+  }
   async memberJoin(member){
     const guild=member.guild,user=member.user;if(!guild||!user)return;
     const record=this.store.member(guild.id,user.id);record.joins++;record.last_join=nowMs();this.store.save();
     if(user.bot)return this.botJoin(guild,member);
     if(user.id===guild.ownerId)return;
+    const now=Date.now(),activeUntil=this.activeRaids.get(guild.id)||0;
     const age=nowMs()-snowflakeTime(user.id);
     if(age<7*DAY){
       const log=await this.privateChannel(guild);let action="flagged for moderator review";
@@ -62,11 +80,29 @@ export class Protection {
       await log.send({content:`New-account alert: <@${user.id}> joined with an account ${Math.floor(age/DAY)} day(s) old. Action: ${action}.`,
         allowedMentions:{users:[user.id]}});
     }
-    const now=Date.now(),list=(this.joins.get(guild.id)||[]).filter(stamp=>now-stamp<=10000);
-    list.push(now);this.joins.set(guild.id,list);
-    if(list.length>=6&&now-(this.lastAlert.get(guild.id)||0)>=60000){
+    const recent=(this.joins.get(guild.id)||[]).filter(item=>now-item.at<=10000);
+    recent.push({at:now,id:member.id});this.joins.set(guild.id,recent);
+    if(activeUntil>now){
+      const log=await this.privateChannel(guild);
+      const result=await this.containRaid(guild,[member],log,"ongoing join raid");
+      await log.send({content:`Raid lockdown is active. New arrival <@${member.id}>: ${result.timedOut} timed out, ${result.failed} could not be contained.`,allowedMentions:{users:[member.id]}});
+      return;
+    }
+    if(recent.length>=8){
+      this.activeRaids.set(guild.id,now+60000);
+      const log=await this.privateChannel(guild);
+      const cohort=[];
+      for(const item of recent){
+        const joined=await guild.members.fetch(item.id).catch(()=>null);
+        if(joined)cohort.push(joined);
+      }
+      const result=await this.containRaid(guild,cohort,log,"8 or more member joins within 10 seconds");
+      await log.send({content:`AUTOMATIC RAID CONTAINMENT ACTIVATED. ${recent.length} members joined within 10 seconds. Timi temporarily timed out ${result.timedOut} recent non-administrator members for 10 minutes. ${result.skipped} owner, administrator, or bot accounts were excluded; ${result.failed} actions failed. New arrivals will be contained for 60 seconds. Review the member list and audit log; remove false positives manually.`});
+      return;
+    }
+    if(recent.length>=6&&now-(this.lastAlert.get(guild.id)||0)>=60000){
       this.lastAlert.set(guild.id,now);const log=await this.privateChannel(guild);
-      await log.send({content:`Security alert: ${list.length} members joined within 10 seconds. Possible raid; review the server. No automatic raid punishment was applied.`});
+      await log.send({content:`Security alert: ${recent.length} members joined within 10 seconds. Possible raid; automatic containment activates at 8 joins within 10 seconds.`});
     }
   }
   async auditLog(entry,guild){
