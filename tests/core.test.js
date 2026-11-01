@@ -630,3 +630,19 @@ test("automatic moderation warning history is capped per server",async()=>{
   assert.equal(store.data.moderation_cases.guild[0].id,2);
   assert.equal(store.data.moderation_cases.guild.at(-1).id,5001);
 });
+
+test("blocked-phrase AutoMod does not sanction when message deletion fails",async()=>{
+  let warnings=0,logs=0;
+  const store={data:{automod_words:{guild:["blocked"]}},mods:()=>({enabled:true}),member(){throw new Error("should not record a warning");}};
+  const moderation=new Moderation({},store,quiet);
+  moderation.warn=async()=>{warnings++;return 1;};
+  moderation.log=async()=>{logs++;};
+  const message={
+    guild:{id:"guild",ownerId:"owner"},guildId:"guild",author:{id:"member",bot:false},
+    member:{permissions:{has:()=>false}},content:"this is blocked",channelId:"channel",
+    delete:async()=>{throw new Error("Missing Manage Messages");}
+  };
+  await moderation.onMessage(message);
+  assert.equal(warnings,0);
+  assert.equal(logs,1);
+});
