@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, 
 import { GREY } from "./ui.js";
 import { LIBRARIES } from "./libraries/index.js";
 import { t, LOCALE_NAMES } from "./i18n.js";
+import { isSafeAssignableRole } from "./permissions.js";
 
 const MODULES = Object.freeze([
   { id:"verification", label:"Verification", library:"Security", description:"Member verification and review decisions." },
@@ -145,7 +146,12 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(roleId&&!i.guild.roles.cache.has(roleId)||requiredRoleId&&!i.guild.roles.cache.has(requiredRoleId))return i.editReply({content:"One of the role IDs does not belong to this server.",components:[],embeds:[]});
       if(reviewId&&!i.guild.channels.cache.has(reviewId))return i.editReply({content:"The review channel ID does not belong to this server.",components:[],embeds:[]});
       const bot=await i.guild.members.fetchMe();
-      for(const id of [roleId,requiredRoleId])if(id&&i.guild.roles.cache.get(id).position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
+      for(const id of [roleId,requiredRoleId]){
+        const role=id?i.guild.roles.cache.get(id):null;
+        if(role&&!isSafeAssignableRole(role,i.guildId))return i.editReply({content:"Choose normal verification roles without elevated permissions.",components:[],embeds:[]});
+        if(id&&role.position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
+      }
+      if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Timi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
       this.store.data.verification[i.guildId]=value;this.store.save();
       await this.hooks.libraries?.Foundation?.refreshVerification?.(i.guild);
@@ -160,6 +166,10 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(roleId&&!/^\d{15,22}$/.test(roleId))return i.editReply({content:"Enter a valid Discord role ID or leave it blank.",components:[],embeds:[]});
       for(const value of [welcomeChannel,goodbyeChannel])if(value&&!i.guild.channels.cache.has(value))return i.editReply({content:"One of the channel IDs does not belong to this server or is unavailable.",components:[],embeds:[]});
       if(roleId&&!i.guild.roles.cache.has(roleId))return i.editReply({content:"That role does not belong to this server or is unavailable.",components:[],embeds:[]});
+      if(roleId){
+        const role=i.guild.roles.cache.get(roleId),bot=await i.guild.members.fetchMe();
+        if(!isSafeAssignableRole(role,i.guildId)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Choose a normal role below Timi's highest role. Timi also needs Manage Roles permission.",components:[],embeds:[]});
+      }
       this.store.data.welcome[i.guildId]={...current,welcome_channel_id:welcomeChannel,welcome_message:read("welcome-message")||current.welcome_message,goodbye_channel_id:goodbyeChannel,goodbye_message:read("goodbye-message")||current.goodbye_message,auto_role_id:roleId};
       this.store.save();
       return i.editReply({content:"Welcome, goodbye and automatic-role settings saved.",components:[],embeds:[]});
