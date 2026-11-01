@@ -53,16 +53,15 @@ export function translateText(store,guildId,value){
  return result;
 }
 export function translatePayload(store,guildId,payload){
- if(!payload||typeof payload!=="object")return payload;
+ if(payload==null)return payload;
  const visit=value=>{
   if(typeof value==="string")return translateText(store,guildId,value);
   if(Array.isArray(value))return value.map(visit);
-  if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,visit(item)]));
+  if(value&&typeof value==="object"){
+   const source=typeof value.toJSON==="function"?value.toJSON():value;
+   return Object.fromEntries(Object.entries(source).map(([key,item])=>[key,visit(item)]));
+  }
   return value;
  };
- const plain=value=>typeof value?.toJSON==="function"?value.toJSON():value;
- const result={...payload};
- for(const key of ["embeds","components"])if(result[key])result[key]=result[key].map(item=>visit(plain(item)));
- for(const key of ["content"])if(typeof result[key]==="string")result[key]=translateText(store,guildId,result[key]);
- return result;
+ return visit(payload);
 }
