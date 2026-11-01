@@ -42,7 +42,7 @@ export class Tickets {
       return respond(i,"Ticket infrastructure is ready.\n**Log:** <#"+setup.saved.log_channel_id+">\n**Confirmations:** <#"+setup.saved.confirmation_channel_id+">\n**Category:** <#"+category.id+">\n\nConfigure the panel and support role next.",[row(button("ticket:wizard-start","Configure tickets",ButtonStyle.Primary))]);
     }
     const settings=this.store.ticket(guild.id);
-    if (name==="ticket-settings") return respond(i,this.text(settings),this.settingsRows());
+    if (name==="ticket-config") return respond(i,this.text(settings),this.settingsRows());
     const dest=await this.publish(guild,i.channel,settings);
     return respond(i,`Ticket panel published or updated in <#${dest.id}>.`);
   }
@@ -139,7 +139,7 @@ export class Tickets {
     let support=null;
     if(x.support_role_id){
       support=await guild.roles.fetch(x.support_role_id).catch(()=>null);
-      if(!support||support.managed)return deny(i,"The configured support role no longer exists or is managed. Update /ticket-settings first.");
+      if(!support||support.managed)return deny(i,"The configured support role no longer exists or is managed. Update /ticket-config first.");
     }
     const bot=await guild.members.fetchMe();
     if(!bot.permissions.has(P.ManageChannels))return deny(i,"Timi needs Manage Channels permission to create private tickets.");
