@@ -109,35 +109,28 @@ export class Store{
     if(changed){this.save();this.logger.info("Imported or normalized legacy Timi settings and recovery data.");}
   }
   save(){
-    const previous=readJson(this.file);
-    const rejected=[];
-    if(previous){
-      const guildIds=new Set();
-      for(const collection of ["installed_libraries","welcome","tickets","moderation","verification","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"]){
-        for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
-        for(const id of Object.keys(previous[collection]||{}))guildIds.add(id);
-      }
-      for(const collection of ["pending_bots"]){
-        for(const key of Object.keys(this.data[collection]||{}))guildIds.add(key.split(":")[0]);
-        for(const key of Object.keys(previous[collection]||{}))guildIds.add(key.split(":")[0]);
-      }
-      for(const collection of ["embeds","members"]){
-        for(const key of Object.keys(this.data[collection]||{}))guildIds.add(key.split(":")[0]);
-        for(const key of Object.keys(previous[collection]||{}))guildIds.add(key.split(":")[0]);
-      }
-      for(const collection of ["role_picker_menus","role_picker_drafts"]){
-        for(const value of Object.values(this.data[collection]||{}))if(value?.guild_id)guildIds.add(value.guild_id);
-        for(const value of Object.values(previous[collection]||{}))if(value?.guild_id)guildIds.add(value.guild_id);
-      }
-      for(const guildId of guildIds){
-        const currentBytes=getGuildStorageBytes(this.data,guildId);
-        const previousBytes=getGuildStorageBytes(previous,guildId);
-        const tier=getPlanForData(this.data,guildId);
-        const limit=PLANS[tier].storageBytes;
-        if(currentBytes>limit&&currentBytes>previousBytes){
-          restoreGuildStorage(this.data,previous,guildId);
-          rejected.push({guildId,currentBytes,previousBytes,limit});
-        }
+    const previous=readJson(this.file),baseline=previous||defaults();
+    const rejected=[],guildIds=new Set();
+    const collections=["installed_libraries","welcome","tickets","moderation","verification","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
+    for(const collection of collections){
+      for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
+      for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);
+    }
+    for(const collection of ["pending_bots","embeds","members"]){
+      for(const key of Object.keys(this.data[collection]||{}))guildIds.add(key.split(":")[0]);
+      for(const key of Object.keys(baseline[collection]||{}))guildIds.add(key.split(":")[0]);
+    }
+    for(const collection of ["role_picker_menus","role_picker_drafts"]){
+      for(const value of Object.values(this.data[collection]||{}))if(value?.guild_id)guildIds.add(value.guild_id);
+      for(const value of Object.values(baseline[collection]||{}))if(value?.guild_id)guildIds.add(value.guild_id);
+    }
+    for(const guildId of guildIds){
+      const currentBytes=getGuildStorageBytes(this.data,guildId);
+      const previousBytes=getGuildStorageBytes(baseline,guildId);
+      const tier=getPlanForData(this.data,guildId),limit=PLANS[tier].storageBytes;
+      if(currentBytes>limit&&currentBytes>previousBytes){
+        restoreGuildStorage(this.data,baseline,guildId);
+        rejected.push({guildId,currentBytes,previousBytes,limit});
       }
     }
     const temp=this.file+".tmp";
