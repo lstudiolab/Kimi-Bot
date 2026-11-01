@@ -64,7 +64,7 @@ export class Foundation {
       const embeds=[];
       for(const name of embedNames){
         const saved=this.store.embed(member.guild.id,name);
-        if(!saved){this.logger.warn(\`Welcome message references missing embed "\${name}" in guild \${member.guild.id}.\`);continue;}
+        if(!saved){this.logger.warn('Welcome message references missing embed "'+name+'" in guild '+member.guild.id+'.');continue;}
         embeds.push(this.embeds.payload(saved,{guild:member.guild,member,user:member.user,channel,client:this.client}));
       }
       const content=this.render(contentTemplate,member);
