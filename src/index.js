@@ -151,7 +151,10 @@ client.on(Events.GuildMemberAdd,m=>{
  }
 });
 client.on(Events.GuildMemberRemove,m=>{
- if(manager.installed(m.guild.id,"Foundation")){const r=store.member(m.guild.id,m.id);r.leaves++;store.save();libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));}
+ const foundationInstalled=manager.installed(m.guild.id,"Foundation");
+ const securityInstalled=manager.installed(m.guild.id,"Security");
+ if(foundationInstalled||securityInstalled){const record=store.member(m.guild.id,m.id);record.leaves++;store.save();}
+ if(foundationInstalled)libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
 client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelCreate(c);});
 client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security"))libraries.Security.channelUpdate(o,c);});
