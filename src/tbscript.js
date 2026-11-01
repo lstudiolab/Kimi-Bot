@@ -360,6 +360,9 @@ function compileSimpleTbScript(source){
     button.action=output.handlers.buttons[button.id]||null;
     if(!button.action)errors.push({message:"Button \""+button.id+"\" has no onclick handler.",line:1,column:1});
   }
+  for(const id of Object.keys(output.handlers.buttons)){
+    if(!output.buttons.some(button=>button.id===id))errors.push({message:"onclick references an unknown button ID: "+id+".",line:1,column:1});
+  }
   const limits=[
     ["title",output.title,256],["description",output.description,4096],["footer",output.footer,2048],
     ["author",output.author,256],["content",output.content,2000]
