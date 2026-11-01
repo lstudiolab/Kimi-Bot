@@ -8,6 +8,7 @@ export function createFoundationLibrary({client,store,logger}){
   const rolePicker=new RolePicker(client,store,logger,verificationHelper);
   const embeds=new Embeds(client,store,logger);
   const greet=new Foundation(client,store,logger);
+  verificationHelper.ensureSetup=guild=>greet.ensureSetup(guild);
   return {
     async handleInteraction(i){
       if(i.isChatInputCommand()){
