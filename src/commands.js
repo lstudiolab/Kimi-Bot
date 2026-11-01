@@ -10,7 +10,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("tickets").setDescription("Create Timi private channels and the ticket category."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
 
-  new SlashCommandBuilder().setName("setup").setDescription("Create Timi log, confirmation and settings channels."),
   new SlashCommandBuilder().setName("roles").setDescription("Create a self-service role selection menu."),
   new SlashCommandBuilder().setName("embed-new").setDescription("Create a reusable server embed."),
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
@@ -47,7 +46,7 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
-  Foundation:["setup","roles","embed-new","embed-edit","embed-post"],
+  Foundation:["roles","embed-new","embed-edit","embed-post"],
   Security:["verify","security"],
   Support:["tickets","ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
