@@ -21,6 +21,7 @@ export function createFoundationLibrary({client,store,logger}){
     },
     async guildMemberAdd(member){await greet.memberAdd(member);},
     async guildMemberRemove(member){await greet.memberRemove(member);},
-    async refreshRolePickers(guild){await rolePicker.refresh(guild);}
+    async refreshRolePickers(guild){await rolePicker.refresh(guild);},
+    async refreshVerification(guild){await verificationHelper.refresh(guild);}
   };
 }
