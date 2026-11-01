@@ -69,6 +69,7 @@ export class AuthStore {
     return { id: account.id, email: account.email, displayName: account.displayName, createdAt: account.createdAt, discord: account.discord ? { id: account.discord.id, username: account.discord.username, globalName: account.discord.globalName, avatar: account.discord.avatar } : null };
   }
   authenticate(email, password) {
+    if (typeof password !== "string" || password.length < 1 || password.length > 128) return null;
     const normalized = this.normalizeEmail(email);
     const account = this.accounts.accounts.find(item => item.email === normalized);
     if (!account || !account.passwordSalt || !account.passwordHash) return null;
