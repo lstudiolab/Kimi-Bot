@@ -673,3 +673,15 @@ test("unanswered interactions get one fallback, while deleted ticket replies are
   assert.equal(await finishWorking(deleted),false);
   assert.equal(edits,1);
 });
+
+test("Security refuses to write private logs when channel permissions cannot be secured",async()=>{
+  const channel={type:0,permissionOverwrites:{set:async()=>{throw new Error("Missing Manage Channels");}}};
+  const store={data:{timi_setup:{guild:{log_channel_id:"log"}}},mods:()=>({}),save(){}};
+  const protection=new Protection({user:{id:"timi"}},store,quiet);
+  const guild={
+    id:"guild",ownerId:"owner",members:{fetchMe:async()=>({id:"timi"})},
+    roles:{cache:{filter:()=>({first:()=>[]})}},
+    channels:{fetch:async()=>channel,cache:{find:()=>channel}}
+  };
+  await assert.rejects(protection.privateChannel(guild),/refused to send private security logs/);
+});
