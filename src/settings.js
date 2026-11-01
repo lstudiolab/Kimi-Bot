@@ -136,6 +136,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.editReply({content:id.endsWith("add-modal")?"Blocked phrase added.":"Blocked phrase removed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
+      if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can change verification policy.",components:[],embeds:[]});
       if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
@@ -201,6 +202,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Timi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
+        if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can change verification policy.");
         const value=this.store.verify(i.guildId);
         const field=(key,label,placeholder,current)=>new TextInputBuilder().setCustomId(key).setLabel(label).setPlaceholder(placeholder).setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(100).setValue(String(current??"").slice(0,100));
         const modal=new ModalBuilder().setCustomId("settings:verification:modal").setTitle("Verification settings").addComponents(
