@@ -232,11 +232,11 @@ end
 - ephemeral true|false: makes the test response visible only to the command user when true.
 
 **Events and flow**
-- onclick id:: handles clicks on the button with that ID.
-- on member join:: runs when a member joins while the project is running.
-- on message create:: runs when a non-bot member sends a message while the project is running.
-- if condition:: runs its indented actions when a supported condition is true.
-- else:: optional alternative branch for the matching if.
+- onclick id: defines what happens when the button with that ID is clicked.
+- on member join: runs when a member joins while the project is running.
+- on message create: runs when a non-bot member sends a message while the project is running.
+- if condition: runs its indented actions when a supported condition is true.
+- else: provides an optional alternative branch for the matching if.
 - end: closes an onclick, on, or if block. A panel ends when the next top-level statement begins.
 
 **Actions**
