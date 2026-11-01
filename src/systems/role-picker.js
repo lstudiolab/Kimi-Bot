@@ -102,8 +102,16 @@ export class RolePicker {
   async menu(i){
     const id=i.customId.slice("rolepicker:menu:".length),menu=this.store.data.role_picker_menus[id];
     if(!menu||menu.guild_id!==i.guildId)return deny(i,"This role picker is no longer available.");
+    const allowed=new Set((menu.roles||[]).map(role=>role.id));
+    if(i.values.some(roleId=>!allowed.has(roleId)))return deny(i,"This menu contains an invalid role selection.");
     const selected=new Set(i.values),previous=new Set(menu.selections[i.user.id]||[]);
     const add=[...selected].filter(role=>!previous.has(role)),remove=[...previous].filter(role=>!selected.has(role));
+    for(const roleId of add){
+      const role=await i.guild.roles.fetch(roleId).catch(()=>null);
+      if(!role)return deny(i,"A selected role no longer exists. Contact a server manager.");
+      const [ok,message]=await this.verification.validateRole(i.guild,role,true);
+      if(!ok)return deny(i,"That role can no longer be self-assigned. "+message);
+    }
     try{
       if(add.length)await i.member.roles.add(add,"Timi self-service role picker");
       if(remove.length)await i.member.roles.remove(remove,"Timi self-service role picker");
