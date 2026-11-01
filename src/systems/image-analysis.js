@@ -96,12 +96,23 @@ async function runOptional(commands,args,options={}){
   }
   return null;
 }
+export function isTrustedDiscordAttachmentUrl(value){
+  try{
+    const url=new URL(value);
+    return url.protocol==="https:"&&
+      ["cdn.discordapp.com","media.discordapp.net"].includes(url.hostname.toLowerCase())&&
+      url.username===""&&url.password==="";
+  }catch{return false;}
+}
 async function downloadAttachment(attachment){
+  if(!isTrustedDiscordAttachmentUrl(attachment.url))throw new Error("Image must be hosted on an official Discord attachment domain.");
   if(attachment.size>MAX_IMAGE_BYTES)throw new Error("Image exceeds the 8 MB processing limit.");
   const response=await fetch(attachment.url,{signal:AbortSignal.timeout(12000),redirect:"error"});
   if(!response.ok)throw new Error("Discord image download failed ("+response.status+").");
   const declared=Number(response.headers.get("content-length")||0);
   if(declared>MAX_IMAGE_BYTES)throw new Error("Image exceeds the 8 MB processing limit.");
+  const contentType=(response.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
+  if(contentType&&!contentType.startsWith("image/")&&contentType!=="application/octet-stream")throw new Error("Discord attachment did not return an image content type.");
   const chunks=[];let total=0;
   if(!response.body)throw new Error("Discord returned an empty image body.");
   for await(const chunk of response.body){
