@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits } from "discord.js";
 import { loadConfig, createLogger } from "./config.js";
+import { startDashboardServer } from "./dashboard.js";
 import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData, libraryForCommand } from "./commands.js";
 import { Store } from "./store.js";
 import { LibraryManager } from "./module-manager.js";
@@ -203,4 +204,5 @@ client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Sec
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Timi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
-try{await client.login(config.token);}catch(e){logger.error("Timi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
+startDashboardServer({config,client,store,manager,libraries,logger,syncGuildCommands});
+try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
