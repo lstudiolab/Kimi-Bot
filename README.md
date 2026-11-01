@@ -197,7 +197,7 @@ It does not execute JavaScript, shell commands, arbitrary network requests or dy
 
 The primary store is `data/timi.json`; `data/timi.json.bak` is the previous known-good copy. Compatible legacy settings are migrated without overwriting existing records. Invalid primary data is preserved and recovered from the backup when possible; Timi refuses to silently reset corrupted data.
 
-Recovery keeps channel configuration snapshots and up to 25,000 human-authored messages per server for seven days. Recreated messages have new IDs. Attachment URLs may expire, and content that was never archived cannot be reconstructed. Recovery is best-effort, not a guaranteed restore service.
+Recovery keeps channel configuration snapshots and a rolling archive capped at 4 MB per server, with a maximum of 25,000 human-authored messages retained for up to seven days. The oldest messages are pruned first when either limit is reached. Recreated messages have new IDs. Attachment URLs may expire, and content that was never archived cannot be reconstructed. Recovery is best-effort, not a guaranteed restore service.
 
 ## Development checks
 
