@@ -67,6 +67,7 @@ export function renderTemplate(template, context = {}) {
     username: user?.username ?? null,
     user_tag: user?.tag ?? (user?.username && user?.discriminator && user.discriminator !== "0" ? `${user.username}#${user.discriminator}` : user?.username ?? null),
     user_id: user?.id ?? null,
+    user_avatar: user?.displayAvatarURL ? user.displayAvatarURL({ extension: "png", size: 256 }) : null,
     server: guild?.name ?? null,
     server_id: guild?.id ?? null,
     member_count: guild?.memberCount ?? null,
@@ -88,7 +89,7 @@ export function renderTemplate(template, context = {}) {
 }
 
 export const TEMPLATE_PLACEHOLDERS = Object.freeze([
-  "{user}", "{username}", "{user_tag}", "{user_id}", "{server}", "{server_id}",
+  "{user}", "{username}", "{user_tag}", "{user_id}", "{user-avatar}", "{user_avatar}", "{server}", "{server_id}",
   "{member_count}", "{member-count}", "{channel}", "{channel_name}", "{owner}", "{owner_id}",
   "{bot}", "{bot_name}", "{date}", "{time}", "{timestamp}"
 ]);

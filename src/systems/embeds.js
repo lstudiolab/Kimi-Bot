@@ -9,7 +9,7 @@ export class Embeds {
     const e=applyGuildTheme(new EmbedBuilder().setColor(0x808080),this.store,context.guild?.id);
     if(x.title)e.setTitle(renderTemplate(x.title,context));if(x.description)e.setDescription(renderTemplate(x.description,context));if(x.url)e.setURL(renderTemplate(x.url,context));
     if(x.author)e.setAuthor({name:renderTemplate(x.author,context)});if(x.footer)e.setFooter({text:renderTemplate(x.footer,context)});
-    if(x.thumbnail)e.setThumbnail(x.thumbnail);if(x.image)e.setImage(x.image);
+    if(x.thumbnail)e.setThumbnail(renderTemplate(x.thumbnail,context));if(x.image)e.setImage(renderTemplate(x.image,context));
     if(x.fields?.length)e.addFields(x.fields.map(f=>({name:renderTemplate(f.name,context),value:renderTemplate(f.value,context),inline:!!f.inline})));
     return e;
   }
@@ -25,7 +25,7 @@ export class Embeds {
     return preview;
   }
   text(x){
-    return `**Embed editor: ${x.name}**\n\nTitle: ${x.title||"—"}\nDescription: ${x.description||"—"}\nColor: #808080\nAuthor: ${x.author||"—"}\nFooter: ${x.footer||"—"}\nFields: ${x.fields.length}\n${x.fields.map((f,i)=>`${i+1}. ${f.name}${f.inline?" (inline)":""}`).join("\n")||"No fields"}\nThumbnail: ${x.thumbnail?"Set":"—"}\nImage: ${x.image?"Set":"—"}\nURL: ${x.url||"—"}\n\nPlaceholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server_id}, {member_count}, {member-count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, {timestamp}.\nChanges save automatically and update every placed message.`;
+    return `**Embed editor: ${x.name}**\n\nTitle: ${x.title||"—"}\nDescription: ${x.description||"—"}\nColor: #808080\nAuthor: ${x.author||"—"}\nFooter: ${x.footer||"—"}\nFields: ${x.fields.length}\n${x.fields.map((f,i)=>`${i+1}. ${f.name}${f.inline?" (inline)":""}`).join("\n")||"No fields"}\nThumbnail: ${x.thumbnail?"Set":"—"}\nImage: ${x.image?"Set":"—"}\nURL: ${x.url||"—"}\n\nPlaceholders: {user}, {username}, {user_tag}, {user_id}, {user-avatar}, {user_avatar}, {server}, {server_id}, {member_count}, {member-count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, {timestamp}.\nChanges save automatically and update every placed message.`;
   }
   components(x){
     return [
