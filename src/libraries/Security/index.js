@@ -11,6 +11,8 @@ export function createSecurityLibrary({client,store,logger,foundation}){
   const protection=new Protection(client,store,logger);
   const recovery=new Recovery(client,store,logger);
   const imageAnalysis=new ImageAnalysis(client,logger);
+  moderation.protection=protection;
+  recovery.protection=protection;
   return {
     async ready(guild){
       await moderation.resumeJobs(guild);
