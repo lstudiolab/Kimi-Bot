@@ -31,79 +31,64 @@ export class Verification {
     list.unshift(entry);
     if(list.length>300)list.length=300;
     this.store.save();
-    this.logger.info("Automatic verification "+outcome+" for "+member.user.username+" ("+member.id+") in "+guild.name+": "+action);
+    this.logger.info("Button verification "+outcome+" for "+member.user.username+" ("+member.id+") in "+guild.name+": "+action);
     return entry;
   }
   async memberJoin(member){
     const guild=member.guild,user=member.user;
     if(!guild||!user||user.bot)return;
     const settings=this.store.verify(guild.id),record=this.store.member(guild.id,user.id);
-    const joinAt=record.last_join||Date.now();
-    if(record.last_join_audited===joinAt)return;
-    record.last_join_audited=joinAt;
-    const ageDays=Math.max(0,(Date.now()-snowflakeTime(user.id))/DAY);
-    const minimumAge=Math.max(0,Number(settings.min_age_days)||0);
-    const agePass=ageDays>=minimumAge;
-    const checks=[
-      {name:"Account age",status:agePass?"pass":"review",detail:"Account is "+ageDays.toFixed(1)+" days old; server minimum is "+minimumAge+" days."},
-      {name:"Server history",status:"info",detail:record.joins+" recorded joins and "+record.leaves+" leaves."},
-      {name:"Previous verification failures",status:"info",detail:record.failed+" previous failed or rejected checks; informational only."},
-      {name:"Previously observed behavior",status:"info",detail:record.suspicious+" suspicious events recorded. "+(record.last_reason||"No previous behavior note.")+" This does not affect the decision."},
-      {name:"Profile avatar",status:"info",detail:user.avatar?"Custom avatar present.":"Default avatar present; informational only."}
-    ];
-    let outcome=agePass?"passed":"review";
-    let action="";
-    const reviewControls=[row(
-      button("verify:review:approve:"+guild.id+":"+user.id,"Approve"),
-      button("verify:review:reject:"+guild.id+":"+user.id,"Reject")
-    )];
-    if(record.last_verified>0){
-      outcome="already_verified";
-      action="This member was verified previously; no second verification was performed.";
-      if(settings.role_id&&!member.roles.cache.has(settings.role_id)){
-        const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
-        const [safe,error]=await this.validateRole(guild,role,true);
-        if(safe){
-          try{
-            await member.roles.add(role,"Kimi restored previously verified role");
-            action="Previously verified member; verified role restored.";
-          }catch(assignError){action+=" Role restoration failed: "+assignError.message;}
-        }else action+=" Role could not be restored: "+error;
-      }
-      this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
-      await this.log(guild,settings.review_channel_id,"Previously verified member joined: <@"+user.id+">. "+action);
+    if(record.last_verified>0)return;
+    const channelId=settings.channel_id||guild.systemChannelId;
+    const channel=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
+    if(!channel?.isTextBased()||!channel.permissionsFor(guild.members.me)?.has([P.ViewChannel,P.SendMessages])){
+      this.logger.warn("Verification prompt was not posted in "+guild.name+": configure a visible verification channel with /verify-config.");
       return;
     }
-    if(agePass&&settings.role_id){
-      const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
-      const [safe,error]=await this.validateRole(guild,role,true);
-      if(safe){
-        try{
-          await member.roles.add(role,"Kimi automatic join verification passed");
-          record.last_verified=Date.now();
-          action="Account-age requirement passed. Verified role assigned automatically.";
-        }catch(assignError){
-          outcome="review";
-          action="Account-age requirement passed, but role assignment failed: "+assignError.message;
-        }
-      }else{
-        outcome="review";
-        action="Account-age requirement passed, but the verified role is not assignable: "+error;
+    await channel.send({
+      content:"<@"+user.id+"> Please verify to access this server.",
+      components:[row(button("verify:start","Verify",))],
+      allowedMentions:{users:[user.id]}
+    }).catch(error=>this.logger.warn("Could not post verification prompt:",error.message));
+  }
+  async startVerification(i){
+    const guild=i.guild,member=i.member,user=i.user;
+    if(!guild||!member||user.bot)return deny(i,"This verification button is not available here.");
+    const record=this.store.member(guild.id,user.id),settings=this.store.verify(guild.id);
+    if(record.last_verified>0)return respond(i,"You have already been verified.");
+    const key=guild.id+":"+user.id;
+    if(this.reviewing.has(key))return deny(i,"Your verification is already being processed.");
+    this.reviewing.add(key);
+    try{
+      const ageDays=Math.max(0,(Date.now()-snowflakeTime(user.id))/DAY);
+      const minimumAge=Math.max(0,Number(settings.min_age_days)||0);
+      const agePass=ageDays>=minimumAge;
+      const checks=[
+        {name:"Account age",status:agePass?"pass":"review",detail:"Account is "+ageDays.toFixed(1)+" days old; server minimum is "+minimumAge+" days."},
+        {name:"Server history",status:"info",detail:record.joins+" recorded joins and "+record.leaves+" leaves."},
+        {name:"Previous verification failures",status:"info",detail:record.failed+" previous failed or rejected checks; informational only."},
+        {name:"Previously observed behavior",status:"info",detail:record.suspicious+" suspicious events recorded. "+(record.last_reason||"No previous behavior note.")+" This does not affect the decision."},
+        {name:"Profile avatar",status:"info",detail:user.avatar?"Custom avatar present.":"Default avatar present; informational only."}
+      ];
+      if(!agePass){
+        record.last_reason="Account age below configured minimum";
+        this.recordAudit(guild,member,"review",checks,"Member requested verification but account age is below the configured minimum; sent for manual review.",{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
+        const controls=[row(button("verify:review:approve:"+guild.id+":"+user.id,"Approve"),button("verify:review:reject:"+guild.id+":"+user.id,"Reject"))];
+        await this.log(guild,settings.review_channel_id,"**Verification review required**\nMember: <@"+user.id+">\n"+checks.map(check=>"**"+check.name+":** "+check.detail).join("\n"),controls);
+        return respond(i,"Your account does not meet the server's minimum age requirement. Your verification has been sent for moderator review.");
       }
-    }else if(agePass){
-      record.last_verified=Date.now();
-      action="Account-age requirement passed. No verified role is configured, so no role was assigned.";
-    }else{
-      action="Account is younger than the configured minimum. Sent for manual review; no automatic kick or timeout.";
-      record.last_reason="Account age below configured minimum";
-    }
-    this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
-    const detail=checks.map(check=>"**"+check.name+":** "+check.detail).join("\n");
-    if(outcome==="review"){
-      await this.log(guild,settings.review_channel_id,"**Automatic verification needs review**\nMember: <@"+user.id+">\n"+action+"\n"+detail,reviewControls);
-    }else{
-      await this.log(guild,settings.review_channel_id,"**Automatic verification passed**\nMember: <@"+user.id+">\n"+action+"\n"+detail);
-    }
+      if(settings.role_id){
+        const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
+        const [safe,error]=await this.validateRole(guild,role,true);
+        if(!safe)return deny(i,"Verification cannot be completed. "+error);
+        await member.roles.add(role,"Member completed Kimi verification");
+      }
+      record.last_verified=Date.now();record.last_reason="Member completed button verification";
+      this.store.save();
+      this.recordAudit(guild,member,"passed",checks,settings.role_id?"Member clicked Verify and received the verified role.":"Member clicked Verify; no verified role is configured.",{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
+      await i.message.edit({components:[]}).catch(()=>{});
+      return respond(i,"Verification complete. You now have access to the server.");
+    }finally{this.reviewing.delete(key);}
   }
   async log(guild,channelId,content,components=[]){
     const setup=this.store.data.timi_setup?.[guild.id]||{};
@@ -121,7 +106,7 @@ export class Verification {
     await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
-    return "**Automatic member verification**\nRuns once when a member joins.\nVerified role: "+mentionRole(s.role_id)+"\nMinimum account age: "+s.min_age_days+" days\nManual review channel: "+mentionChannel(s.review_channel_id)+"\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
+    return "**Member verification**\nMembers must click the Verify button after joining.\nVerification channel: "+mentionChannel(s.channel_id)+"\n\nVerified role: "+mentionRole(s.role_id)+"\nMinimum account age: "+s.min_age_days+" days\nManual review channel: "+mentionChannel(s.review_channel_id)+"\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
   }
   async command(i){
     if(!await requireOwner(i))return;
@@ -129,7 +114,8 @@ export class Verification {
     const role=i.options.getRole("role");
     const age=i.options.getInteger("min-age-days");
     const review=i.options.getChannel("review-channel");
-    if(!role&&age===null&&!review)return respond(i,this.settingsText(settings));
+    const channel=i.options.getChannel("channel");
+    if(!role&&age===null&&!review&&!channel)return respond(i,this.settingsText(settings));
     if(role){
       const [safe,error]=await this.validateRole(guild,role,true);
       if(!safe)return deny(i,error);
@@ -137,9 +123,10 @@ export class Verification {
     }
     if(age!==null)settings.min_age_days=Math.max(0,Math.min(3650,age));
     if(review)settings.review_channel_id=review.id;
+    if(channel)settings.channel_id=channel.id;
     this.store.data.verification[guild.id]=settings;
     this.store.save();
-    return respond(i,"Automatic verification settings saved. New members will be checked when they join.");
+    return respond(i,"Verification settings saved. New members must click the Verify button to complete verification.");
   }
   async reviewDecision(i){
     const match=i.customId.match(/^verify:review:(approve|reject):(\d{15,22}):(\d{15,22})$/);
@@ -204,7 +191,7 @@ export class Verification {
   }
   async handle(i){
     if(i.isChatInputCommand()&&i.commandName==="verify-config")return this.command(i);
-    if(i.isButton()&&i.customId==="verify:start")return respond(i,"Verification now runs automatically when you join this server. This old panel is no longer active.");
+    if(i.isButton()&&i.customId==="verify:start")return this.startVerification(i);
     if(i.isButton()&&i.customId.startsWith("verify:review:"))return this.reviewDecision(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
