@@ -51,14 +51,9 @@ export class Embeds {
     return embed;
   }
   editorPreview(x){
-    const preview=new EmbedBuilder().setColor(0x808080)
-      .setTitle(x.title||"Untitled embed")
-      .setDescription(x.description||"Your embed description will appear here.");
+    const preview=this.payload(x,{client:this.client});
     const avatar=this.client.user?.displayAvatarURL({extension:"png",size:256});
-    if(avatar)preview.setThumbnail(avatar);
-    if(x.author)preview.setAuthor({name:x.author});
-    if(x.footer)preview.setFooter({text:x.footer});
-    if(x.fields?.length)preview.addFields(x.fields.slice(0,25).map(f=>({name:f.name,value:f.value,inline:!!f.inline})));
+    if(avatar&&!preview.data.thumbnail)preview.setThumbnail(avatar);
     return preview;
   }
   text(x){
