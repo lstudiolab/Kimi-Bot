@@ -25,6 +25,7 @@ Open `http://127.0.0.1:8787` in the browser on the Android device.
 DISCORD_OAUTH_CLIENT_SECRET=your_oauth2_client_secret
 DISCORD_OAUTH_REDIRECT_URI=https://YOUR_PUBLIC_HOST/auth/discord/callback
 DASHBOARD_COOKIE_SECURE=true
+DASHBOARD_OWNER_ID=your_discord_user_id
 ```
 
 5. Restart Kimi. The public verification page is `https://YOUR_PUBLIC_HOST/verify`.
@@ -47,4 +48,4 @@ The `/verify` page uses the OAuth2 `identify` scope and confirms control of the 
 - Installing or removing a library is restricted to the server owner.
 - Enabling or disabling a system requires Manage Server permission.
 - Bot credentials remain on the Termux host.
-- The Activity page shows the latest in-memory Kimi process logs (up to 500 entries); restarting the process clears that short-term log buffer.
+- The Activity page is restricted to the Discord user ID configured in `DASHBOARD_OWNER_ID`. It shows the latest in-memory Kimi process logs (up to 500 entries); restarting the process clears that short-term log buffer.
