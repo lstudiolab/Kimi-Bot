@@ -105,11 +105,45 @@ export class Protection {
       await log.send({content:`Security alert: ${recent.length} members joined within 10 seconds. Possible raid; automatic containment activates at 8 joins within 10 seconds.`});
     }
   }
+  async alertPrivilegeEscalation(entry,guild,actorId){
+    const changes=entry.changes||[];
+    const sensitive=[P.Administrator,P.ManageGuild,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.BanMembers,P.KickMembers];
+    if(entry.action===31){
+      const role=await guild.roles.fetch(entry.targetId).catch(()=>null);
+      if(!role||!sensitive.some(flag=>role.permissions.has(flag)))return false;
+      const granted=sensitive.filter(flag=>role.permissions.has(flag));
+      const names=[
+        [P.Administrator,"Administrator"],[P.ManageGuild,"Manage Server"],[P.ManageRoles,"Manage Roles"],
+        [P.ManageChannels,"Manage Channels"],[P.ManageWebhooks,"Manage Webhooks"],
+        [P.BanMembers,"Ban Members"],[P.KickMembers,"Kick Members"]
+      ].filter(([flag])=>granted.includes(flag)).map(([,name])=>name);
+      const log=await this.privateChannel(guild);
+      await log.send({content:`PRIVILEGE ESCALATION ALERT: <@${actorId}> changed role **${role.name}** and it currently grants: ${names.join(", ")}. Review the role's members and audit history immediately. Timi did not automatically revert the role because that could remove legitimate access.`,allowedMentions:{users:[actorId]}});
+      return true;
+    }
+    if(entry.action===25){
+      const added=changes.find(change=>change.key==="$add")?.new||[];
+      const dangerous=[];
+      for(const item of added){
+        const roleId=typeof item==="string"?item:item?.id;
+        if(!roleId)continue;
+        const role=await guild.roles.fetch(roleId).catch(()=>null);
+        if(role&&sensitive.some(flag=>role.permissions.has(flag)))dangerous.push(role);
+      }
+      if(!dangerous.length)return false;
+      const target=entry.targetId?await guild.members.fetch(entry.targetId).catch(()=>null):null;
+      const log=await this.privateChannel(guild);
+      await log.send({content:`PRIVILEGE ESCALATION ALERT: <@${actorId}> granted ${dangerous.map(role=>`**${role.name}**`).join(", ")} to ${target?'<@'+target.id+'>':"a member"}. These roles carry high-impact permissions. Confirm this assignment was authorized and remove access if it was not.`,allowedMentions:{users:[actorId,...(target?[target.id]:[])]}});
+      return true;
+    }
+    return false;
+  }
   async auditLog(entry,guild){
     const destructive=new Set([12,22,32,50,52,92,13,14,15,25,31,51]);
     if(!entry||!guild||!destructive.has(entry.action))return;
     const actorId=entry.executorId||entry.executor?.id;
     if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
+    if([25,31].includes(entry.action))await this.alertPrivilegeEscalation(entry,guild,actorId).catch(error=>this.logger.warn("Privilege escalation alert failed:",error.message));
     const now=Date.now(),events=(this.nukeEvents.get(guild.id+":"+actorId)||[]).filter(v=>now-v.at<=10000);
     events.push({at:now,action:entry.action});this.nukeEvents.set(guild.id+":"+actorId,events);
     const critical=new Set([13,14,15,25,31,51]);
