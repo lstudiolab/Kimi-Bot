@@ -51,11 +51,16 @@ export class TimiSettings {
     }
     if(page==="configure"){
       const sections=[];
-      if(installed(this.store,id,"Security"))sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
+      if(installed(this.store,id,"Security")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets","Tickets")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
       return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
+    }
+    if(page==="filter"){
+      const words=this.store.data.automod_words[id]||[];
+      const description=words.length?words.map((word,index)=>`${index+1}. ${word}`).join("\n"):"No blocked phrases are configured.";
+      return i.editReply({embeds:[embed("Blocked Phrases",description)],components:[row(button("settings:filter-add","Add Phrase"),button("settings:filter-remove","Remove Phrase")),row(button("settings:configure","Back"))]});
     }
     if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
@@ -112,6 +117,22 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(!i.inGuild())return i.editReply({content:"Use Timi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
+    if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
+      const phrase=i.fields.getTextInputValue("phrase").trim();
+      if(!phrase||phrase.length>100)return i.editReply({content:"Enter a phrase between 1 and 100 characters.",components:[],embeds:[]});
+      const words=this.store.data.automod_words[i.guildId]||[];
+      const index=words.findIndex(word=>word.toLowerCase()===phrase.toLowerCase());
+      if(id==="settings:filter:add-modal"){
+        if(index!==-1)return i.editReply({content:"That phrase is already blocked.",components:[],embeds:[]});
+        if(words.length>=100)return i.editReply({content:"The blocked phrase list is full (100 entries).",components:[],embeds:[]});
+        words.push(phrase);
+      }else{
+        if(index===-1)return i.editReply({content:"That phrase is not in the blocked list.",components:[],embeds:[]});
+        words.splice(index,1);
+      }
+      this.store.data.automod_words[i.guildId]=words;this.store.save();
+      return i.editReply({content:id.endsWith("add-modal")?"Blocked phrase added.":"Blocked phrase removed.",components:[],embeds:[]});
+    }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
@@ -152,6 +173,11 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(id.startsWith("settings:library-select:"))return this.show(i,id.split(":")[2],i.values[0]);
     }
     if(!i.isButton())return;
+    if(id==="settings:filter-add"||id==="settings:filter-remove"){
+      const add=id==="settings:filter-add";
+      const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
+      return i.showModal(modal);
+    }
     if(id==="settings:home")return this.show(i,"home");
     if(id==="settings:modules")return this.show(i,"modules");
     if(id==="settings:configure")return this.show(i,"configure");
@@ -159,6 +185,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";
       if(!installed(this.store,i.guildId,library))return this.show(i,"configure");
+      if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         const value=this.store.verify(i.guildId);
         const field=(key,label,placeholder,current)=>new TextInputBuilder().setCustomId(key).setLabel(label).setPlaceholder(placeholder).setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(100).setValue(String(current??"").slice(0,100));
