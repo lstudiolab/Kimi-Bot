@@ -1,5 +1,5 @@
 import { AuditLogEvent, ChannelType, PermissionFlagsBits } from "discord.js";
-import { nowMs, DAY, chunkText } from "../utils.js";
+import { nowMs, DAY, chunkText, isPrivateTextChannel } from "../utils.js";
 
 const WEEK=7*DAY,MAX_MESSAGES=25000,MAX_ARCHIVE_BYTES=4*1024*1024;
 export class Recovery {
@@ -75,10 +75,11 @@ export class Recovery {
     return true;
   }
   async findLogChannel(guild) {
+    if(this.protection)return this.protection.privateChannel(guild);
     const configured=this.store.data.timi_setup?.[guild.id]?.log_channel_id;
     const channel=configured?await guild.channels.fetch(configured).catch(()=>null):null;
-    if(channel?.guildId===guild.id&&channel.type===ChannelType.GuildText)return channel;
-    return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&["timi-log","timi-logs","timi"].includes(c.name))||null;
+    if(isPrivateTextChannel(channel,guild))return channel;
+    return guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&["timi-log","timi-logs","timi"].includes(c.name)&&isPrivateTextChannel(c,guild))||null;
   }
   async onChannelDelete(channel) {
     if(!channel.guild)return;
