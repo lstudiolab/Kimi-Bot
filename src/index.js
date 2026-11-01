@@ -91,7 +91,7 @@ async function coreCommand(i){
  if(configureLibrary)return settings.show(i,"library",configureLibrary);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
+  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries, including Studio, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
@@ -104,14 +104,15 @@ async function coreCommand(i){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
   const result=manager.uninstall(i.guildId,i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
-  if(libraries[result.library.name]?.onUninstall)await libraries[result.library.name].onUninstall(i.guild);
+  const libraryKey=({Core:"Foundation",Shield:"Security",Support:"Support",Studio:"Scratch"})[result.library.name]||result.library.name;
+  if(libraries[libraryKey]?.onUninstall)await libraries[libraryKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
   return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi libraries.");
   const name=i.options.getString("library");
-  if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Security, Support, Scratch. Use /libraries for details.");
+  if(!name)return respond(i,"Choose a library in the library option. Available: Core, Shield, Support, Studio. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   try {
    await syncGuildCommands(i.guildId);
@@ -119,8 +120,9 @@ async function coreCommand(i){
    logger.error(`Could not publish ${result.library.name} commands for guild ${i.guildId}:`,error);
    return respond(i,`**${result.library.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
-  if(libraries[result.library.name].ready)await libraries[result.library.name].ready(i.guild);
-  if(libraries[result.library.name].onInstall)await libraries[result.library.name].onInstall(i.guild);
+  const libraryKey=({Core:"Foundation",Shield:"Security",Support:"Support",Studio:"Scratch"})[result.library.name]||result.library.name;
+  if(libraries[libraryKey]?.ready)await libraries[libraryKey].ready(i.guild);
+  if(libraries[libraryKey]?.onInstall)await libraries[libraryKey].onInstall(i.guild);
   return respond(i,`**${result.library.name}** is installed and active in this server. Its slash commands have been published.\n${result.library.description}`);
  }
 }
