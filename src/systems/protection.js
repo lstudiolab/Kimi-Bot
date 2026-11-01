@@ -17,18 +17,32 @@ export class Protection {
     ];
     const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(P.ManageGuild)).first(80);
     permissions.push(...adminRoles.map(role=>({id:role.id,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]})));
-    if(channel){await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private").catch(error=>this.logger.warn("Could not refresh Timi log permissions:",error.message));return channel;}
-    return guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
+    if(!channel)channel=await guild.channels.create({name:"timi-log",type:ChannelType.GuildText,
       topic:"Private Timi security alerts and bot approval requests. Only the server owner, server managers, and Timi can view this channel.",
       permissionOverwrites:permissions,reason:"Create private Timi security channel"});
+    else await channel.permissionOverwrites.set(permissions,"Keep Timi security channel private")
+      .catch(error=>this.logger.warn("Could not refresh Timi log permissions:",error.message));
+    const current=this.store.data.timi_setup[guild.id]||{};
+    if(current.log_channel_id!==channel.id){
+      current.log_channel_id=channel.id;this.store.data.timi_setup[guild.id]=current;
+      this.store.mods(guild.id).log_channel_id=channel.id;this.store.save();
+    }
+    return channel;
   }
   async restrictBot(guild,botId,privateId){
-    const fetched=await guild.channels.fetch();
+    const fetched=await guild.channels.fetch(),result={total:0,restricted:0,failed:0};
     for(const channel of fetched.values()){
       if(!channel.permissionOverwrites||channel.id===privateId||["timi-log","timi-confirmations","timi-settings","timi"].includes(channel.name))continue;
-      await channel.permissionOverwrites.edit(botId,{ViewChannel:false,SendMessages:false,ReadMessageHistory:false,Connect:false,Speak:false},
-        {reason:"Timi temporary bot approval restriction"}).catch(error=>this.logger.warn("Could not restrict bot in channel",channel.id,error.message));
+      result.total++;
+      try{
+        await channel.permissionOverwrites.edit(botId,{ViewChannel:false,SendMessages:false,ReadMessageHistory:false,Connect:false,Speak:false},
+          {reason:"Timi temporary bot approval restriction"});
+        result.restricted++;
+      }catch(error){
+        result.failed++;this.logger.warn("Could not restrict bot in channel",channel.id,error.message);
+      }
     }
+    return result;
   }
   async botJoin(guild,member){
     const log=await this.privateChannel(guild);
@@ -36,17 +50,20 @@ export class Protection {
     const confirmation=setup.confirmation_channel_id?await guild.channels.fetch(setup.confirmation_channel_id).catch(()=>null):null;
     const requestChannel=confirmation?.isTextBased()?confirmation:log;
     const msg=await requestChannel.send({
-      embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\n\nBot: <@${member.id}> (${member.user.username})\n\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
+      embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\\n\\nBot: <@${member.id}> (${member.user.username})\\n\\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
       components:[row(button(`botguard:yes:${guild.id}:${member.id}`,"Yes",ButtonStyle.Success),button(`botguard:no:${guild.id}:${member.id}`,"No",ButtonStyle.Danger))],
       allowedMentions:{parse:[]}
     });
     this.store.data.pending_bots[guild.id+":"+member.id]=msg.id;this.store.save();
     try{
-      await this.restrictBot(guild,member.id,log.id);
-      await msg.edit({embeds:[greyEmbed("Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot has joined successfully and is temporarily restricted while you review this request.`)]});
+      const result=await this.restrictBot(guild,member.id,log.id);
+      const status=result.failed
+        ? "Restrictions applied in "+result.restricted+" of "+result.total+" channels. "+result.failed+" channel(s) could not be restricted; review those channels manually before approving."
+        : "Temporary restrictions applied to "+result.restricted+" channel(s). Review this request before approving the bot.";
+      await msg.edit({embeds:[greyEmbed(result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\\n\\n${status}`)]});
     }catch(error){
       this.logger.error("Could not apply temporary bot restrictions:",error);
-      await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply temporary restrictions. Review its access manually.`)],components:[]}).catch(()=>{});
+      await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\\n\\nThe bot is in the server, but Timi could not apply the channel restrictions. Review its access manually.`)]}).catch(()=>{});
     }
   }
   async containRaid(guild, members, log, reason){
