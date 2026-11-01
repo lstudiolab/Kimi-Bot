@@ -44,15 +44,15 @@ export class Embeds {
   }
   async command(i){
     if(!await requireManager(i))return;
-    if(i.commandName==="create-embed")return i.showModal(modal("embed:create","Create an embed",[
+    if(i.commandName==="embed-new")return i.showModal(modal("embed:create","Create an embed",[
       textInput("name","Embed name (no spaces)","",TextInputStyle.Short,true,24),
       textInput("title","Embed title","",TextInputStyle.Short,true,256),
       textInput("description","Embed description","",TextInputStyle.Paragraph,true,4000)
     ]));
     const name=i.options.getString("name").toLowerCase(),x=this.store.embed(i.guildId,name);
-    if(!x)return deny(i,"No saved embed with that name. Use /create-embed first.");
-    if(i.commandName==="edit-embed")return respond(i,this.text(x),this.components(x),[this.editorPreview(x)]);
-    if(i.commandName==="place-embed"){
+    if(!x)return deny(i,"No saved embed with that name. Use /embed-new first.");
+    if(i.commandName==="embed-edit")return respond(i,this.text(x),this.components(x),[this.editorPreview(x)]);
+    if(i.commandName==="embed-post"){
       const sent=await i.channel.send({embeds:[this.payload(x,{guild:i.guild,user:i.user,member:i.member,channel:i.channel,client:this.client})],allowedMentions:{parse:[]}});
       x.placements.push({channel_id:i.channelId,message_id:sent.id});this.store.saveEmbed(x);
       return respond(i,"Embed placed in this channel.");
@@ -78,7 +78,7 @@ export class Embeds {
     if(i.customId==="embed:create"){
       const name=fields.name.toLowerCase();
       if(!/^[\w-]+$/.test(name)||!fields.title||!fields.description)return deny(i,"Use a simple name (letters, numbers, - or _) and provide a title and description.");
-      if(this.store.embed(i.guildId,name))return deny(i,"An embed with that name already exists. Use /edit-embed.");
+      if(this.store.embed(i.guildId,name))return deny(i,"An embed with that name already exists. Use /embed-edit.");
       const x={guild_id:i.guildId,name,creator_id:i.user.id,title:fields.title,description:fields.description,color:0x808080,
         author:"",footer:"",thumbnail:"",image:"",url:"",fields:[],placements:[]};
       this.store.saveEmbed(x);return respond(i,this.text(x),this.components(x),[this.editorPreview(x)]);
@@ -106,7 +106,7 @@ export class Embeds {
     return respond(i,this.text(x),this.components(x),[this.editorPreview(x)]);
   }
   async handle(i){
-    if(i.isChatInputCommand()&&["create-embed","edit-embed","place-embed"].includes(i.commandName))return this.command(i);
+    if(i.isChatInputCommand()&&["embed-new","embed-edit","embed-post"].includes(i.commandName))return this.command(i);
     if(i.isButton()&&i.customId.startsWith("embed:"))return this.button(i);
     if(i.isModalSubmit()&&i.customId.startsWith("embed:"))return this.modalSubmit(i);
   }
