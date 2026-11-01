@@ -66,7 +66,7 @@ async function coreCommand(i){
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Timi libraries.");
   const name=i.options.getString("library");
-  if(!name)return respond(i,"Enter a library name in libraryname. Available: Foundation, Security, Support, Scratch. Use /libraries for details.");
+  if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Security, Support, Scratch. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   try {
    await syncGuildCommands(i.guildId);
