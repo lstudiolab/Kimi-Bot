@@ -43,9 +43,10 @@ function opensModal(i){
  return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 async function coreCommand(i){
+ if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Developer, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /libraries to browse libraries and /install to enable them.");
+  return respond(i,"**Timi Free**\nTimi is free to use. All built-in libraries, including Scratch, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nUse /libraries to browse libraries and /install to enable them.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
@@ -65,7 +66,7 @@ async function coreCommand(i){
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Timi libraries.");
   const name=i.options.getString("libraryname");
-  if(!name)return respond(i,"Enter a library name in libraryname. Available: Moderation, Support, Foundation, Developer. Use /libraries for details.");
+  if(!name)return respond(i,"Enter a library name in libraryname. Available: Foundation, Security, Support, Scratch. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   try {
    await syncGuildCommands(i.guildId);
@@ -123,7 +124,7 @@ client.on(Events.InteractionCreate,async i=>{
 client.on(Events.MessageCreate,async m=>{
  if(m.author.bot||!m.guild)return;
  if(m.content.trim().toLowerCase()==="&testgreet"){
-  if(!m.member?.permissions.has(PermissionFlagsBits.Administrator))return m.reply("Only server administrators can run the greet test.").catch(()=>{});
+  if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
   if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation library is not installed in this server.").catch(()=>{});
   try{
    const sent=await foundation.testGreet(m.member);
