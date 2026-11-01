@@ -102,16 +102,6 @@ export class Protection {
     if(this.lastAlert.size>1000)for(const [guildId,at] of this.lastAlert)if(now-at>60*60*1000)this.lastAlert.delete(guildId);
     const activeUntil=this.activeRaids.get(guild.id)||0;
     if(activeUntil&&activeUntil<=now)this.activeRaids.delete(guild.id);
-    const age=nowMs()-snowflakeTime(user.id);
-    if(age<7*DAY){
-      const log=await this.privateChannel(guild);let action="flagged for moderator review";
-      if(age<3*DAY){
-        try{await member.timeout(10*60*1000,"Timi new-account safety timeout");action="temporarily timed out for 10 minutes";}
-        catch{action="flagged; timeout could not be applied";}
-      }
-      await log.send({content:`New-account alert: <@${user.id}> joined with an account ${Math.floor(age/DAY)} day(s) old. Action: ${action}.`,
-        allowedMentions:{users:[user.id]}});
-    }
     const recent=(this.joins.get(guild.id)||[]).filter(item=>now-item.at<=10000);
     recent.push({at:now,id:member.id});this.joins.set(guild.id,recent);
     if(activeUntil>now){
