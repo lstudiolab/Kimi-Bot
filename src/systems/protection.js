@@ -128,16 +128,24 @@ export class Protection {
     const changes=entry.changes||[];
     const sensitive=[P.Administrator,P.ManageGuild,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.BanMembers,P.KickMembers];
     if(entry.action===31){
+      const permissionChange=changes.find(change=>change.key==="permissions");
+      if(!permissionChange)return false;
       const role=await guild.roles.fetch(entry.targetId).catch(()=>null);
-      if(!role||!sensitive.some(flag=>role.permissions.has(flag)))return false;
-      const granted=sensitive.filter(flag=>role.permissions.has(flag));
+      if(!role)return false;
+      let before=0n,after=0n;
+      try{
+        before=BigInt(String(permissionChange.old??"0"));
+        after=BigInt(String(permissionChange.new??role.permissions.bitfield));
+      }catch{return false;}
+      const granted=sensitive.filter(flag=>(after&flag)!==0n&&(before&flag)===0n);
+      if(!granted.length)return false;
       const names=[
         [P.Administrator,"Administrator"],[P.ManageGuild,"Manage Server"],[P.ManageRoles,"Manage Roles"],
         [P.ManageChannels,"Manage Channels"],[P.ManageWebhooks,"Manage Webhooks"],
         [P.BanMembers,"Ban Members"],[P.KickMembers,"Kick Members"]
       ].filter(([flag])=>granted.includes(flag)).map(([,name])=>name);
       const log=await this.privateChannel(guild);
-      await log.send({content:`PRIVILEGE ESCALATION ALERT: <@${actorId}> changed role **${role.name}** and it currently grants: ${names.join(", ")}. Review the role's members and audit history immediately. Timi did not automatically revert the role because that could remove legitimate access.`,allowedMentions:{users:[actorId]}});
+      await log.send({content:`PRIVILEGE ESCALATION ALERT: <@${actorId}> changed role **${role.name}** and newly granted: ${names.join(", ")}. Review the role's members and audit history immediately. Timi did not automatically revert the role because that could remove legitimate access.`,allowedMentions:{users:[actorId]}});
       return true;
     }
     if(entry.action===25){
@@ -160,6 +168,8 @@ export class Protection {
   async auditLog(entry,guild){
     const destructive=new Set([12,22,32,50,52,92,13,14,15,25,31,51]);
     if(!entry||!guild||!destructive.has(entry.action))return;
+    if(entry.action===31&&!(entry.changes||[]).some(change=>change.key==="permissions"))return;
+    if(entry.action===25&&!(entry.changes||[]).some(change=>["$add","$remove"].includes(change.key)))return;
     const actorId=entry.executorId||entry.executor?.id;
     if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
     if([25,31].includes(entry.action))await this.alertPrivilegeEscalation(entry,guild,actorId).catch(error=>this.logger.warn("Privilege escalation alert failed:",error.message));
