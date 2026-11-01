@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DASHBOARD = path.join(ROOT, "dashboard");
 const COOKIE = "kimi_session";
+const OAUTH_COOKIE = "kimi_oauth_state";
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const MODULES = Object.freeze([
   { id: "welcome", name: "Welcome", library: "Foundation" },
@@ -80,7 +81,6 @@ function safeNext(value) {
 export function startDashboardServer({ config, client, store, manager, libraries, logger, syncGuildCommands }) {
   const sessions = new Map();
   const pendingStates = new Map();
-  const guildCache = new Map();
   const oauthReady = Boolean(config.oauthClientSecret && config.oauthRedirectUri);
 
   function sessionFor(req) {
@@ -168,7 +168,11 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && url.pathname === "/auth/discord") {
         if (!oauthReady) return redirect(res, "/verify?error=oauth-not-configured");
         const state = crypto.randomBytes(24).toString("hex");
-        pendingStates.set(state, { next: safeNext(url.searchParams.get("next")), createdAt: Date.now() });
+        const browserId = crypto.randomBytes(24).toString("hex");
+        for (const [key, item] of pendingStates) if (Date.now() - item.createdAt > 10 * 60 * 1000) pendingStates.delete(key);
+        pendingStates.set(state, { next: safeNext(url.searchParams.get("next")), createdAt: Date.now(), browserId });
+        const secure = config.dashboardCookieSecure ? "; Secure" : "";
+        res.setHeader("Set-Cookie", OAUTH_COOKIE + "=" + browserId + "; HttpOnly; SameSite=Lax; Path=/auth/discord; Max-Age=600" + secure);
         const params = new URLSearchParams({
           client_id: config.clientId,
           response_type: "code",
@@ -180,13 +184,15 @@ export function startDashboardServer({ config, client, store, manager, libraries
       }
 
       if (method === "GET" && url.pathname === "/auth/discord/callback") {
-        if (url.searchParams.has("error")) return redirect(res, "/verify?error=discord-denied");
+        const clearOAuthCookie = OAUTH_COOKIE + "=; HttpOnly; SameSite=Lax; Path=/auth/discord; Max-Age=0" + (config.dashboardCookieSecure ? "; Secure" : "");
+        if (url.searchParams.has("error")) return redirect(res, "/verify?error=discord-denied", { "Set-Cookie": clearOAuthCookie });
         const code = url.searchParams.get("code") || "";
         const state = url.searchParams.get("state") || "";
         const pending = pendingStates.get(state);
         pendingStates.delete(state);
-        if (!oauthReady || !code || !pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
-          return redirect(res, "/verify?error=invalid-session");
+        const browserId = cookieValue(req, OAUTH_COOKIE);
+        if (!oauthReady || !code || !pending || !browserId || pending.browserId !== browserId || Date.now() - pending.createdAt > 10 * 60 * 1000) {
+          return redirect(res, "/verify?error=invalid-session", { "Set-Cookie": clearOAuthCookie });
         }
         const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
           method: "POST",
@@ -201,13 +207,13 @@ export function startDashboardServer({ config, client, store, manager, libraries
         });
         if (!tokenResponse.ok) {
           logger.warn("Discord OAuth token exchange failed:", await tokenResponse.text());
-          return redirect(res, "/verify?error=oauth-failed");
+          return redirect(res, "/verify?error=oauth-failed", { "Set-Cookie": clearOAuthCookie });
         }
         const token = await tokenResponse.json();
         const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
           headers: { Authorization: "Bearer " + token.access_token }
         });
-        if (!userResponse.ok) return redirect(res, "/verify?error=profile-failed");
+        if (!userResponse.ok) return redirect(res, "/verify?error=profile-failed", { "Set-Cookie": clearOAuthCookie });
         const user = await userResponse.json();
         const sessionId = crypto.randomBytes(32).toString("hex");
         sessions.set(sessionId, {
@@ -218,7 +224,8 @@ export function startDashboardServer({ config, client, store, manager, libraries
           guildsExpiresAt: 0
         });
         setSessionCookie(res, sessionId);
-        return redirect(res, pending.next);
+        res.setHeader("Set-Cookie", [res.getHeader("Set-Cookie"), clearOAuthCookie]);
+        return redirect(res, pending.next, { "Set-Cookie": [res.getHeader("Set-Cookie"), clearOAuthCookie] });
       }
 
       if (method === "POST" && url.pathname === "/auth/logout") {
@@ -311,7 +318,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       if (method === "GET" && url.pathname === "/") return staticFile(res, "index.html");
       if (method === "GET" && url.pathname === "/verify") return staticFile(res, "verify.html");
       if (method === "GET" && url.pathname === "/login") return staticFile(res, "verify.html");
-      if (method === "GET" && ["/index.html", "/app.js", "/styles.css"].includes(url.pathname)) {
+      if (method === "GET" && ["/index.html", "/app.js", "/styles.css", "/verify.js"].includes(url.pathname)) {
         return staticFile(res, url.pathname.slice(1));
       }
       return send(res, 404, { error: "Not found." });
