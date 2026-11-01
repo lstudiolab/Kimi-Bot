@@ -48,17 +48,15 @@ export class Foundation {
   }
   async ensureSetup(guild){
     const bot=await guild.members.fetchMe();
-    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(PermissionFlagsBits.ManageGuild)).first(80);
     const definitions=[
-      {key:"log_channel_id",name:"timi-log",topic:"Private Timi event and security logs."},
-      {key:"confirmation_channel_id",name:"timi-confirmations",topic:"Private Timi approval requests, including newly invited bots."},
-      {key:"settings_channel_id",name:"timi-settings",topic:"Private Timi setup and configuration reference."}
+      {key:"log_channel_id",name:"kimi-channel",topic:"Private Kimi event and security logs. Accessible only to the server owner and Kimi."},
+      {key:"confirmation_channel_id",name:"kimi-confirmations",topic:"Private Kimi approval requests. Accessible only to the server owner and Kimi."},
+      {key:"settings_channel_id",name:"kimi-settings",topic:"Private Kimi setup and configuration reference. Accessible only to the server owner and Kimi."}
     ];
     const overwrites=[
       {id:guild.id,deny:[PermissionFlagsBits.ViewChannel]},
       {id:guild.ownerId,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]},
       {id:bot.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.EmbedLinks,PermissionFlagsBits.ManageMessages]},
-      ...adminRoles.map(role=>({id:role.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}))
     ];
     const saved=this.store.data.timi_setup[guild.id]||{},channels=[];
     for(const definition of definitions){
@@ -66,9 +64,9 @@ export class Foundation {
       if(channel?.type!==ChannelType.GuildText)channel=null;
       if(!channel)channel=guild.channels.cache.find(value=>value.type===ChannelType.GuildText&&value.name===definition.name)||null;
       if(channel){
-        await channel.permissionOverwrites.set(overwrites,"Apply Timi private channel permissions");
+        await channel.permissionOverwrites.set(overwrites,"Apply owner-only Kimi channel permissions");
         if(channel.name!==definition.name||channel.topic!==definition.topic)await channel.edit({name:definition.name,topic:definition.topic});
-      }else channel=await guild.channels.create({name:definition.name,type:ChannelType.GuildText,topic:definition.topic,permissionOverwrites:overwrites,reason:"Create Timi setup channel"});
+      }else channel=await guild.channels.create({name:definition.name,type:ChannelType.GuildText,topic:definition.topic,permissionOverwrites:overwrites,reason:"Create private Kimi channel"});
       saved[definition.key]=channel.id;channels.push(channel);
     }
     this.store.data.timi_setup[guild.id]=saved;
@@ -76,15 +74,15 @@ export class Foundation {
     this.store.save();
     const settings=channels[2];
     const existing=await settings.messages.fetch({limit:25}).catch(()=>null);
-    const reference=existing?.find(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"));
-    const referencePayload={content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-config for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}};
+    const reference=existing?.find(message=>message.author.id===bot.id&&message.content.includes("Kimi setup reference"));
+    const referencePayload={content:"**Kimi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-config for verification, /moderation for Security, and /ticket-config for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}};
     if(reference)await reference.edit(referencePayload);
     else await settings.send(referencePayload);
     return {saved,channels};
   }
   async setup(i){
     const {saved}=await this.ensureSetup(i.guild);
-    return respond(i,"Timi setup is complete. The private channels are ready:\n**Log:** <#"+saved.log_channel_id+">\n**Confirmation:** <#"+saved.confirmation_channel_id+">\n**Settings:** <#"+saved.settings_channel_id+">\n\nNewly invited bots receive an approval request before Timi applies temporary access restrictions.");
+    return respond(i,"Kimi channel setup is complete. The private channels are ready:\n**Log:** <#"+saved.log_channel_id+">\n**Confirmation:** <#"+saved.confirmation_channel_id+">\n**Settings:** <#"+saved.settings_channel_id+">\n\nNewly invited bots receive an approval request before Timi applies temporary access restrictions.");
   }
   render(template,member,channel=null){
     return renderTemplate(template,{guild:member.guild,member,user:member.user,channel,client:this.client});
