@@ -685,3 +685,14 @@ test("Security refuses to write private logs when channel permissions cannot be 
   };
   await assert.rejects(protection.privateChannel(guild),/refused to send private security logs/);
 });
+
+import { isPrivateTextChannel } from "../src/utils.js";
+
+test("private-channel checks reject public and non-text destinations",()=>{
+  const guild={roles:{everyone:{id:"everyone"}}};
+  const channel=visible=>({isTextBased:()=>true,permissionsFor:()=>({has:flag=>flag==="ViewChannel"?visible:false})});
+  assert.equal(isPrivateTextChannel(channel(false),guild),true);
+  assert.equal(isPrivateTextChannel(channel(true),guild),false);
+  assert.equal(isPrivateTextChannel({isTextBased:()=>false},guild),false);
+  assert.equal(isPrivateTextChannel(null,guild),false);
+});
