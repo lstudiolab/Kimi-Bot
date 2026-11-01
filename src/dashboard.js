@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath } from "node:url";\nimport { LOCALE_NAMES } from "./i18n.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DASHBOARD = path.join(ROOT, "dashboard");
@@ -326,6 +326,21 @@ export function startDashboardServer({ config, client, store, manager, libraries
             store.save();
             logger.info("Dashboard "+(body.enabled?"enabled":"disabled")+" /"+commandsMatch[2]+" in guild "+commandsMatch[1]);
             return send(res,200,{ok:true,name:commandsMatch[2],enabled:body.enabled});
+          }
+        }
+        const settingsMatch=url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/settings(?:\\/([a-z-]+))?$/);
+        if(settingsMatch){
+          const settingsContext=await requireGuild(req,res,session,settingsMatch[1]);
+          if(!settingsContext)return;
+          if(method==="GET"&&!settingsMatch[2])return send(res,200,{language:store.data.languages?.[settingsMatch[1]]||"en-US",locales:Object.entries(LOCALE_NAMES).map(([value,label])=>({value,label}))});
+          if(method==="POST"&&settingsMatch[2]==="language"){
+            const body=await parseBody(req);
+            if(!Object.hasOwn(LOCALE_NAMES,body.language))return send(res,400,{error:"Choose a supported language."});
+            store.data.languages||={};
+            store.data.languages[settingsMatch[1]]=body.language;
+            store.save();
+            logger.info("Dashboard changed server language to "+body.language+" in guild "+settingsMatch[1]);
+            return send(res,200,{ok:true,language:body.language});
           }
         }
         const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|libraries)\/([a-zA-Z-]+))?$/);
