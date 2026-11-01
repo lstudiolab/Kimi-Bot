@@ -192,6 +192,8 @@ export function startDashboardServer({ config, client, store, manager, libraries
     const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
     const method = req.method || "GET";
     try {
+      if (method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, service: "kimi-dashboard", botReady: client.isReady() });
+
       if (method === "GET" && url.pathname === "/auth/discord") {
         if (!oauthReady) return redirect(res, "/verify?error=oauth-not-configured");
         const state = crypto.randomBytes(24).toString("hex");
@@ -369,7 +371,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             if (!LIBRARY_NAMES.has(name) || !["install", "uninstall"].includes(body.action)) {
               return send(res, 400, { error: "Invalid library action." });
             }
-            if (!context.owner) return send(res, 403, { error: "Only the server owner can install or remove libraries." });
+            // authorizedGuild has already verified Manage Server or Administrator permission.
             if (body.action === "install") {
               const result = manager.install(guildId, name);
               if (!result.ok) return send(res, 409, { error: result.error });
@@ -402,18 +404,26 @@ export function startDashboardServer({ config, client, store, manager, libraries
       }
 
       const pagePath = url.pathname.replace(/\/+$/, "") || "/";
-      if (method === "GET" && ["/", "/dashboard", "/dashboard/index.html", "/index.html"].includes(pagePath)) {
-        return staticFile(res, "index.html");
-      }
       if (method === "GET" && ["/verify", "/login", "/dashboard/verify"].includes(pagePath)) {
         return staticFile(res, "verify.html");
+      }
+      if (method === "GET" && ["/", "/dashboard", "/dashboard/index.html", "/index.html"].includes(pagePath)) {
+        const session = sessionFor(req);
+        if (!session) return redirect(res, "/login");
+        if (!session.scope.split(/\\s+/).includes("guilds")) return redirect(res, "/auth/discord");
+        return staticFile(res, "index.html");
       }
       if (method === "GET" && ["/app.js", "/styles.css", "/verify.js", "/dashboard/app.js", "/dashboard/styles.css", "/dashboard/verify.js"].includes(pagePath)) {
         return staticFile(res, pagePath.split("/").pop());
       }
       // This is a single-page dashboard. Serve its entry point for extensionless
       // client-side paths instead of returning a server-level 404.
-      if (method === "GET" && !path.extname(pagePath)) return staticFile(res, "index.html");
+      if (method === "GET" && !path.extname(pagePath)) {
+        const session = sessionFor(req);
+        if (!session) return redirect(res, "/login");
+        if (!session.scope.split(/\\s+/).includes("guilds")) return redirect(res, "/auth/discord");
+        return staticFile(res, "index.html");
+      }
       return send(res, 404, { error: "Not found." });
     } catch (error) {
       logger.error("Dashboard request failed:", error);
