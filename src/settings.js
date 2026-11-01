@@ -144,12 +144,12 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       for(const id of [roleId,requiredRoleId])if(id&&!/^\d{15,22}$/.test(id))return i.editReply({content:"Enter valid role IDs or leave them blank.",components:[],embeds:[]});
       if(reviewId&&!/^\d{15,22}$/.test(reviewId))return i.editReply({content:"Enter a valid review channel ID or leave it blank.",components:[],embeds:[]});
       if(roleId&&!i.guild.roles.cache.has(roleId)||requiredRoleId&&!i.guild.roles.cache.has(requiredRoleId))return i.editReply({content:"One of the role IDs does not belong to this server.",components:[],embeds:[]});
-      if(reviewId&&!i.guild.channels.cache.has(reviewId))return i.editReply({content:"The review channel ID does not belong to this server.",components:[],embeds:[]});
+      if(reviewId&&(!i.guild.channels.cache.has(reviewId)||!i.guild.channels.cache.get(reviewId).isTextBased()))return i.editReply({content:"Choose a text channel in this server for manual reviews.",components:[],embeds:[]});
       const bot=await i.guild.members.fetchMe();
       for(const id of [roleId,requiredRoleId]){
         const role=id?i.guild.roles.cache.get(id):null;
         if(role&&!isSafeAssignableRole(role,i.guildId))return i.editReply({content:"Choose normal verification roles without elevated permissions.",components:[],embeds:[]});
-        if(id&&role.position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
+        if(id===roleId&&role.position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
       }
       if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Timi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
@@ -164,7 +164,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const welcomeChannel=channelId("welcome-channel"),goodbyeChannel=channelId("goodbye-channel"),roleId=channelId("auto-role");
       for(const value of [welcomeChannel,goodbyeChannel])if(value&&!/^\d{15,22}$/.test(value))return i.editReply({content:"Enter a valid Discord channel ID or leave it blank.",components:[],embeds:[]});
       if(roleId&&!/^\d{15,22}$/.test(roleId))return i.editReply({content:"Enter a valid Discord role ID or leave it blank.",components:[],embeds:[]});
-      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!i.guild.channels.cache.has(value))return i.editReply({content:"One of the channel IDs does not belong to this server or is unavailable.",components:[],embeds:[]});
+      for(const value of [welcomeChannel,goodbyeChannel])if(value&&(!i.guild.channels.cache.has(value)||!i.guild.channels.cache.get(value).isTextBased()))return i.editReply({content:"Choose text channels from this server.",components:[],embeds:[]});
       if(roleId&&!i.guild.roles.cache.has(roleId))return i.editReply({content:"That role does not belong to this server or is unavailable.",components:[],embeds:[]});
       if(roleId){
         const role=i.guild.roles.cache.get(roleId),bot=await i.guild.members.fetchMe();
