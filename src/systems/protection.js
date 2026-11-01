@@ -50,7 +50,7 @@ export class Protection {
     const confirmation=setup.confirmation_channel_id?await guild.channels.fetch(setup.confirmation_channel_id).catch(()=>null):null;
     const requestChannel=confirmation?.isTextBased()?confirmation:log;
     const msg=await requestChannel.send({
-      embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\\n\\nBot: <@${member.id}> (${member.user.username})\\n\\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
+      embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\n\nBot: <@${member.id}> (${member.user.username})\n\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
       components:[row(button(`botguard:yes:${guild.id}:${member.id}`,"Yes",ButtonStyle.Success),button(`botguard:no:${guild.id}:${member.id}`,"No",ButtonStyle.Danger))],
       allowedMentions:{parse:[]}
     });
@@ -60,10 +60,10 @@ export class Protection {
       const status=result.failed
         ? "Restrictions applied in "+result.restricted+" of "+result.total+" channels. "+result.failed+" channel(s) could not be restricted; review those channels manually before approving."
         : "Temporary restrictions applied to "+result.restricted+" channel(s). Review this request before approving the bot.";
-      await msg.edit({embeds:[greyEmbed(result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\\n\\n${status}`)]});
+      await msg.edit({embeds:[greyEmbed(result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\n${status}`)]});
     }catch(error){
       this.logger.error("Could not apply temporary bot restrictions:",error);
-      await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\\n\\nThe bot is in the server, but Timi could not apply the channel restrictions. Review its access manually.`)]}).catch(()=>{});
+      await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply the channel restrictions. Review its access manually.`)]}).catch(()=>{});
     }
   }
   async containRaid(guild, members, log, reason){
