@@ -283,3 +283,25 @@ test("embed image URL validation accepts supported dynamic image placeholders",(
     assert.equal(isHttpsUrlTemplate(value),false,value);
   assert.equal(isHttpsUrlTemplate(""),true);
 });
+
+import { imageSignature, imageMetadata, extractUrls, assessImageText } from "../src/systems/image-analysis.js";
+
+test("image signature and PNG metadata are read without external packages",()=>{
+  const png=Buffer.alloc(24);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png,0);
+  png.writeUInt32BE(640,16);png.writeUInt32BE(480,20);
+  assert.equal(imageSignature(png),"png");
+  assert.deepEqual(imageMetadata(png),{type:"png",width:640,height:480,bytes:24});
+  assert.equal(imageSignature(Buffer.from("not an image")),null);
+  assert.equal(imageMetadata(Buffer.from("not an image")),null);
+});
+
+test("image OCR link extraction and safety heuristics identify common phishing indicators",()=>{
+  const urls=extractUrls("Please visit https://bit.ly/fake and http://192.0.2.10/login.");
+  assert.equal(urls.length,2);
+  const flags=assessImageText("Verify your account urgently and claim your reward",urls);
+  assert.ok(flags.some(flag=>flag.includes("account-theft")));
+  assert.ok(flags.some(flag=>flag.includes("shortening")));
+  assert.ok(flags.some(flag=>flag.includes("HTTPS")));
+  assert.ok(flags.some(flag=>flag.includes("IP address")));
+});

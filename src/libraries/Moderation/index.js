@@ -2,6 +2,7 @@ import { Moderation } from "../../systems/moderation.js";
 import { Protection } from "../../systems/protection.js";
 import { Recovery } from "../../systems/recovery.js";
 import { Verification } from "../../systems/verification.js";
+import { ImageAnalysis } from "../../systems/image-analysis.js";
 import { respond } from "../../ui.js";
 
 export function createSecurityLibrary({client,store,logger,foundation}){
@@ -9,6 +10,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
   const verification=new Verification(client,store,logger);
   const protection=new Protection(client,store,logger);
   const recovery=new Recovery(client,store,logger);
+  const imageAnalysis=new ImageAnalysis(client,logger);
   return {
     async ready(guild){
       await moderation.resumeJobs(guild);
@@ -29,7 +31,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
     async messageCreate(message){
       recovery.backupMessage(message);
-      await moderation.onMessage(message);
+      await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);
     },
     async guildMemberAdd(member){await protection.memberJoin(member);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
