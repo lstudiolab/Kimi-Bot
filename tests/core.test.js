@@ -527,3 +527,27 @@ test("embed editor previews respect Discord's aggregate character limit",()=>{
     (preview.footer?.text||"").length+(preview.fields||[]).reduce((sum,field)=>sum+field.name.length+field.value.length,0);
   assert.ok(total<=6000);
 });
+
+import { Protection } from "../src/systems/protection.js";
+
+test("ordinary member role assignments do not use the critical anti-nuke threshold",async()=>{
+  const protection=new Protection({user:{id:"timi"}},{},quiet);
+  protection.alertPrivilegeEscalation=async()=>false;
+  protection.privateChannel=async()=>({send:async()=>{}});
+  const guild={id:"security-guild",ownerId:"owner",members:{fetch:async()=>null}};
+  for(let index=0;index<3;index++)await protection.auditLog({
+    action:25,executorId:"moderator",changes:[{key:"$add",new:[{id:"ordinary-role"}]}]
+  },guild);
+  assert.equal(protection.nukeEvents.has("security-guild:moderator:triggered"),false);
+  assert.equal(protection.nukeEvents.get("security-guild:moderator").length,3);
+});
+
+test("critical channel permission changes still trigger anti-nuke containment at three events",async()=>{
+  const protection=new Protection({user:{id:"timi"}},{},quiet);
+  protection.privateChannel=async()=>({send:async()=>{}});
+  const guild={id:"security-guild",ownerId:"owner",members:{fetch:async()=>null}};
+  for(let index=0;index<3;index++)await protection.auditLog({
+    action:13,executorId:"moderator",changes:[]
+  },guild);
+  assert.ok(protection.nukeEvents.get("security-guild:moderator:triggered")>Date.now());
+});
