@@ -1,5 +1,5 @@
 import { PermissionFlagsBits, ButtonStyle } from "discord.js";
-import { DAY, snowflakeTime, mentionRole, mentionChannel, renderTemplate } from "../utils.js";
+import { DAY, snowflakeTime, mentionRole, mentionChannel, renderTemplate, isPrivateTextChannel } from "../utils.js";
 import { greyEmbed, button, row, respond, deny, requireOwner, isManager } from "../ui.js";
 import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
@@ -39,9 +39,17 @@ export class Verification {
   async log(guild,channelId,content,components=[]){
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     let ch=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
-    if(!ch?.isTextBased()&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
-    if(!ch?.isTextBased())ch=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.isTextBased());
-    if(ch?.isTextBased())await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
+    if(!isPrivateTextChannel(ch,guild)){
+      const ensured=await this.ensureSetup?.(guild).catch(error=>{
+        this.logger.warn("Could not secure Timi log channels for verification:",error.message);return null;
+      });
+      const id=ensured?.saved?.log_channel_id||setup.log_channel_id;
+      ch=id?await guild.channels.fetch(id).catch(()=>null):null;
+    }
+    if(!isPrivateTextChannel(ch,guild)){
+      this.logger.warn("Verification details were not logged because no private Timi channel is available.");return;
+    }
+    await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
     return `**Timi verification settings**\nVerified role: ${mentionRole(s.role_id)}\nRequired role: ${mentionRole(s.required_role_id)}\nMinimum account age: ${s.min_age_days} days\nReview channel: ${mentionChannel(s.review_channel_id)}\nThresholds: 80+ pass, 60–79 manual review, below 60 kick\nWeights: age 40, history 20, attempts 20, behavior 10, avatar 10
