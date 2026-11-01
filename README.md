@@ -177,23 +177,119 @@ Use `/plan` to check the current allocation.
 
 ## TbScript
 
-TbScript is a restricted component language. Its nested brace syntax is validated before a project is saved or rendered:
+TbScript is Timi's small, readable scripting language for Discord panels and basic server automation. It combines Python-like readability with Lua-style end blocks. Scripts use four spaces for indentation, do not need semicolons, and never execute JavaScript or shell code.
 
-```text
-{
-   {title:"Welcome"}
-   {description:"Hello, {user}!"}
-   {color:"#808080"}
-}
-```
+### Quick example
 
-It does not execute JavaScript, shell commands, arbitrary network requests or dynamically evaluated code. Only explicitly supported Discord components and actions are available.
+~~~tbscript
+panel:
+    title "Ticket Support"
+    description "Click below to create a private ticket."
+    color "#808080"
+    button "Open Ticket" : ticket
 
-- Projects are saved without running automatically.
-- Imports are restricted to `.tdl` files up to 64 KB.
-- Project history retains up to ten prior versions per project.
-- Script controls are checked against the active project or panel before execution.
-- Saving or stopping a project makes its older controls inactive.
+onclick ticket:
+    create channel "ticket"
+    make private
+    allow @author
+    reply "Your ticket has been created."
+end
+~~~
+
+### Events and conditions
+
+~~~tbscript
+on member join:
+    send #welcome "Welcome @author to @server!"
+end
+~~~
+
+~~~tbscript
+on message create:
+    if message.content == "hello":
+        reply "Hello!"
+    else:
+        reply "Welcome. How can I help?"
+    end
+end
+~~~
+
+### Language keywords
+
+**Panel and UI**
+- panel: starts a panel definition.
+- title "text": embed title.
+- description "text": embed description.
+- color "#808080": six-digit hexadecimal embed color.
+- footer "text": embed footer.
+- author "text": embed author.
+- image "https://...": embed image.
+- thumbnail "https://...": embed thumbnail.
+- url "https://...": embed title URL.
+- content "text": message content.
+- field "name" "value": adds an embed field.
+- button "label" : id: adds a button with a unique script ID.
+- ephemeral true|false: makes the test response visible only to the command user when true.
+
+**Events and flow**
+- onclick id:: handles clicks on the button with that ID.
+- on member join:: runs when a member joins while the project is running.
+- on message create:: runs when a non-bot member sends a message while the project is running.
+- if condition:: runs its indented actions when a supported condition is true.
+- else:: optional alternative branch for the matching if.
+- end: closes an onclick, on, or if block. A panel ends when the next top-level statement begins.
+
+**Actions**
+- reply "text": replies to the current button interaction or message.
+- send #channel "text": sends a message to a channel by name or channel mention.
+- create channel "name": creates a private text channel. The @everyone view permission is denied from creation.
+- make private: re-applies the private-channel permission.
+- allow @author: grants the current author access to the channel created by the current action.
+- allow "Role Name": grants a server role access to that newly created channel.
+- give role "Role Name": assigns a safe role to the current author.
+- remove role "Role Name": removes a safe role from the current author.
+
+**Supported conditions**
+- message.content == "text" and message.content != "text".
+- author.id == "Discord ID" and author.id != "Discord ID".
+- author.is_admin, author.is_owner, author.bot, and member.is_admin.
+- true and false.
+
+**Text placeholders**
+- @author: current user mention, without triggering an automatic ping.
+- @authorID: current user ID.
+- @server and @serverID: current server name and ID.
+- @channel: current channel mention.
+- @memberCount: current server member count.
+
+### Running and publishing
+
+- /script creates a project.
+- /script-edit edits a project or supported Timi panel.
+- /script-check validates source without running it.
+- /script-run publishes a panel or activates event handlers.
+- /script-stop disables its buttons and event handlers.
+- /script-template, /script-kit, and /script-help provide starter code and reference material.
+- /script-export and /script-import transfer .tdl source files.
+
+Projects are saved but never run automatically. Only a server owner or a member with the required server-management permission can create, edit, validate, run, or stop projects. Button actions are available to members who can access the published panel.
+
+### Safety and limits
+
+TbScript is an allowlisted language, not an unrestricted programming runtime. It has no eval, JavaScript, shell, arbitrary HTTP, filesystem, or dynamic module-import statements. Unknown keywords and malformed syntax are rejected before saving or running.
+
+- Source files are limited to 64 KB and 2,000 lines.
+- Indentation uses groups of four spaces; tabs are rejected.
+- Block structure is validated before execution.
+- Discord embed, message, button, and field limits are checked before rendering.
+- Channel creation starts private; the bot must have Manage Channels.
+- Role changes reject managed, @everyone, privileged, or higher-than-Timi roles and require Manage Roles.
+- send only targets a text channel in the current server.
+- Event handlers only run for projects explicitly started with /script-run; /script-stop disables them.
+- Imported .tdl files are limited to 64 KB and must be uploaded as Discord attachments.
+- Project history retains up to ten previous versions.
+
+The previous nested-brace TbScript format remains accepted for existing projects. New projects and templates use the simpler syntax shown above.
 
 ## Data and recovery
 
