@@ -153,7 +153,7 @@ test("pending moderation jobs survive a process restart",()=>{
 });
 
 import { parseTbScript, compileTbScript, autoFixTbScript, renderTbScript } from "../src/tbscript.js";
-import { PLANS, getGuildPlan, getStorageReport, canStoreGuildState } from "../src/subscriptions.js";
+import { PLANS, getGuildPlan, getStorageReport, canStoreGuildState, getGuildStorageBytes } from "../src/subscriptions.js";
 
 test("TbScript keeps the nested brace-block syntax and transpiles each instruction",()=>{
   const source=[
@@ -399,4 +399,17 @@ test("self-service role validation blocks every privileged permission",()=>{
     assert.equal(isSafeAssignableRole({...role,permissions:{has:value=>value===permission}},"guild"),false,
       "privileged permission "+permission+" must not be self-assignable");
   }
+});
+
+test("Timi storage accounting includes setup channels and AutoMod phrases",()=>{
+  const empty=getGuildStorageBytes({}, "guild-storage");
+  const populated=getGuildStorageBytes({
+    timi_setup:{"guild-storage":{log_channel_id:"123456789012345678"}},
+    automod_words:{"guild-storage":["blocked phrase"]}
+  },"guild-storage");
+  assert.ok(populated>empty);
+  const otherGuild=getGuildStorageBytes({
+    automod_words:{"another-guild":["x".repeat(1000)]}
+  },"guild-storage");
+  assert.equal(otherGuild,empty,"another server's data must not count against this server");
 });
