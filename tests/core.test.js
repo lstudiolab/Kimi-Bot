@@ -312,7 +312,7 @@ test("compact commands are unique and route to their canonical libraries",()=>{
   for(const [name,library] of [
     ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
     ["verify","Security"],["verify-config","Security"],["moderation","Security"],["filter","Security"],["security","Security"],
-    ["tickets","Support"],["ticket-panel","Support"],["ticket-settings","Support"],
+    ["tickets","Support"],["ticket-panel","Support"],["ticket-config","Support"],
     ["script","Scratch"],["script-run","Scratch"],["scripts","Scratch"]
   ])assert.equal(libraryForCommand(name),library);
   for(const name of ["plan","libraries","install","uninstall"])assert.equal(libraryForCommand(name),null);
