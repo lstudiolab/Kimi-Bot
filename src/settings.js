@@ -117,31 +117,31 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
       const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
       const thresholds=read("thresholds").split(",").map(part=>Number(part.trim()));
-      if(!Number.isInteger(age)||age<0||age>3650)return i.reply({content:"Minimum account age must be between 0 and 3650 days.",ephemeral:true});
-      if(thresholds.length!==2||thresholds.some(n=>!Number.isInteger(n)||n<0||n>100)||thresholds[1]>thresholds[0])return i.reply({content:"Enter valid thresholds as pass,review (for example: 80,60).",ephemeral:true});
-      for(const id of [roleId,requiredRoleId])if(id&&!/^\\d{15,22}$/.test(id))return i.reply({content:"Enter valid role IDs or leave them blank.",ephemeral:true});
-      if(reviewId&&!/^\\d{15,22}$/.test(reviewId))return i.reply({content:"Enter a valid review channel ID or leave it blank.",ephemeral:true});
-      if(roleId&&!i.guild.roles.cache.has(roleId)||requiredRoleId&&!i.guild.roles.cache.has(requiredRoleId))return i.reply({content:"One of the role IDs does not belong to this server.",ephemeral:true});
-      if(reviewId&&!i.guild.channels.cache.has(reviewId))return i.reply({content:"The review channel ID does not belong to this server.",ephemeral:true});
+      if(!Number.isInteger(age)||age<0||age>3650)return i.editReply({content:"Minimum account age must be between 0 and 3650 days.",components:[],embeds:[]});
+      if(thresholds.length!==2||thresholds.some(n=>!Number.isInteger(n)||n<0||n>100)||thresholds[1]>thresholds[0])return i.editReply({content:"Enter valid thresholds as pass,review (for example: 80,60).",components:[],embeds:[]});
+      for(const id of [roleId,requiredRoleId])if(id&&!/^\d{15,22}$/.test(id))return i.editReply({content:"Enter valid role IDs or leave them blank.",components:[],embeds:[]});
+      if(reviewId&&!/^\d{15,22}$/.test(reviewId))return i.editReply({content:"Enter a valid review channel ID or leave it blank.",components:[],embeds:[]});
+      if(roleId&&!i.guild.roles.cache.has(roleId)||requiredRoleId&&!i.guild.roles.cache.has(requiredRoleId))return i.editReply({content:"One of the role IDs does not belong to this server.",components:[],embeds:[]});
+      if(reviewId&&!i.guild.channels.cache.has(reviewId))return i.editReply({content:"The review channel ID does not belong to this server.",components:[],embeds:[]});
       const bot=await i.guild.members.fetchMe();
-      for(const id of [roleId,requiredRoleId])if(id&&i.guild.roles.cache.get(id).position>=bot.roles.highest.position)return i.reply({content:"Timi must have a higher role than the configured verification roles.",ephemeral:true});
+      for(const id of [roleId,requiredRoleId])if(id&&i.guild.roles.cache.get(id).position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
       this.store.data.verification[i.guildId]=value;this.store.save();
       await this.hooks.libraries?.Foundation?.refreshVerification?.(i.guild);
-      return i.reply({content:"Verification settings saved. Existing verification panels have been refreshed.",ephemeral:true});
+      return i.editReply({content:"Verification settings saved. Existing verification panels have been refreshed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
       const channelId=key=>read(key).replace(/[<#>]/g,"");
       const welcomeChannel=channelId("welcome-channel"),goodbyeChannel=channelId("goodbye-channel"),roleId=channelId("auto-role");
-      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!/^\\d{15,22}$/.test(value))return i.reply({content:"Enter a valid Discord channel ID or leave it blank.",ephemeral:true});
-      if(roleId&&!/^\\d{15,22}$/.test(roleId))return i.reply({content:"Enter a valid Discord role ID or leave it blank.",ephemeral:true});
-      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!i.guild.channels.cache.has(value))return i.reply({content:"One of the channel IDs does not belong to this server or is unavailable.",ephemeral:true});
-      if(roleId&&!i.guild.roles.cache.has(roleId))return i.reply({content:"That role does not belong to this server or is unavailable.",ephemeral:true});
+      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!/^\d{15,22}$/.test(value))return i.editReply({content:"Enter a valid Discord channel ID or leave it blank.",components:[],embeds:[]});
+      if(roleId&&!/^\d{15,22}$/.test(roleId))return i.editReply({content:"Enter a valid Discord role ID or leave it blank.",components:[],embeds:[]});
+      for(const value of [welcomeChannel,goodbyeChannel])if(value&&!i.guild.channels.cache.has(value))return i.editReply({content:"One of the channel IDs does not belong to this server or is unavailable.",components:[],embeds:[]});
+      if(roleId&&!i.guild.roles.cache.has(roleId))return i.editReply({content:"That role does not belong to this server or is unavailable.",components:[],embeds:[]});
       this.store.data.welcome[i.guildId]={...current,welcome_channel_id:welcomeChannel,welcome_message:read("welcome-message")||current.welcome_message,goodbye_channel_id:goodbyeChannel,goodbye_message:read("goodbye-message")||current.goodbye_message,auto_role_id:roleId};
       this.store.save();
-      return i.reply({content:"Welcome, goodbye and automatic-role settings saved.",ephemeral:true});
+      return i.editReply({content:"Welcome, goodbye and automatic-role settings saved.",components:[],embeds:[]});
     }
     if(i.isStringSelectMenu()){
       if(id==="settings:module-select")return this.show(i,"modules",i.values[0]);
