@@ -452,3 +452,12 @@ test("recovery startup pruning removes messages older than seven days",()=>{
   assert.deepEqual(store.data.messages.guild.map(message=>message.id),["recent"]);
   assert.equal(store.queued,true);
 });
+
+test("AutoMod blocked phrases match whole words without false substrings",()=>{
+  assert.equal(matchesBlockedPhrase("You are an ASS!","ass"),true);
+  assert.equal(matchesBlockedPhrase("bad    word detected","bad word"),true);
+  assert.equal(matchesBlockedPhrase("class assignment","ass"),false);
+  assert.equal(matchesBlockedPhrase("passage","ass"),false);
+  assert.equal(matchesBlockedPhrase("nothing suspicious",""),false);
+  assert.equal(matchesBlockedPhrase("élève suspect","élève"),true);
+});
