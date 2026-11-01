@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS, isHttpsUrlTemplate } from "../src/utils.js";
+import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS, isHttpsUrlTemplate, chunkText } from "../src/utils.js";
 import { loadConfig } from "../src/config.js";
 import { Store } from "../src/store.js";
 
@@ -320,5 +320,20 @@ test("compact commands are unique and route to their canonical libraries",()=>{
 test("library commands require Manage Server, not Administrator",()=>{
   for(const command of commandData.filter(command=>libraryForCommand(command.name))){
     assert.equal(command.default_member_permissions,"32");
+  }
+});
+
+test("transcript chunking preserves every character of oversized lines",()=>{
+  const source="A".repeat(2500)+"\n"+"B".repeat(2300)+"\nshort";
+  const chunks=chunkText(source,1900);
+  assert.ok(chunks.length>2);
+  assert.ok(chunks.every(chunk=>chunk.length<=1900));
+  assert.equal(chunks.join("").replace(/\n/g,""),source.replace(/\n/g,""));
+});
+test("every library factory can be instantiated with the shared runtime context",()=>{
+  const context={client:{},store:{data:{}},logger:quiet,foundation:{}};
+  for(const library of Object.values(LIBRARIES)){
+    const instance=library.create(context);
+    assert.equal(typeof instance.handleInteraction,"function",library.name+" must expose an interaction handler");
   }
 });
