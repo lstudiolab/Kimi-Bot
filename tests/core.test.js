@@ -284,7 +284,7 @@ test("embed image URL validation accepts supported dynamic image placeholders",(
   assert.equal(isHttpsUrlTemplate(""),true);
 });
 
-import { imageSignature, imageMetadata, extractUrls, assessImageText } from "../src/systems/image-analysis.js";
+import { imageSignature, imageMetadata, extractUrls, assessImageText, isTrustedDiscordAttachmentUrl } from "../src/systems/image-analysis.js";
 
 test("image signature and PNG metadata are read without external packages",()=>{
   const png=Buffer.alloc(24);
@@ -336,4 +336,19 @@ test("every library factory can be instantiated with the shared runtime context"
     const instance=library.create(context);
     assert.equal(typeof instance.handleInteraction,"function",library.name+" must expose an interaction handler");
   }
+});
+
+test("image downloads accept only HTTPS Discord attachment CDN URLs",()=>{
+  for(const url of [
+    "https://cdn.discordapp.com/attachments/123/456/image.png",
+    "https://media.discordapp.net/attachments/123/456/image.webp"
+  ])assert.equal(isTrustedDiscordAttachmentUrl(url),true,url);
+  for(const url of [
+    "http://cdn.discordapp.com/attachments/image.png",
+    "https://cdn.discordapp.com.evil.example/image.png",
+    "https://example.com/image.png",
+    "https://user:pass@cdn.discordapp.com/image.png",
+    "file:///etc/passwd",
+    "not a url"
+  ])assert.equal(isTrustedDiscordAttachmentUrl(url),false,url);
 });
