@@ -2,7 +2,7 @@ import {
   ChannelType, PermissionFlagsBits, ButtonStyle, TextInputStyle,
   StringSelectMenuBuilder, EmbedBuilder
 } from "discord.js";
-import { cleanChannelName, chunkText, renderTemplate } from "../utils.js";
+import { cleanChannelName, chunkText, renderTemplate, isPrivateTextChannel } from "../utils.js";
 import { GREY, greyEmbed, button, row, textInput, modal, respond, deny, requireManager } from "../ui.js";
 import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
@@ -195,11 +195,18 @@ export class Tickets {
   }
   async log(guild,content) {
     const x=this.store.mods(guild.id);
-    const setup=this.store.data.timi_setup?.[guild.id]||{};
-    const id=x.log_channel_id||setup.log_channel_id;
-    let channel=id?await guild.channels.fetch(id).catch(()=>null):null;
-    if(!channel?.isTextBased())channel=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.type===ChannelType.GuildText)||null;
-    if(channel?.isTextBased()) await channel.send({content,allowedMentions:{parse:[]}}).catch(e=>this.logger.warn("Ticket log failed:",e.message));
+    let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
+    if(!isPrivateTextChannel(channel,guild)){
+      const setup=await this.foundation?.ensureSetup?.(guild).catch(error=>{
+        this.logger.warn("Could not secure Timi log channels for ticket logging:",error.message);return null;
+      });
+      const id=setup?.saved?.log_channel_id;
+      channel=id?await guild.channels.fetch(id).catch(()=>null):null;
+    }
+    if(!isPrivateTextChannel(channel,guild)){
+      this.logger.warn("Ticket log skipped because no private Timi log channel is available.");return;
+    }
+    await channel.send({content,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Ticket log failed:",error.message));
   }
   async transcript(guild,channel) {
     const x=this.store.ticket(guild.id); if(!x.transcript_channel_id) return;
