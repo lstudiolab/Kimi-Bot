@@ -113,9 +113,13 @@ export class Store{
     const rejected=[];
     if(previous){
       const guildIds=new Set();
-      for(const collection of ["installed_libraries","welcome","tickets","moderation","verification","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data"]){
+      for(const collection of ["installed_libraries","welcome","tickets","moderation","verification","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"]){
         for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
         for(const id of Object.keys(previous[collection]||{}))guildIds.add(id);
+      }
+      for(const collection of ["pending_bots"]){
+        for(const key of Object.keys(this.data[collection]||{}))guildIds.add(key.split(":")[0]);
+        for(const key of Object.keys(previous[collection]||{}))guildIds.add(key.split(":")[0]);
       }
       for(const collection of ["embeds","members"]){
         for(const key of Object.keys(this.data[collection]||{}))guildIds.add(key.split(":")[0]);
