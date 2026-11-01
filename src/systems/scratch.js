@@ -122,6 +122,7 @@ export class Scratch {
     this.store = context.store;
     this.logger = context.logger;
     this.context = context;
+    this.eventCooldowns = new Map();
   }
 
   async allowed(i) {
@@ -481,6 +482,15 @@ export class Scratch {
       if(!compiled.ok)continue;
       for(const event of compiled.output.handlers?.events||[]){
         if(event.event!==eventName)continue;
+        const actorId=context.user?.id||context.member?.id||"server";
+        const cooldownKey=guildId+":"+slug+":"+eventName+":"+actorId;
+        const now=Date.now(),until=this.eventCooldowns.get(cooldownKey)||0;
+        if(until>now)continue;
+        this.eventCooldowns.set(cooldownKey,now+5000);
+        if(this.eventCooldowns.size>5000){
+          for(const [key,expiry] of this.eventCooldowns)if(expiry<=now)this.eventCooldowns.delete(key);
+          if(this.eventCooldowns.size>5000)this.eventCooldowns.clear();
+        }
         try{await this.executeActions(null,event.actions,{...context,guild:context.guild});}
         catch(error){this.logger.warn("TBScript event failed ("+slug+"):",error.message);}
       }
