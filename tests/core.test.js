@@ -432,3 +432,15 @@ test("recovery message archives stay below four megabytes per server",()=>{
   assert.ok(Buffer.byteLength(JSON.stringify(archived),"utf8")<=4*1024*1024);
   assert.equal(store.data.messages["other-guild"],undefined);
 });
+
+test("recovery startup pruning removes messages older than seven days",()=>{
+  const now=Date.now(),store={data:{messages:{guild:[
+    {id:"old",timestamp_ms:now-8*24*60*60*1000,content:"old"},
+    {id:"recent",timestamp_ms:now-1000,content:"recent"}
+  ]}},queueSave(){this.queued=true;}};
+  const recovery=new Recovery({user:{id:"bot"}},store,quiet);
+  const result=recovery.prune("guild");
+  assert.equal(result.removed,1);
+  assert.deepEqual(store.data.messages.guild.map(message=>message.id),["recent"]);
+  assert.equal(store.queued,true);
+});
