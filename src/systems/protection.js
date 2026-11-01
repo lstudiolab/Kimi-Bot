@@ -9,6 +9,7 @@ export class Protection {
     const bot=await guild.members.fetchMe();
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     let channel=setup.log_channel_id?await guild.channels.fetch(setup.log_channel_id).catch(()=>null):null;
+    if(channel?.type!==ChannelType.GuildText)channel=null;
     if(!channel)channel=guild.channels.cache.find(c=>c.type===ChannelType.GuildText&&(c.name==="timi-log"||c.name==="timi"));
     const permissions=[
       {id:guild.id,deny:[P.ViewChannel]},
