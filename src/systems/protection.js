@@ -88,7 +88,6 @@ export class Protection {
   }
   async memberJoin(member){
     const guild=member.guild,user=member.user;if(!guild||!user)return;
-    const record=this.store.member(guild.id,user.id);record.joins++;record.last_join=nowMs();this.store.save();
     if(user.bot)return this.botJoin(guild,member);
     if(user.id===guild.ownerId)return;
     const now=Date.now();
