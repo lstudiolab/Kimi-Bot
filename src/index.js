@@ -16,7 +16,7 @@ const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId
 const commandModule={
  "verify":"verification","security":"protection",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
- "tickets":"tickets","ticket-panel":"tickets",
+ "ticket-panel":"tickets",
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
  "script-export":"scratch","script-import":"scratch","script-history":"scratch","script-check":"scratch","script-undo":"scratch","script-redo":"scratch","script-kit":"scratch","script-help":"scratch","script-template":"scratch"
 };
@@ -48,9 +48,9 @@ function opensModal(i){
  return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 const openConfiguration=async(i,section)=>{
-  const names={moderation:"moderation",tickets:"ticket-config",setup:"setup"};
+  const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
   const commandName=names[section];
-  const library=section==="moderation"?"Security":section==="tickets"?"Support":"Foundation";
+  const library=section==="moderation"?"Security":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
   if(!commandName||!libraries[library])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
