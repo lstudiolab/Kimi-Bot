@@ -266,7 +266,7 @@ function simpleText(token){return token?.type==="string"||token?.type==="atom";}
 function simpleValue(token){return token?.value;}
 function simpleActionNodes(nodes,errors){
   const output=[];
-  const supported=new Set(["reply","send","create_channel","make_private","allow","give_role","remove_role","delete_channel","if"]);
+  const supported=new Set(["reply","send","create_channel","make_private","allow","give_role","remove_role","if"]);
   for(const node of nodes||[]){
     if(!supported.has(node.name)){
       errors.push({message:"Unknown action keyword: "+node.name+".",line:node.line,column:node.column});
@@ -289,6 +289,7 @@ function simpleActionNodes(nodes,errors){
     if(node.name!=="send"&&count===1&&!simpleText(node.args[0])){
       errors.push({message:node.name.replace(/_/g," ")+" expects a text value.",line:node.line,column:node.column});continue;
     }
+    if(output.length>=25){errors.push({message:"Each TBScript action block is limited to 25 actions.",line:node.line,column:node.column});continue;}
     output.push({type:node.name,args:node.args.map(simpleValue),line:node.line});
   }
   return output;
