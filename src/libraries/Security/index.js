@@ -8,6 +8,7 @@ import { respond } from "../../ui.js";
 export function createSecurityLibrary({client,store,logger,foundation}){
   const moderation=new Moderation(client,store,logger);
   const verification=new Verification(client,store,logger);
+  verification.ensureSetup=guild=>foundation?.ensureSetup?.(guild);
   const protection=new Protection(client,store,logger);
   const recovery=new Recovery(client,store,logger);
   const imageAnalysis=new ImageAnalysis(client,logger);
