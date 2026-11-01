@@ -78,7 +78,7 @@ test("pending moderation jobs survive a bot restart",()=>{
 test("legacy configuration files are imported without overwriting new data",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-legacy-"));
   try{
-    fs.writeFileSync(path.join(dir,"ticket-settings.json"),JSON.stringify({"123456789012345678":{panelTitle:"Legacy Support"}}));
+    fs.writeFileSync(path.join(dir,"ticket-config.json"),JSON.stringify({"123456789012345678":{panelTitle:"Legacy Support"}}));
     const store=new Store(dir,quiet);
     assert.equal(store.ticket("123456789012345678").panel_title,"Legacy Support");
     const reloaded=new Store(dir,quiet);
