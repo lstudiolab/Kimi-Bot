@@ -7,6 +7,16 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("libraries").setDescription("Show Timi's four libraries."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Timi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
 
+  new SlashCommandBuilder().setName("setup").setDescription("Create Timi's private server channels and setup references."),
+  new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
+    .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member greetings").addChannelTypes(ChannelType.GuildText))
+    .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Channel for member departure messages").addChannelTypes(ChannelType.GuildText))
+    .addStringOption(o=>o.setName("welcome-message").setDescription("Welcome message template").setMaxLength(1800))
+    .addStringOption(o=>o.setName("goodbye-message").setDescription("Goodbye message template").setMaxLength(1800)),
+  new SlashCommandBuilder().setName("autorole").setDescription("Set or disable the automatic member role.")
+    .addRoleOption(o=>o.setName("role").setDescription("Role to assign to new members")),
+  new SlashCommandBuilder().setName("moderation").setDescription("Create or update the moderation settings panel."),
+  new SlashCommandBuilder().setName("tickets").setDescription("Prepare the ticket category and private support channels."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
 
   new SlashCommandBuilder().setName("roles").setDescription("Create a self-service role selection menu."),
@@ -45,9 +55,9 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
-  Foundation:["roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","security"],
-  Support:["ticket-panel"],
+  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Security:["verify","security","moderation"],
+  Support:["tickets","ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
