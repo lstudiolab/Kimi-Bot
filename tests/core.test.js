@@ -551,3 +551,15 @@ test("critical channel permission changes still trigger anti-nuke containment at
   },guild);
   assert.ok(protection.nukeEvents.get("security-guild:moderator:triggered")>Date.now());
 });
+
+import { getTicketStaffRoles } from "../src/systems/tickets.js";
+
+test("private ticket access includes configured support and server manager roles",()=>{
+  const role=(id,manager=false)=>({id,managed:false,permissions:{has:flag=>manager&&flag===PermissionFlagsBits.ManageGuild}});
+  const support=role("support"),manager=role("manager",true),ordinary=role("ordinary");
+  const guild={id:"everyone",roles:{cache:new Map([
+    ["everyone",role("everyone",true)],["support",support],["manager",manager],["ordinary",ordinary]
+  ])}};
+  const selected=getTicketStaffRoles(guild,support);
+  assert.deepEqual(selected.map(value=>value.id),["support","manager"]);
+});
