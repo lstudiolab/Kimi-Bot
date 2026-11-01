@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111214">
-  <meta name="description" content="Timi server control dashboard">
-  <title>Timi Dashboard</title>
+  <meta name="description" content="Kimi bot control dashboard">
+  <title>Kimi Dashboard</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#overview" aria-label="Timi dashboard home">
-        <span class="brand-mark">t</span><span class="brand-name">timi<span class="brand-dot">.</span></span>
+      <a class="brand" href="#overview" aria-label="Kimi dashboard home">
+        <span class="brand-mark">K</span><span class="brand-name">kimi<span class="brand-dot">.</span></span>
       </a>
       <div class="server-switcher">
         <span class="server-avatar">S</span>
@@ -22,6 +22,8 @@
       <nav class="side-nav" id="navigation" aria-label="Dashboard navigation">
         <div class="nav-label">Workspace</div>
         <a class="nav-item active" href="#overview" data-page="overview"><span class="nav-icon">◫</span>Overview</a>
+        <a class="nav-item" href="#modules" data-page="modules"><span class="nav-icon">▦</span>Module manager</a>
+        <a class="nav-item" href="#module-library" data-page="module-library"><span class="nav-icon">↓</span>Module library</a>
         <div class="nav-label module-label">Modules</div>
         <div class="nav-group">
           <button class="nav-heading" data-expand="welcome"><span class="nav-icon">⌂</span>Welcome &amp; Goodbye<span class="nav-caret">⌄</span></button>
@@ -78,11 +80,14 @@
             <a class="nav-item" href="#script-import" data-page="script-import">Import &amp; export</a>
           </div>
         </div>
+        <div class="nav-label bottom-label">Kimi</div>
+        <a class="nav-item" href="#language" data-page="language"><span class="nav-icon">文</span>Language &amp; runtime</a>
+        <a class="nav-item" href="#connection" data-page="connection"><span class="nav-icon">⌁</span>Bot connection</a>
         <div class="nav-label bottom-label">Preferences</div>
         <a class="nav-item" href="#server-settings" data-page="server-settings"><span class="nav-icon">⚙</span>Server settings</a>
         <a class="nav-item" href="#permissions" data-page="permissions"><span class="nav-icon">♧</span>Permissions</a>
       </nav>
-      <div class="sidebar-footer"><span class="status-dot"></span><span>Dashboard preview</span><span class="version">v4.0</span></div>
+      <div class="sidebar-footer"><span class="status-dot"></span><span>Kimi dashboard</span><span class="version">v4.0</span></div>
     </aside>
     <main class="main-area">
       <header class="topbar">
@@ -92,11 +97,12 @@
       </header>
       <div class="content-wrap">
         <section class="page-content" id="page-content" aria-live="polite"></section>
-        <footer class="page-footer"><span>Timi Dashboard</span><span>Settings in this preview are saved in this browser only.</span></footer>
+        <footer class="page-footer"><span>Kimi Dashboard</span><span>Settings in this preview are saved in this browser only.</span></footer>
       </div>
     </main>
   </div>
   <div class="toast-region" id="toast-region" aria-live="polite"></div>
   <script src="./app.js"></script>
+  <script src="./kimi.js"></script>
 </body>
 </html>
