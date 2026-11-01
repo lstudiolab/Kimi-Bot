@@ -7,7 +7,7 @@ export const PLANS = Object.freeze({
 const STORAGE_COLLECTIONS = Object.freeze([
   "installed_libraries", "welcome", "tickets", "moderation", "verification",
   "developer_projects", "developer_history", "developer_redo", "panel_scripts",
-  "customizations", "library_data"
+  "customizations", "library_data", "timi_setup", "automod_words", "moderation_cases", "moderation_jobs", "pending_bots", "developer_active"
 ]);
 
 export function getPlanForData(_data, _guildId) { return "free"; }
