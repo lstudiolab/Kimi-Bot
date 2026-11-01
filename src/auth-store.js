@@ -27,7 +27,7 @@ export class AuthStore {
     this.accounts = readJson(this.accountsFile, { accounts: [] });
     this.sessions = readJson(this.sessionsFile, {});
     this.links = readJson(this.linksFile, {});
-    if (!Array.isArray(this.accounts.accounts)) this.accounts = { accounts: [] };
+    if (!this.accounts || typeof this.accounts !== "object" || !Array.isArray(this.accounts.accounts)) this.accounts = { accounts: [] };
     if (!this.sessions || typeof this.sessions !== "object" || Array.isArray(this.sessions)) this.sessions = {};
     if (!this.links || typeof this.links !== "object" || Array.isArray(this.links)) this.links = {};
     this.logger = logger;
