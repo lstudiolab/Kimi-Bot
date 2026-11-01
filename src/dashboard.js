@@ -2,7 +2,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { fileURLToPath } from "node:url";\nimport { LOCALE_NAMES } from "./i18n.js";
+import { fileURLToPath } from "node:url";
+import { LOCALE_NAMES } from "./i18n.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DASHBOARD = path.join(ROOT, "dashboard");
@@ -328,7 +329,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             return send(res,200,{ok:true,name:commandsMatch[2],enabled:body.enabled});
           }
         }
-        const settingsMatch=url.pathname.match(/^\\/api\\/guilds\\/(\\d+)\\/settings(?:\\/([a-z-]+))?$/);
+        const settingsMatch=url.pathname.match(/^\/api\/guilds\/(\d+)\/settings(?:\/([a-z-]+))?$/);
         if(settingsMatch){
           const settingsContext=await requireGuild(req,res,session,settingsMatch[1]);
           if(!settingsContext)return;
