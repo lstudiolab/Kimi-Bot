@@ -1,17 +1,28 @@
 import { PermissionFlagsBits as P } from "discord.js";
 
+const BLOCKED_PERMISSION_NAMES=Object.freeze([
+  "Administrator",
+  "ManageGuild",
+  "ManageRoles",
+  "ManageChannels",
+  "ManageWebhooks",
+  "ManageGuildExpressions",
+  "ManageEvents",
+  "ManageThreads",
+  "ManageMessages",
+  "ManageNicknames",
+  "KickMembers",
+  "BanMembers",
+  "ModerateMembers",
+  "ViewAuditLog",
+  "MentionEveryone",
+  "MuteMembers",
+  "DeafenMembers",
+  "MoveMembers"
+]);
+
 export const SELF_SERVICE_BLOCKED_PERMISSIONS=Object.freeze([
-  P.Administrator,
-  P.ManageGuild,
-  P.ManageRoles,
-  P.ManageChannels,
-  P.ManageWebhooks,
-  P.BanMembers,
-  P.KickMembers,
-  P.ModerateMembers,
-  P.ManageMessages,
-  P.ManageNicknames,
-  P.MentionEveryone
+  ...new Set(BLOCKED_PERMISSION_NAMES.map(name=>P[name]).filter(value=>typeof value==="bigint"))
 ]);
 
 export function isSafeAssignableRole(role,guildId){
