@@ -502,3 +502,13 @@ test("recovery alerts prefer the configured private Timi log channel",async()=>{
   store.data.timi_setup.guild.log_channel_id="missing";
   assert.equal(await recovery.findLogChannel(guild),fallback);
 });
+
+test("embed editor previews respect Discord's aggregate character limit",()=>{
+  const embeds=new Embeds({user:{displayAvatarURL:()=>"https://cdn.example/bot.png"}},{data:{customizations:{}}},quiet);
+  const value={title:"T".repeat(256),description:"D".repeat(4096),author:"A".repeat(256),footer:"F".repeat(2048),
+    thumbnail:"",image:"",url:"",fields:Array.from({length:25},()=>({name:"N".repeat(256),value:"V".repeat(1024),inline:false}))};
+  const preview=embeds.editorPreview(value).toJSON();
+  const total=(preview.title||"").length+(preview.description||"").length+(preview.author?.name||"").length+
+    (preview.footer?.text||"").length+(preview.fields||[]).reduce((sum,field)=>sum+field.name.length+field.value.length,0);
+  assert.ok(total<=6000);
+});
