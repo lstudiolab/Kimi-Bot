@@ -71,7 +71,7 @@ export class Moderation {
   }
   text(x){return ["**Timi Moderation Settings**","",`**Module:** ${x.enabled?"Active":"Inactive"}`,`**Sanction:** ${x.sanction}`,
     `**Timeout duration:** ${x.timeout_minutes} minute(s)`,`**Log channel:** ${mentionChannel(x.log_channel_id)}`,
-    `**Action duration:** ${x.action_duration_seconds} second(s)`,`**Maximum messages:** ${x.max_message_count}`,
+    `**Action duration:** ${x.action_duration_seconds} second(s)`,`**Maximum messages per minute:** ${x.max_message_count}`,
     `**Block Discord invites:** ${x.block_invites}`,`**Block mass mentions:** ${x.block_mass_mentions}`,
     `**Block excessive caps:** ${x.block_excessive_caps}`].join("\n");}
   rows(x){return [
@@ -111,7 +111,7 @@ export class Moderation {
     if(id==="modpanel:duration"||id==="modpanel:max-count"){
       const duration=id==="modpanel:duration";
       return i.showModal(modal(duration?"modpanel:duration-modal":"modpanel:max-count-modal",duration?"Edit action duration":"Edit max message count",[
-        textInput("value",duration?"Action duration in seconds":"Maximum message count",String(duration?x.action_duration_seconds:x.max_message_count),TextInputStyle.Short,true,3)]));
+        textInput("value",duration?"Action duration in seconds":"Maximum messages per minute",String(duration?x.action_duration_seconds:x.max_message_count),TextInputStyle.Short,true,3)]));
     }
     if(id==="modpanel:log"){
       const select=new ChannelSelectMenuBuilder().setCustomId("modpanel:log-select").setPlaceholder("Select a log channel")
@@ -179,12 +179,12 @@ export class Moderation {
       for(const [storedKey,items] of this.spam)if(!items.length||now-items[items.length-1].at>20000)this.spam.delete(storedKey);
       while(this.spam.size>20000)this.spam.delete(this.spam.keys().next().value);
     }
-    const recent=(this.spam.get(key)||[]).filter(v=>now-v.at<=20000);
+    const recent=(this.spam.get(key)||[]).filter(v=>now-v.at<=60000);
     const normalized=normalizeMessage(content),links=(content.match(/https?:\/\/\S+/g)||[]).length;
     const letters=content.match(/[a-z]/gi)||[],caps=letters.length>=12&&letters.filter(c=>c===c.toUpperCase()).length/letters.length>=.75;
     const mentionCount=message.mentions.users.size+message.mentions.roles.size;
     recent.push({id:message.id,at:now,content:normalized,links});while(recent.length>100)recent.shift();this.spam.set(key,recent);
-    const window=recent.filter(v=>now-v.at<=8000),repeated=window.some(v=>v.id!==message.id&&normalized.length>=4&&jaccard(normalized,v.content)>=.88);
+    const window=recent.filter(v=>now-v.at<=60000),repeated=window.some(v=>v.id!==message.id&&normalized.length>=4&&jaccard(normalized,v.content)>=.88);
     const invite=/discord\.gg\/|discord(?:app)?\.com\/invite\//i.test(content);
     const linkCount=window.reduce((n,v)=>n+v.links,0);
     let reason;
