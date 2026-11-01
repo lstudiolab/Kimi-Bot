@@ -187,7 +187,7 @@ export class Protection {
     else good.push("Timi has the core permissions used by Security.");
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     const log=setup.log_channel_id?await guild.channels.fetch(setup.log_channel_id).catch(()=>null):null;
-    if(!log)risks.push("Timi log channel is not configured or is missing. Run /timi-setup.");
+    if(!log)risks.push("Timi log channel is not configured or is missing. Run /setup.");
     else good.push("Timi log channel is configured.");
     const botCount=guild.members.cache.filter(member=>member.user.bot).size;
     if(botCount>20)risks.push("This server has "+botCount+" bots. Review each bot's identity, permissions and need to remain installed.");
