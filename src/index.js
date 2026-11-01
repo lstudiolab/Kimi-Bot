@@ -3,6 +3,7 @@ import { loadConfig, createLogger } from "./config.js";
 import { startDashboardServer } from "./dashboard.js";
 import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData, libraryForCommand } from "./commands.js";
 import { Store } from "./store.js";
+import { AuthStore } from "./auth-store.js";
 import { LibraryManager } from "./module-manager.js";
 import { LIBRARIES } from "./libraries/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
@@ -10,7 +11,7 @@ import { libraryForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
 import { TimiSettings } from "./settings.js";
 import { translatePayload } from "./i18n.js";
-const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger);
+const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
@@ -79,6 +80,10 @@ const openConfiguration=async(i,section)=>{
 const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
+ if(i.commandName==="dashboard-link"){
+  const result=authStore.completeLinkCode(i.options.getString("code"),i.user);
+  return respond(i,result.error||"Your Discord account is now linked to your Kimi account. Return to the dashboard and refresh the server list.");
+ }
  if(i.commandName==="timi-settings")return settings.show(i,"home");
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
