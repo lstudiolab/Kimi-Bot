@@ -41,10 +41,10 @@ bash scripts/termux-start.sh
 
 The bot and dashboard backend run together at `http://127.0.0.1:8787`.
 
-On first visit to the dashboard, create a Kimi account. Then choose **Generate linking code** and copy the six-digit code. In a Discord server where Kimi is installed, run:
+On first visit to the dashboard, create a Kimi account. Then choose **Generate linking code** and copy the eight-digit code. In a Discord server where Kimi is installed, run:
 
 ```
-/dashboard-link code:123456
+/dashboard-link code:12345678
 ```
 
 Replace `123456` with the code displayed by your dashboard. The code expires after 10 minutes. This links your Discord identity to your Kimi account without Discord OAuth. Kimi uses the linked identity only to check server membership and Manage Server or Administrator permissions.
