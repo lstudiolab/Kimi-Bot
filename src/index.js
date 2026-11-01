@@ -88,8 +88,8 @@ async function handleInteraction(i){
   return libraries[required].handleInteraction(i);
  }
  const id=i.customId||"",required=componentLibrary(id);if(!required)return;
- const ticketAdminControl=id.startsWith("ticket:edit-")||id==="ticket:priority"||id.startsWith("ticket:settings:")||id==="ticket:publish"||id.startsWith("ticket:priority-select:");
- const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:")||ticketAdminControl;
+ const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
+ const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
