@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, EmbedBuilder, PermissionFlagsBits } from "discord.js";
 import { GREY } from "./ui.js";
 import { LIBRARIES } from "./libraries/index.js";
+import { t, LOCALE_NAMES } from "./i18n.js";
 
 const MODULES = Object.freeze([
   { id:"verification", label:"Verification", library:"Security", description:"Member verification and review decisions." },
@@ -39,24 +40,25 @@ export class TimiSettings {
     if(!hasAccess(i))return i.editReply({content:"You need Manage Server permission to use Timi Settings.",embeds:[],components:[]});
     const guild=i.guild, id=guild.id;
     const language=this.store.data.languages?.[id]||"en-US";
+    const tr=key=>t(this.store,id,key);
     if(page==="home"){
-      return i.editReply({embeds:[embed("Timi Settings","Manage Timi's systems, libraries and server preferences.\n\nChoose a section below.")],components:[
-        row(button("settings:modules","Modules"),button("settings:install","Install Libraries"),button("settings:uninstall","Uninstall Libraries")),
-        row(button("settings:language","Language"),button("settings:status","System Status"),button("settings:permissions","Permissions")),
-        row(button("settings:advanced","Advanced"))
+      return i.editReply({embeds:[embed(tr("title"),"Manage Timi's systems, libraries and server preferences.\n\nChoose a section below.")],components:[
+        row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
+        row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
+        row(button("settings:advanced",tr("advanced")))
       ]});
     }
     if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\n");
       const options=MODULES.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
-      const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder("Choose a system").addOptions(options);
+      const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose")).addOptions(options);
       const components=[row(menu)];
       if(selected){
         const m=MODULES.find(x=>x.id===selected);
-        if(m)components.push(row(button("settings:module-on:"+selected,"Enable"),button("settings:module-off:"+selected,"Disable"),button("settings:module-info:"+selected,"Details")));
+        if(m)components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
       }
-      components.push(row(button("settings:home","Back")));
-      return i.editReply({embeds:[embed("Modules",lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
+      components.push(row(button("settings:home",tr("back"))));
+      return i.editReply({embeds:[embed(tr("modules"),lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
     }
     if(page==="install"||page==="uninstall"){
       const choices=Object.values(LIBRARIES).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
@@ -69,21 +71,21 @@ export class TimiSettings {
       return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
-      const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label,value,default:value===language})));
+      const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
       const first=makeLanguageMenu(LANGUAGES.slice(0,25),"Choose a language");
       const second=makeLanguageMenu(LANGUAGES.slice(25),"More languages");
-      return i.editReply({embeds:[embed("Language",`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LANGUAGES.find(x=>x[0]===language)?.[1]||language}**\n\nChoose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
       const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\n");
       const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\n");
-      return i.editReply({embeds:[embed("System Status",`**Libraries**\n${libs}\n\n**Modules**\n${mods}\n\n**Language**\n${language}`)],components:[row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("status"),`**Libraries**\n${libs}\n\n**Modules**\n${mods}\n\n**Language**\n${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(page==="permissions"){
-      return i.editReply({embeds:[embed("Permissions","Only the server owner and members with Manage Server can use Timi Settings. Library installation and removal remain server-owner-only.")],components:[row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("permissions"),"Only the server owner and members with Manage Server can use Timi Settings. Library installation and removal remain server-owner-only.")],components:[row(button("settings:home","Back"))]});
     }
     if(page==="advanced"){
-      return i.editReply({embeds:[embed("Advanced","Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
+      return i.editReply({embeds:[embed(tr("advanced"),"Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
     }
   }
   async handle(i){
