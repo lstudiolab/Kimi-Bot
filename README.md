@@ -285,7 +285,7 @@ TbScript is an allowlisted language, not an unrestricted programming runtime. It
 - Channel creation starts private; the bot must have Manage Channels.
 - Role changes reject managed, @everyone, privileged, or higher-than-Timi roles and require Manage Roles.
 - send only targets a text channel in the current server.
-- Event handlers only run for projects explicitly started with /script-run; /script-stop disables them.
+- Event handlers only run for projects explicitly started with /script-run; /script-stop disables them. Each event runs at most once per user per script every five seconds to prevent event bursts.
 - Imported .tdl files are limited to 64 KB and must be uploaded as Discord attachments.
 - Project history retains up to ten previous versions.
 
