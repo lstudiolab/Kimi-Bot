@@ -462,3 +462,20 @@ test("AutoMod blocked phrases match whole words without false substrings",()=>{
   assert.equal(matchesBlockedPhrase("nothing suspicious",""),false);
   assert.equal(matchesBlockedPhrase("élève suspect","élève"),true);
 });
+
+import { isTrustedTbScriptAttachmentUrl } from "../src/systems/scratch.js";
+
+test("TbScript attachment imports reject non-Discord and non-HTTPS URLs",()=>{
+  for(const url of [
+    "https://cdn.discordapp.com/attachments/123/456/source.tdl",
+    "https://media.discordapp.net/attachments/123/456/source.tdl"
+  ])assert.equal(isTrustedTbScriptAttachmentUrl(url),true,url);
+  for(const url of [
+    "http://cdn.discordapp.com/attachments/source.tdl",
+    "https://cdn.discordapp.com.evil.example/source.tdl",
+    "https://example.com/source.tdl",
+    "https://user:pass@cdn.discordapp.com/source.tdl",
+    "file:///etc/passwd",
+    "invalid"
+  ])assert.equal(isTrustedTbScriptAttachmentUrl(url),false,url);
+});
