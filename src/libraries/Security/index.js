@@ -25,7 +25,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async handleInteraction(i){
       if(i.isChatInputCommand()&&i.commandName==="security")return respond(i,await protection.scan(i.guild));
       if(i.isChatInputCommand()&&["moderation","filter"].includes(i.commandName))return moderation.handle(i);
-      if(i.isChatInputCommand()&&["verify-config","verify"].includes(i.commandName))return verification.handle(i);
+      if(i.isChatInputCommand()&&i.commandName==="verify-config")return verification.handle(i);
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
@@ -40,7 +40,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       const results=await Promise.allSettled(tasks);
       for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
     },
-    async guildMemberAdd(member){await protection.memberJoin(member);},
+    async guildMemberAdd(member,modules={protection:true,verification:true}){const tasks=[];if(modules.protection)tasks.push(protection.memberJoin(member));if(modules.verification)tasks.push(verification.memberJoin(member));const results=await Promise.allSettled(tasks);for(const result of results)if(result.status==="rejected")logger.error("Security join check failed:",result.reason);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
     channelCreate(channel){recovery.snapshot(channel);},
     channelUpdate(oldChannel,channel){recovery.snapshot(channel);},
