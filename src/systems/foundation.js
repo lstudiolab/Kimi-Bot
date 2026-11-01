@@ -128,7 +128,7 @@ export class Foundation {
     if(s.auto_role_id){
       const role=await member.guild.roles.fetch(s.auto_role_id).catch(()=>null);
       const me=await member.guild.members.fetchMe();
-      if(role&&!role.managed&&role.position<me.roles.highest.position)
+      if(role&&isSafeAssignableRole(role,member.guild.id)&&me.permissions.has(PermissionFlagsBits.ManageRoles)&&role.position<me.roles.highest.position)
         await member.roles.add(role,"Timi automatic role").catch(error=>this.logger.warn("Automatic role assignment failed:",error.message));
     }
     if(!s.welcome_channel_id)return;
