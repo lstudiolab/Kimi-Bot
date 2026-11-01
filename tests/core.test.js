@@ -500,7 +500,7 @@ test("recovery alerts prefer the configured private Timi log channel",async()=>{
   const fallback={id:"fallback-log",guildId:"guild",type:0,name:"timi-log"};
   const store={data:{timi_setup:{guild:{log_channel_id:"configured-log"}}}};
   const recovery=new Recovery({},store,quiet);
-  const guild={id:"guild",channels:{fetch:async id=>id==="configured-log"?configured:null,cache:new Map([["fallback-log",fallback]])}};
+  const guild={id:"guild",channels:{fetch:async id=>id==="configured-log"?configured:null,cache:{find(predicate){return predicate(fallback)?fallback:undefined;}}}};
   assert.equal(await recovery.findLogChannel(guild),configured);
   store.data.timi_setup.guild.log_channel_id="missing";
   assert.equal(await recovery.findLogChannel(guild),fallback);
