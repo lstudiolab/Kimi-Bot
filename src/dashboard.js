@@ -21,6 +21,14 @@ const MODULES = Object.freeze([
   { id: "scratch", name: "TbScript", library: "Scratch" }
 ]);
 const LIBRARY_NAMES = new Set(["Foundation", "Security", "Support", "Scratch"]);
+const COMMAND_GROUPS = Object.freeze({
+  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Security:["verify","verify-config","filter","security","moderation"],
+  Support:["tickets","ticket-panel","ticket-config"],
+  Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
+});
+const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,bundle}))));
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
