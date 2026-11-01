@@ -95,11 +95,11 @@ export class Verification {
       record.last_reason="Account age below configured minimum";
     }
     this.recordAudit(guild,member,outcome,checks,action,{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
-    const detail=checks.map(check=>"**"+check.name+":** "+check.detail).join("\\n");
+    const detail=checks.map(check=>"**"+check.name+":** "+check.detail).join("\n");
     if(outcome==="review"){
-      await this.log(guild,settings.review_channel_id,"**Automatic verification needs review**\\nMember: <@"+user.id+">\\n"+action+"\\n"+detail,reviewControls);
+      await this.log(guild,settings.review_channel_id,"**Automatic verification needs review**\nMember: <@"+user.id+">\n"+action+"\n"+detail,reviewControls);
     }else{
-      await this.log(guild,settings.review_channel_id,"**Automatic verification passed**\\nMember: <@"+user.id+">\\n"+action+"\\n"+detail);
+      await this.log(guild,settings.review_channel_id,"**Automatic verification passed**\nMember: <@"+user.id+">\n"+action+"\n"+detail);
     }
   }
   async log(guild,channelId,content,components=[]){
@@ -118,7 +118,7 @@ export class Verification {
     await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
-    return "**Automatic member verification**\\nRuns once when a member joins.\\nVerified role: "+mentionRole(s.role_id)+"\\nMinimum account age: "+s.min_age_days+" days\\nManual review channel: "+mentionChannel(s.review_channel_id)+"\\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
+    return "**Automatic member verification**\nRuns once when a member joins.\nVerified role: "+mentionRole(s.role_id)+"\nMinimum account age: "+s.min_age_days+" days\nManual review channel: "+mentionChannel(s.review_channel_id)+"\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
   }
   async command(i){
     if(!await requireOwner(i))return;
