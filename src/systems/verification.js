@@ -3,12 +3,13 @@ import { DAY, snowflakeTime, mentionRole, mentionChannel, renderTemplate } from 
 import { greyEmbed, button, row, respond, deny, requireOwner, isManager } from "../ui.js";
 import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
+import { isSafeAssignableRole } from "../permissions.js";
 
 const P=PermissionFlagsBits;
 export class Verification {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;}
   async validateRole(guild,role,assignable){
-    if(!role||role.id===guild.id||role.managed)return [false,"Choose a normal server role other than @everyone or an integration role."];
+    if(!isSafeAssignableRole(role,guild.id))return [false,"Choose a normal role without administrator, moderation, or channel-management permissions."];
     if(!assignable)return [true];
     const me=await guild.members.fetchMe();
     if(!me.permissions.has(P.ManageRoles))return [false,"Timi needs Manage Roles permission."];
