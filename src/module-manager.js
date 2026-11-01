@@ -3,10 +3,10 @@ export class LibraryManager{
   constructor(store,logger){this.store=store;this.logger=logger;}
   list(){return Object.values(LIBRARIES);}
   get(name){const key=normalizeLibraryName(name);return key?LIBRARIES[key]:null;}
-  installed(guildId,name){return (this.store.data.installed_libraries[guildId]||[]).includes(name);}
+  installed(guildId,name){const canonical=normalizeLibraryName(name);return Boolean(canonical&&(this.store.data.installed_libraries[guildId]||[]).includes(canonical));}
   install(guildId,name){
     const library=this.get(name);
-    if(!library)return {ok:false,error:"Library not found. Use /library-list to see available libraries."};
+    if(!library)return {ok:false,error:"Library not found. Use /libraries to see available libraries."};
     const installed=this.store.data.installed_libraries[guildId]||=[];
     if(installed.includes(library.name))return {ok:false,error:`${library.name} is already installed in this server.`};
     installed.push(library.name);this.store.save();
@@ -15,7 +15,7 @@ export class LibraryManager{
   }
   uninstall(guildId,name){
     const library=this.get(name);
-    if(!library)return {ok:false,error:"Library not found. Use /library-list to see available libraries."};
+    if(!library)return {ok:false,error:"Library not found. Use /libraries to see available libraries."};
     const installed=this.store.data.installed_libraries[guildId]||[];
     if(!installed.includes(library.name))return {ok:false,error:`${library.name} is not installed in this server.`};
     this.store.data.installed_libraries[guildId]=installed.filter(value=>value!==library.name);
