@@ -45,9 +45,9 @@ export class Foundation {
         ". Placeholders: "+TEMPLATE_PLACEHOLDERS.join(", ")+".");
     }
   }
-  async setup(i){
-    const guild=i.guild,bot=await guild.members.fetchMe();
-    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(PermissionFlagsBits.ManageGuild));
+  async ensureSetup(guild){
+    const bot=await guild.members.fetchMe();
+    const adminRoles=guild.roles.cache.filter(role=>!role.managed&&role.permissions.has(PermissionFlagsBits.ManageGuild)).first(80);
     const definitions=[
       {key:"log_channel_id",name:"timi-log",topic:"Private Timi event and security logs."},
       {key:"confirmation_channel_id",name:"timi-confirmations",topic:"Private Timi approval requests, including newly invited bots."},
@@ -59,7 +59,7 @@ export class Foundation {
       {id:bot.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.EmbedLinks,PermissionFlagsBits.ManageMessages]},
       ...adminRoles.map(role=>({id:role.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}))
     ];
-    const saved=this.store.data.timi_setup[guild.id]||{},result=[];
+    const saved=this.store.data.timi_setup[guild.id]||{},channels=[];
     for(const definition of definitions){
       let channel=saved[definition.key]?await guild.channels.fetch(saved[definition.key]).catch(()=>null):null;
       if(!channel)channel=guild.channels.cache.find(value=>value.type===ChannelType.GuildText&&value.name===definition.name)||null;
@@ -67,15 +67,21 @@ export class Foundation {
         await channel.permissionOverwrites.set(overwrites,"Apply Timi private channel permissions");
         if(channel.name!==definition.name||channel.topic!==definition.topic)await channel.edit({name:definition.name,topic:definition.topic});
       }else channel=await guild.channels.create({name:definition.name,type:ChannelType.GuildText,topic:definition.topic,permissionOverwrites:overwrites,reason:"Create Timi setup channel"});
-      saved[definition.key]=channel.id;result.push("<#"+channel.id+">");
+      saved[definition.key]=channel.id;channels.push(channel);
     }
-    this.store.data.timi_setup[guild.id]=saved;this.store.save();
-    const settings=await guild.channels.fetch(saved.settings_channel_id);
+    this.store.data.timi_setup[guild.id]=saved;
+    this.store.mods(guild.id).log_channel_id=saved.log_channel_id;
+    this.store.save();
+    const settings=channels[2];
     const existing=await settings.messages.fetch({limit:10}).catch(()=>null);
     if(!existing?.some(message=>message.author.id===bot.id&&message.content.includes("Timi setup reference"))){
-      await settings.send({content:"**Timi setup reference**\n\nUse /greet-settings for welcome and goodbye messages, /auto-role for automatic roles, /verify-settings for verification, /moderation-settings for Security, and /ticket-settings for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
+      await settings.send({content:"**Timi setup reference**\n\nUse /welcome for greetings, /autorole for automatic roles, /verify-settings for verification, /moderation for Security, and /ticket-settings for Support.\n\nBot approval requests appear in <#"+saved.confirmation_channel_id+">. Event and security logs appear in <#"+saved.log_channel_id+">.",allowedMentions:{parse:[]}});
     }
-    return respond(i,"Timi setup is complete. The required private channels are ready:\n**Log:** "+result[0]+"\n**Confirmation:** "+result[1]+"\n**Settings:** "+result[2]+"\n\nNewly invited bots will receive an approval request in the confirmation channel before Timi applies temporary access restrictions.");
+    return {saved,channels};
+  }
+  async setup(i){
+    const {saved}=await this.ensureSetup(i.guild);
+    return respond(i,"Timi setup is complete. The private channels are ready:\n**Log:** <#"+saved.log_channel_id+">\n**Confirmation:** <#"+saved.confirmation_channel_id+">\n**Settings:** <#"+saved.settings_channel_id+">\n\nNewly invited bots receive an approval request before Timi applies temporary access restrictions.");
   }
   render(template,member,channel=null){
     return renderTemplate(template,{guild:member.guild,member,user:member.user,channel,client:this.client});
