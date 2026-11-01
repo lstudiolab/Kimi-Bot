@@ -2,6 +2,7 @@ import { Moderation } from "../../systems/moderation.js";
 import { Protection } from "../../systems/protection.js";
 import { Recovery } from "../../systems/recovery.js";
 import { Verification } from "../../systems/verification.js";
+import { respond } from "../../ui.js";
 
 export function createSecurityLibrary({client,store,logger,foundation}){
   const moderation=new Moderation(client,store,logger);
@@ -15,6 +16,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       for(const channel of guild.channels.cache.values())recovery.snapshot(channel);
     },
     async handleInteraction(i){
+      if(i.isChatInputCommand()&&i.commandName==="security-scan")return respond(i,await protection.scan(i.guild));
       if(i.isChatInputCommand()&&["moderation-settings","automod-word"].includes(i.commandName))return moderation.handle(i);
       if(i.isChatInputCommand()&&["verify-settings","verify-panel"].includes(i.commandName))return verification.handle(i);
       const id=i.customId||"";

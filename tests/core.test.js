@@ -126,6 +126,7 @@ test("library management commands are registered with the intended option behavi
   assert.equal(install.options[0].required,false);
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="automod-word"));
+  assert.ok(commandData.some(command=>command.name==="security-scan"));
   for(const name of ["timi-plan","library-list","install-library","code","code-edit","code-template","code-docs","code-validate","code-run","code-stop","code-undo","code-redo","code-import","code-export"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }

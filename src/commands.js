@@ -32,6 +32,7 @@ const allCommandBuilders=[
     .addStringOption(o=>o.setName("description").setDescription("Verification panel description").setMaxLength(1000)),
   new SlashCommandBuilder().setName("verify-panel").setDescription("Publish the verification panel."),
   new SlashCommandBuilder().setName("moderation-settings").setDescription("Configure moderation and anti-spam protection."),
+  new SlashCommandBuilder().setName("security-scan").setDescription("Audit this server for common security risks."),
   new SlashCommandBuilder().setName("automod-word").setDescription("Manage blocked words and phrases.")
     .addSubcommand(s=>s.setName("add").setDescription("Block a word or phrase.").addStringOption(o=>o.setName("phrase").setDescription("Word or phrase").setRequired(true).setMaxLength(100)))
     .addSubcommand(s=>s.setName("remove").setDescription("Remove a blocked word or phrase.").addStringOption(o=>o.setName("phrase").setDescription("Exact phrase").setRequired(true).setMaxLength(100)))
@@ -67,7 +68,7 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["timi-plan","install-library","library-list","uninstall-library"],
   Foundation:["timi-setup","greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"],
-  Security:["verify-settings","verify-panel","moderation-settings","automod-word"],
+  Security:["verify-settings","verify-panel","moderation-settings","automod-word","security-scan"],
   Support:["ticket-setup","ticket-panel","ticket-settings"],
   Scratch:["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"]
 });

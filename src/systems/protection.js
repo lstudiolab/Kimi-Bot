@@ -70,13 +70,15 @@ export class Protection {
     }
   }
   async auditLog(entry,guild){
-    const destructive=new Set([12,22,32,50,52,92]);
+    const destructive=new Set([12,22,32,50,52,92,13,14,15,25,31,51]);
     if(!entry||!guild||!destructive.has(entry.action))return;
     const actorId=entry.executorId||entry.executor?.id;
     if(!actorId||actorId===guild.ownerId||actorId===this.client.user?.id)return;
     const now=Date.now(),events=(this.nukeEvents.get(guild.id+":"+actorId)||[]).filter(v=>now-v.at<=10000);
     events.push({at:now,action:entry.action});this.nukeEvents.set(guild.id+":"+actorId,events);
-    if(events.length<4||events.length===4&&events.some(v=>v.at<now-10000))return;
+    const critical=new Set([13,14,15,25,31,51]);
+    const threshold=events.some(v=>critical.has(v.action))?3:4;
+    if(events.length<threshold)return;
     const key=guild.id+":"+actorId+":triggered",triggered=this.nukeEvents.get(key);
     if(triggered)return;
     this.nukeEvents.set(key,true);
@@ -86,7 +88,37 @@ export class Protection {
     if(member&&member.id!==guild.ownerId&&member.moderatable){
       await member.timeout(60*60*1000,"Timi anti-nuke: destructive audit actions exceeded the safety threshold").then(()=>{action="actor timed out for 60 minutes";}).catch(error=>this.logger.warn("Anti-nuke timeout failed:",error.message));
     }
-    await log.send({content:"Anti-nuke alert: <@"+actorId+"> performed "+events.length+" destructive server actions within 10 seconds. "+action+". Review the audit log and restore affected resources where possible.",allowedMentions:{users:[actorId]}});
+    const actionNames={12:"channel deletion",22:"member ban",32:"role deletion",50:"webhook creation",52:"webhook deletion",92:"automated integration change",13:"channel permission creation",14:"channel permission change",15:"channel permission deletion",25:"member role change",31:"role permission change",51:"webhook update"};
+    const summary=[...new Set(events.map(event=>actionNames[event.action]||"sensitive server change"))].join(", ");
+    await log.send({content:"Anti-nuke alert: <@"+actorId+"> performed "+events.length+" sensitive actions within 10 seconds ("+summary+"). "+action+". Timi applied containment where possible. Review the audit log and restore affected resources.",allowedMentions:{users:[actorId]}});
+  }
+  async scan(guild){
+    const risks=[],good=[];
+    const everyone=guild.roles.everyone,owner=await guild.fetchOwner().catch(()=>null);
+    const me=await guild.members.fetchMe().catch(()=>null);
+    if(guild.mfaLevel===1)good.push("Server requires two-factor authentication for moderation actions.");
+    else risks.push("Server does not require 2FA for moderation actions. Enable the server's 2FA requirement.");
+    const verification=["None","Low","Medium","High","Very High"][guild.verificationLevel]||"Unknown";
+    if(guild.verificationLevel<2)risks.push("Membership verification is "+verification+". Set it to at least Medium to slow down drive-by raids.");
+    else good.push("Membership verification is "+verification+".");
+    const everyoneDanger=[["Administrator",P.Administrator],["Manage Server",P.ManageGuild],["Manage Roles",P.ManageRoles],["Manage Channels",P.ManageChannels],["Manage Webhooks",P.ManageWebhooks],["Mention Everyone",P.MentionEveryone]].filter(([,flag])=>everyone.permissions.has(flag)).map(([name])=>name);
+    if(everyoneDanger.length)risks.push("@everyone has dangerous permissions: "+everyoneDanger.join(", ")+". Remove these permissions.");
+    else good.push("@everyone has no high-impact administrative permissions.");
+    const privileged=guild.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&[P.Administrator,P.ManageGuild,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.BanMembers,P.KickMembers].some(flag=>role.permissions.has(flag)));
+    if(privileged.size>8)risks.push(privileged.size+" roles have high-impact permissions. Reduce the number and audit who can assign them.");
+    else good.push(privileged.size+" role(s) have high-impact permissions.");
+    const botRequired=[["View Audit Log",P.ViewAuditLog],["Manage Channels",P.ManageChannels],["Manage Roles",P.ManageRoles],["Moderate Members",P.ModerateMembers],["Manage Messages",P.ManageMessages],["Ban Members",P.BanMembers],["Kick Members",P.KickMembers]];
+    const missing=botRequired.filter(([,flag])=>!me?.permissions.has(flag)).map(([name])=>name);
+    if(missing.length)risks.push("Timi is missing permissions needed for full protection: "+missing.join(", ")+". Grant only the permissions required by the features you use.");
+    else good.push("Timi has the core permissions used by Security.");
+    const setup=this.store.data.timi_setup?.[guild.id]||{};
+    const log=setup.log_channel_id?await guild.channels.fetch(setup.log_channel_id).catch(()=>null):null;
+    if(!log)risks.push("Timi log channel is not configured or is missing. Run /timi-setup.");
+    else good.push("Timi log channel is configured.");
+    const botCount=guild.members.cache.filter(member=>member.user.bot).size;
+    if(botCount>20)risks.push("This server has "+botCount+" bots. Review each bot's identity, permissions and need to remain installed.");
+    const lines=["**Timi Security Audit**","", "**Risks to review ("+risks.length+")**",...(risks.length?risks.map((v,index)=>(index+1)+". "+v):["No common configuration risks were detected."]), "", "**Checks passed ("+good.length+")**",...good.map(v=>"• "+v),"","This is a configuration audit, not a penetration test. It cannot detect compromised accounts, malicious code, leaked tokens or every permission path."];
+    return lines.join("\n").slice(0,1900);
   }
   async ready(guild){
     try{await this.privateChannel(guild);}

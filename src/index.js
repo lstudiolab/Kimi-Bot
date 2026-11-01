@@ -27,7 +27,7 @@ async function syncGuildCommands(guildId){
 }
 function commandLibrary(n){
  if(n.startsWith("ticket-"))return "Support";
- if(["moderation-settings","automod-word","verify-settings","verify-panel"].includes(n))return "Security";
+ if(["moderation-settings","automod-word","verify-settings","verify-panel","security-scan"].includes(n))return "Security";
  if(["timi-setup","setup-role-picker","create-embed","edit-embed","place-embed","greet-settings","auto-role"].includes(n))return "Foundation";
  if(["code","code-edit","code-list","code-run","code-stop","code-delete","code-export","code-import","code-history","code-validate","code-undo","code-redo","code-kit","code-docs","code-template"].includes(n))return "Scratch";
  return null;
