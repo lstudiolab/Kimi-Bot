@@ -31,7 +31,8 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
     async messageCreate(message){
       recovery.backupMessage(message);
-      const results=await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);\n      for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
+      const results=await Promise.allSettled([moderation.onMessage(message),imageAnalysis.handleMessage(message)]);
+      for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
     },
     async guildMemberAdd(member){await protection.memberJoin(member);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
