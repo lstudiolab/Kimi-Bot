@@ -775,6 +775,8 @@ export function createScratchLibrary(context) {
   return {
     async handleInteraction(i) { return scratch.handleInteraction(i); },
     async onInstall(guild) { return scratch.onInstall(guild); },
-    async onUninstall(guild) { return scratch.onUninstall(guild); }
+    async onUninstall(guild) { return scratch.onUninstall(guild); },
+    async onMessageCreate(message) { return scratch.onMessageCreate(message); },
+    async onMemberJoin(member) { return scratch.onMemberJoin(member); }
   };
 }
