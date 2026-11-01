@@ -30,8 +30,9 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify-config").setDescription("Configure automatic join verification.")
+  new SlashCommandBuilder().setName("verify-config").setDescription("Configure button-based member verification.")
     .addRoleOption(o=>o.setName("role").setDescription("Role assigned after a successful check"))
+    .addChannelOption(o=>o.setName("channel").setDescription("Public channel where new members see the Verify button").addChannelTypes(ChannelType.GuildText))
     .addIntegerOption(o=>o.setName("min-age-days").setDescription("Minimum Discord account age in days").setMinValue(0).setMaxValue(3650))
     .addChannelOption(o=>o.setName("review-channel").setDescription("Private channel for manual reviews").addChannelTypes(ChannelType.GuildText)),
   new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
