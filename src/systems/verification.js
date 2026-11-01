@@ -123,7 +123,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     }
   }
   async reviewDecision(i){
-    const match=i.customId.match(/^verify:review:(approve|reject):(\\d{15,22}):(\\d{15,22})$/);
+    const match=i.customId.match(/^verify:review:(approve|reject):(\d{15,22}):(\d{15,22})$/);
     if(!match)return deny(i,"This verification review control is invalid.");
     const [,decision,guildId,userId]=match;
     if(i.guildId!==guildId)return deny(i,"This review belongs to a different server.");
