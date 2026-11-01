@@ -479,3 +479,15 @@ test("TbScript attachment imports reject non-Discord and non-HTTPS URLs",()=>{
     "invalid"
   ])assert.equal(isTrustedTbScriptAttachmentUrl(url),false,url);
 });
+
+test("recovery archives track message edits before a later deletion",async()=>{
+  const store={data:{messages:{guild:[{id:"message",channel_id:"channel",author_id:"member",author_tag:"member",content:"before",timestamp_ms:Date.now(),attachments:[]}]}},queueSave(){this.queued=true;}};
+  const recovery=new Recovery({user:{id:"bot"}},store,quiet);
+  const updated={
+    id:"message",guild:{id:"guild"},author:{id:"member",tag:"member",bot:false},
+    content:"after edit",attachments:{values:()=>[]}
+  };
+  assert.equal(await recovery.updateMessage(updated),true);
+  assert.equal(store.data.messages.guild[0].content,"after edit");
+  assert.equal(store.queued,true);
+});
