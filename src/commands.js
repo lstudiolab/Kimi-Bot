@@ -8,7 +8,7 @@ const allCommandBuilders=[
 
   new SlashCommandBuilder().setName("tickets").setDescription("Create Timi private channels and the ticket category."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
-  new SlashCommandBuilder().setName("ticket-settings").setDescription("Edit ticket system settings."),
+  new SlashCommandBuilder().setName("ticket-config").setDescription("Edit ticket system settings."),
 
   new SlashCommandBuilder().setName("setup").setDescription("Create Timi log, confirmation and settings channels."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
@@ -69,7 +69,7 @@ const commandGroups=Object.freeze({
   Core:["plan","install","libraries","uninstall"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","verify","moderation","filter","security"],
-  Support:["tickets","ticket-panel","ticket-settings"],
+  Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
