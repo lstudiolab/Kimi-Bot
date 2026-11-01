@@ -147,7 +147,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
     return respond(i,"Bot approved. Temporary channel restrictions were removed; private Timi channels remain inaccessible.");
   }
   async handle(i){
-    if(i.isChatInputCommand()&&["verify-settings","verify"].includes(i.commandName))return this.command(i);
+    if(i.isChatInputCommand()&&["verify-config","verify"].includes(i.commandName))return this.command(i);
     if(i.isButton()&&i.customId==="verify:start")return this.verify(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
