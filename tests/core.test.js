@@ -564,3 +564,36 @@ test("private ticket access includes configured support and server manager roles
   const selected=getTicketStaffRoles(guild,support);
   assert.deepEqual(selected.map(value=>value.id),["support","manager"]);
 });
+
+import { Verification } from "../src/systems/verification.js";
+
+test("verification review approval assigns the verified role and closes the review controls",async()=>{
+  let added=0,edited=false,response=null;
+  const records={};
+  const store={
+    data:{verification:{},members:{}},
+    member(guildId,userId){return records[userId]||=( {last_verified:0,failed:0,last_reason:""} );},
+    verify(){return {role_id:"verified-role"};},
+    save(){}
+  };
+  const member={roles:{add:async role=>{assert.equal(role.id,"verified-role");added++;}},kick:async()=>{}};
+  const role={id:"verified-role"};
+  const guild={
+    id:"123456789012345678",ownerId:"111111111111111111",
+    members:{fetch:async()=>member},roles:{fetch:async()=>role}
+  };
+  const verification=new Verification({guilds:{fetch:async()=>guild}},store,quiet);
+  verification.validateRole=async()=>[true];
+  const interaction={
+    customId:"verify:review:approve:123456789012345678:234567890123456789",
+    guildId:guild.id,guild,user:{id:"333333333333333333"},
+    memberPermissions:{has:()=>true},isButton:()=>true,deferred:true,replied:false,
+    message:{edit:async payload=>{edited=payload.components.length===0;}},
+    editReply:async payload=>{response=payload;}
+  };
+  await verification.handle(interaction);
+  assert.equal(added,1);
+  assert.ok(records["234567890123456789"].last_verified>0);
+  assert.equal(edited,true);
+  assert.match(response.content,/approved and verified role assigned/);
+});
