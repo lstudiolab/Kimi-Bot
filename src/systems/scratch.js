@@ -35,6 +35,27 @@ const DOCUMENTATION = {
   placeholders: 'Placeholders inside quoted text are interpolated: {user}, {username}, {user_tag}, {user_id}, {server}, {server_id}, {member_count}, {channel}, {channel_name}, {owner}, {owner_id}, {bot}, {bot_name}, {date}, {time}, and {timestamp}.',
   safety: 'TbScript is a restricted Discord component language. It does not execute JavaScript, shell commands, arbitrary network requests, or dynamically evaluated code. Only explicitly supported actions run. The current automatic repair adds missing closing braces only; it does not rewrite logic.'
 };
+async function readTbScriptAttachment(attachment){
+  if(!attachment?.name?.toLowerCase().endsWith(".tdl"))throw new Error("Attach a TbScript file with the .tdl extension.");
+  if(Number(attachment.size)>64*1024)throw new Error("TbScript imports are limited to 64 KB.");
+  let url;
+  try{url=new URL(attachment.url);}catch{throw new Error("Discord returned an invalid attachment URL.");}
+  if(url.protocol!=="https:"||!["cdn.discordapp.com","media.discordapp.net"].includes(url.hostname.toLowerCase())||url.username||url.password)
+    throw new Error("TbScript files must be uploaded as Discord attachments.");
+  const response=await fetch(url,{signal:AbortSignal.timeout(10000),redirect:"error"});
+  if(!response.ok)throw new Error("Timi could not download that attachment.");
+  const declared=Number(response.headers.get("content-length")||0);
+  if(declared>64*1024)throw new Error("TbScript imports are limited to 64 KB.");
+  if(!response.body)throw new Error("Discord returned an empty attachment.");
+  const chunks=[];let total=0;
+  for await(const chunk of response.body){
+    total+=chunk.length;
+    if(total>64*1024)throw new Error("TbScript imports are limited to 64 KB.");
+    chunks.push(Buffer.from(chunk));
+  }
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(Buffer.concat(chunks,total));}
+  catch{throw new Error("TbScript files must contain valid UTF-8 text.");}
+}
 function slugify(value) {
   return String(value || "").toLowerCase().trim().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
 }
@@ -157,12 +178,8 @@ export class Scratch {
   }
 
   async createProjectFromAttachment(i,slug,attachment){
-    if(!attachment.name.toLowerCase().endsWith(".tdl"))return deny(i,"Attach a TbScript file with the .tdl extension.");
-    if(attachment.size>64*1024)return deny(i,"TbScript imports are limited to 64 KB.");
-    const response=await fetch(attachment.url);
-    if(!response.ok)return deny(i,"Timi could not download that attachment.");
-    const original=await response.text();
-    if(Buffer.byteLength(original,"utf8")>64*1024)return deny(i,"TbScript imports are limited to 64 KB.");
+    let original;
+    try{original=await readTbScriptAttachment(attachment);}catch(error){return deny(i,error.message);}
     const source=autoFixTbScript(original),compiled=compileTbScript(source);
     if(!compiled.ok)return deny(i,"The file contains invalid TbScript:\n"+errorsText(compiled.errors));
     return this.createProjectFromSource(i,slug,source,"attached .tdl file");
@@ -259,12 +276,8 @@ export class Scratch {
   }
 
   async replaceTargetFromAttachment(i,target,attachment){
-    if(!attachment.name.toLowerCase().endsWith(".tdl"))return deny(i,"Attach a TbScript file with the .tdl extension.");
-    if(attachment.size>64*1024)return deny(i,"TbScript imports are limited to 64 KB.");
-    const response=await fetch(attachment.url);
-    if(!response.ok)return deny(i,"Timi could not download that attachment.");
-    const original=await response.text();
-    if(Buffer.byteLength(original,"utf8")>64*1024)return deny(i,"TbScript imports are limited to 64 KB.");
+    let original;
+    try{original=await readTbScriptAttachment(attachment);}catch(error){return deny(i,error.message);}
     const source=autoFixTbScript(original),compiled=compileTbScript(source);
     if(!compiled.ok)return deny(i,"The file contains invalid TbScript:\n"+errorsText(compiled.errors));
     if(panelTarget(target)){
@@ -385,12 +398,8 @@ export class Scratch {
 
   async import(i, attachment, replaceExisting = false) {
     if (!attachment) return deny(i, "Attach a .tdl file to import.");
-    if (!attachment.name.toLowerCase().endsWith(".tdl")) return deny(i, "Only .tdl TbScript files can be imported.");
-    if (attachment.size > 64 * 1024) return deny(i, "TbScript imports are limited to 64 KB.");
-    const response = await fetch(attachment.url);
-    if (!response.ok) return deny(i, "Timi could not download that attachment.");
-    const source = await response.text();
-    if (Buffer.byteLength(source, "utf8") > 64 * 1024) return deny(i, "TbScript imports are limited to 64 KB.");
+    let source;
+    try{source=await readTbScriptAttachment(attachment);}catch(error){return deny(i,error.message);}
     const fixed = autoFixTbScript(source);
     const compiled = compileTbScript(fixed);
     if (!compiled.ok) return deny(i, "Import failed:\n" + errorsText(compiled.errors));
