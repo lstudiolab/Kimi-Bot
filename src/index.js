@@ -47,7 +47,24 @@ function opensModal(i){
  const id=i.customId;
  return id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
-const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries});
+const openConfiguration=async(i,section)=>{
+  const names={moderation:"moderation",verification:"verify-config",tickets:"ticket-config",welcome:"welcome"};
+  const commandName=names[section];
+  const library=section==="moderation"||section==="verification"?"Security":section==="tickets"?"Support":"Foundation";
+  if(!commandName||!libraries[library])return respond(i,"This configuration section is not available.");
+  const options={
+   getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
+   getAttachment:()=>null
+  };
+  const proxy=new Proxy(i,{get(target,key,receiver){
+   if(key==="commandName")return commandName;
+   if(key==="options")return options;
+   if(key==="isChatInputCommand")return ()=>true;
+   return Reflect.get(target,key,receiver);
+  }});
+  return libraries[library].handleInteraction(proxy);
+ };
+const settings=new TimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
  if(i.commandName==="timi-settings")return settings.show(i,"home");
