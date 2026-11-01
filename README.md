@@ -118,7 +118,7 @@ Image checks run when a member uploads an image and either mentions Timi or repl
 **Support**
 - `/tickets` — create or reuse Timi's private setup channels and the ticket category.
 - `/ticket-panel` — publish or update the ticket panel.
-- `/ticket-settings` — configure ticket text, support roles and destinations.
+- `/ticket-config` — configure ticket text, support roles and destinations.
 
 **Scratch**
 - `/script` — create a TbScript project.
