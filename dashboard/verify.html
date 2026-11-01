@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101112">
-<meta name="description" content="Sign in securely with Discord to configure Kimi for your server.">
-<title>Sign in · Kimi</title>
+<meta name="description" content="Sign in or create a Kimi account.">
+<title>Account · Kimi</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="verify-body">
@@ -14,19 +14,27 @@
 <section class="verify-card">
 <div class="login-kicker"><span class="login-kicker-line"></span> KIMI CONTROL CENTER</div>
 <div class="login-symbol" aria-hidden="true"><span>K</span></div>
-<h1>Your server.<br>Under control.</h1>
-<p class="verify-description">Sign in with Discord to manage Kimi across the servers where you have permission. Your Discord password stays with Discord.</p>
-<div id="verify-status" class="verify-status" role="status" aria-live="polite">Checking your sign-in status…</div>
-<a id="discord-login" class="button primary discord-button" href="/auth/discord">Continue with Discord <span aria-hidden="true">↗</span></a>
-<button id="discord-logout" class="quiet-button verify-logout" hidden>Sign out</button>
-<div class="login-permissions">
-<div><span class="permission-mark">01</span><span><b>Secure authorization</b><small>Discord OAuth2. Kimi never sees your password.</small></span></div>
-<div><span class="permission-mark">02</span><span><b>Your servers only</b><small>Only servers you manage with Kimi installed appear.</small></span></div>
-<div><span class="permission-mark">03</span><span><b>Separate configuration</b><small>Each server's settings stay isolated.</small></span></div>
+<h1 id="auth-title">Your server.<br>Under control.</h1>
+<p class="verify-description">Use your Kimi account to manage your bot settings. Your account is stored locally on the Android server running Kimi.</p>
+<div class="auth-tabs" role="group" aria-label="Account action">
+<button type="button" class="auth-tab active" data-mode="login">Sign in</button>
+<button type="button" class="auth-tab" data-mode="register">Create account</button>
 </div>
-<div class="verify-note"><strong>Permissions requested</strong><span>Identity and server list access. Kimi checks your Manage Server or Administrator permission before showing a server.</span></div>
+<form id="auth-form" class="auth-form">
+<label id="display-name-field" hidden>Display name<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="Your name"></label>
+<label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required placeholder="At least 10 characters"></label>
+<button id="auth-submit" class="button primary" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+</form>
+<div id="verify-status" class="verify-status" role="status" aria-live="polite">Your Kimi account is separate from your Discord account.</div>
+<div class="login-permissions">
+<div><span class="permission-mark">01</span><span><b>Local account storage</b><small>Account records and sessions stay in your phone's Kimi data folder.</small></span></div>
+<div><span class="permission-mark">02</span><span><b>Separate Discord linking</b><small>Connect Discord only to verify server membership and permissions.</small></span></div>
+<div><span class="permission-mark">03</span><span><b>Server-level access</b><small>Kimi only shows servers where your linked Discord account can manage Kimi.</small></span></div>
+</div>
+<div class="verify-note"><strong>Account security</strong><span>Passwords are stored as scrypt hashes. Keep your Android server and its local data directory secure. Email ownership is not verified in this version.</span></div>
 </section>
-<footer class="verify-footer"><span>Kimi</span><span>Secure sign-in · Discord OAuth2</span></footer>
+<footer class="verify-footer"><span>Kimi</span><span>Kimi account · Local authentication</span></footer>
 </main>
 <script src="/verify.js" defer></script>
 </body>
