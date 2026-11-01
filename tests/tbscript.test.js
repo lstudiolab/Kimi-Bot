@@ -137,3 +137,20 @@ test("TBScript validates Discord's aggregate embed text limit", () => {
   ].join("\n");
   assert.equal(compileTbScript(source).ok, false);
 });
+
+
+test("TBScript rejects onclick handlers that reference missing buttons", () => {
+  const source = [
+    "panel:",
+    '    button "Existing" : existing',
+    "",
+    "onclick missing:",
+    '    reply "This must not silently do nothing."',
+    "end",
+    "",
+    "onclick existing:",
+    '    reply "Works."',
+    "end"
+  ].join("\n");
+  assert.equal(compileTbScript(source).ok, false);
+});
