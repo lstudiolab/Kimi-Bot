@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS, isHttpsUrlTemplate, chunkText } from "../src/utils.js";
+import { isSnowflake, normalizeMessage, jaccard, cleanChannelName, snowflakeTime, renderTemplate, TEMPLATE_PLACEHOLDERS, isHttpsUrlTemplate, chunkText, matchesBlockedPhrase } from "../src/utils.js";
 import { loadConfig } from "../src/config.js";
 import { Store } from "../src/store.js";
 
