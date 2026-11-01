@@ -62,7 +62,7 @@ export class TimiSettings {
       }else if(library==="Foundation"){
         sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       }else{
-        sections.push(row(button("settings:config:scratch","TbScript Projects")));
+        sections.push(row(button("settings:home","Back to Kimi Settings")));
       }
       return i.editReply({embeds:[embed(library+" Configuration",`Configure the ${library} library for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
     }
