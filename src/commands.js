@@ -7,7 +7,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("libraries").setDescription("Show Timi's four libraries."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Timi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Security",value:"Security"},{name:"Support",value:"Support"},{name:"Scratch",value:"Scratch"})),
 
-  new SlashCommandBuilder().setName("tickets").setDescription("Create Timi private channels and the ticket category."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
 
   new SlashCommandBuilder().setName("roles").setDescription("Create a self-service role selection menu."),
@@ -48,7 +47,7 @@ const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
   Foundation:["roles","embed-new","embed-edit","embed-post"],
   Security:["verify","security"],
-  Support:["tickets","ticket-panel"],
+  Support:["ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
