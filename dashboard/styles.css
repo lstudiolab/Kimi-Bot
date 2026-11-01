@@ -31,3 +31,15 @@
 .verify-footer{width:100%;display:flex;justify-content:space-between;margin-top:17px;color:#6f777f;font-size:9px}
 .back-link{display:inline-block;margin-top:17px;color:#9ca4ab;text-decoration:none;font-size:10px}
 @media(max-width:480px){.verify-body{padding:18px 14px}.verify-card{padding:24px 20px}.verify-card h1{font-size:32px}}
+
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;margin:22px 0 18px;border:1px solid #303438;border-radius:12px;background:#151719}
+.auth-tab{border:0;border-radius:8px;background:transparent;color:#92999e;padding:10px 12px;font:inherit;font-size:13px;cursor:pointer}
+.auth-tab.active{background:#303438;color:#f4f5f6}
+.auth-form{display:grid;gap:14px;margin:0 0 14px}
+.auth-form label{display:grid;gap:7px;color:#d9dde0;font-size:13px}
+.auth-form input{width:100%;box-sizing:border-box;border:1px solid #383e42;border-radius:10px;background:#151719;color:#f4f5f6;padding:13px 14px;font:inherit;outline:none}
+.auth-form input:focus{border-color:#929ba1}
+.auth-form input::placeholder{color:#656d72}
+.auth-form [hidden]{display:none}
+.auth-form .button{width:100%;justify-content:center;margin-top:4px}
+.auth-tab:focus-visible,.auth-form input:focus-visible,.auth-form .button:focus-visible{outline:2px solid #aeb6bb;outline-offset:2px}
