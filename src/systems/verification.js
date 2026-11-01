@@ -41,7 +41,7 @@ export class Verification {
     let ch=channelId?await guild.channels.fetch(channelId).catch(()=>null):null;
     if(!ch&&setup.log_channel_id)ch=await guild.channels.fetch(setup.log_channel_id).catch(()=>null);
     if(!ch)ch=guild.channels.cache.find(c=>(c.name==="timi-log"||c.name==="timi")&&c.isTextBased());
-    if(ch?.isTextBased())await ch.send({content,allowedMentions:{parse:[]}}).catch(()=>{});
+    if(ch?.isTextBased())await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
   }
   settingsText(s){
     return `**Timi verification settings**\nVerified role: ${mentionRole(s.role_id)}\nRequired role: ${mentionRole(s.required_role_id)}\nMinimum account age: ${s.min_age_days} days\nReview channel: ${mentionChannel(s.review_channel_id)}\nThresholds: 80+ pass, 60–79 manual review, below 60 kick\nWeights: age 40, history 20, attempts 20, behavior 10, avatar 10
@@ -114,13 +114,43 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
       await this.log(guild,s.review_channel_id,`Verification passed for <@${user.id}> — **${score}/100**\n${detail}`);
     }else if(outcome==="review"){
       await respond(i,`**Manual review required — ${score}/100**\n${ageFailed?"Your account does not meet the server's minimum age requirement. ":""}A moderator must review your verification.`);
-      await this.log(guild,s.review_channel_id,`**Verification requires manual review**\nMember: <@${user.id}>\nScore: **${score}/100**\n${detail}`);
+      await this.log(guild,s.review_channel_id,`**Verification requires manual review**\nMember: <@${user.id}>\nScore: **${score}/100**\n${detail}`,[row(button(`verify:review:approve:${guild.id}:${user.id}`,"Approve"),button(`verify:review:reject:${guild.id}:${user.id}`,"Reject"))]);
     }else{
       await respond(i,`**Verification failed — ${score}/100**\nYour account did not meet the server's risk threshold.`);
       await member.kick("Timi verification failed").catch(error=>this.logger.warn("Verification kick failed:",error.message));
       record.failed++;this.store.save();
       await this.log(guild,s.review_channel_id,`**Verification failed; kick attempted**\nMember: <@${user.id}>\nScore: **${score}/100**\n${detail}`);
     }
+  }
+  async reviewDecision(i){
+    const match=i.customId.match(/^verify:review:(approve|reject):(\\d{15,22}):(\\d{15,22})$/);
+    if(!match)return deny(i,"This verification review control is invalid.");
+    const [,decision,guildId,userId]=match;
+    if(i.guildId!==guildId)return deny(i,"This review belongs to a different server.");
+    if(!isManager(i))return deny(i,"Only server managers can decide verification reviews.");
+    const guild=i.guild||await this.client.guilds.fetch(guildId);
+    const record=this.store.member(guildId,userId);
+    if(record.last_verified>0)return deny(i,"This member has already been approved.");
+    const member=await guild.members.fetch(userId).catch(()=>null);
+    if(!member)return deny(i,"This member is no longer in the server.");
+    if(decision==="approve"){
+      const settings=this.store.verify(guildId);
+      if(!settings.role_id)return deny(i,"Configure the verified role with /verify-config before approving members.");
+      const role=await guild.roles.fetch(settings.role_id).catch(()=>null);
+      const [safe,error]=await this.validateRole(guild,role,true);
+      if(!safe)return deny(i,"The verified role cannot be assigned. "+error);
+      await member.roles.add(role,"Timi manual verification approval");
+      record.last_verified=Date.now();
+      record.last_reason="Manual verification approval";
+      this.store.save();
+    }else{
+      await member.kick("Timi verification manually rejected");
+      record.failed++;
+      record.last_reason="Manual verification rejection";
+      this.store.save();
+    }
+    await i.message.edit({components:[]}).catch(error=>this.logger.warn("Could not close verification review controls:",error.message));
+    return respond(i,decision==="approve"?"Member approved and verified role assigned.":"Member rejected and removed from the server.");
   }
   async botDecision(i){
     const match=i.customId.match(/^botguard:(yes|no):(\d+):(\d+)$/);
@@ -149,6 +179,7 @@ Panel placeholders: {user}, {username}, {user_tag}, {user_id}, {server}, {server
   async handle(i){
     if(i.isChatInputCommand()&&["verify-config","verify"].includes(i.commandName))return this.command(i);
     if(i.isButton()&&i.customId==="verify:start")return this.verify(i);
+    if(i.isButton()&&i.customId.startsWith("verify:review:"))return this.reviewDecision(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
   }
 }
