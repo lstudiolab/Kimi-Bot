@@ -183,10 +183,17 @@ export class Moderation {
     const content=message.content||"";
     for(const word of this.store.data.automod_words[guild.id]||[]){
       if(matchesBlockedPhrase(content,word)){
-        const reason="blocked word or phrase: "+word;await message.delete().catch(()=>{});
+        const reason="blocked word or phrase: "+word;
+        const deleted=await message.delete().then(()=>true).catch(error=>{
+          this.logger.warn("AutoMod could not delete a blocked-phrase message:",error.message);return false;
+        });
+        if(!deleted){
+          await this.log(guild,"AutoMod detected a blocked phrase from <@"+message.author.id+"> in <#"+message.channelId+">, but could not delete the message. Check Manage Messages permission. Reason: "+reason+".");
+          return;
+        }
         const record=this.store.member(guild.id,message.author.id);record.suspicious++;record.last_suspicious=Date.now();record.last_reason=reason;
         const warning=await this.warn(guild.id,message.author.id,reason);
-        await this.log(guild,`AutoMod removed a message from <@${message.author.id}> in <#${message.channelId}>. Automatic warning #${warning}. Reason: ${reason}.`);
+        await this.log(guild,"AutoMod removed a message from <@"+message.author.id+"> in <#"+message.channelId+">. Automatic warning #"+warning+". Reason: "+reason+".");
         return;
       }
     }
