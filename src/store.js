@@ -4,7 +4,7 @@ import { fillDefaults } from "./utils.js";
 import { getGuildStorageBytes, getPlanForData, restoreGuildStorage, PLANS } from "./subscriptions.js";
 
 const defaults=()=>({
-  installed_libraries:{},modules:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},
+  installed_libraries:{},modules:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},
   role_picker_menus:{},role_picker_drafts:{},embeds:{},moderation_cases:{},moderation_jobs:{},automod_words:{},pending_bots:{},
   developer_projects:{},developer_history:{},developer_redo:{},developer_active:{},panel_scripts:{},customizations:{},library_data:{}
 });
