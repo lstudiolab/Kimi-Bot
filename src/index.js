@@ -174,6 +174,7 @@ client.on(Events.MessageCreate,async m=>{
    return m.reply("Timi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
   }
  }
+ if(manager.installed(m.guildId,"Scratch"))libraries.Scratch.onMessageCreate(m).catch(e=>logger.error("TBScript message event failed:",e));
  if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
 client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
@@ -183,6 +184,7 @@ client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security")
 client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
 client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security")&&moduleEnabled(guild.id,"protection"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
+ if(manager.installed(m.guild.id,"Scratch"))libraries.Scratch.onMemberJoin(m).catch(e=>logger.error("TBScript member-join event failed:",e));
  if(manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"protection"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
  if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome")){
   if(!manager.installed(m.guild.id,"Security")){const r=store.member(m.guild.id,m.id);r.joins++;r.last_join=Date.now();store.save();}
