@@ -414,3 +414,21 @@ test("Timi storage accounting includes setup channels and AutoMod phrases",()=>{
   },"guild-storage");
   assert.equal(otherGuild,empty,"another server's data must not count against this server");
 });
+
+import { Recovery } from "../src/systems/recovery.js";
+
+test("recovery message archives stay below four megabytes per server",()=>{
+  const store={data:{messages:{}},queueSave(){}};
+  const recovery=new Recovery({user:{id:"bot"}},store,quiet);
+  const content="x".repeat(4000),attachments={size:0,values:()=>[]};
+  for(let index=0;index<1100;index++){
+    recovery.backupMessage({
+      guild:{id:"archive-guild"},author:{id:"member",tag:"member",bot:false},
+      id:String(index),channelId:"channel",content,createdTimestamp:Date.now(),attachments
+    });
+  }
+  const archived=store.data.messages["archive-guild"];
+  assert.ok(archived.length<1100,"oldest messages should be pruned when the byte cap is reached");
+  assert.ok(Buffer.byteLength(JSON.stringify(archived),"utf8")<=4*1024*1024);
+  assert.equal(store.data.messages["other-guild"],undefined);
+});
