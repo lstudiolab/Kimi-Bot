@@ -2,6 +2,7 @@ import { ChannelType, PermissionFlagsBits } from "discord.js";
 import { Embeds } from "./embeds.js";
 import { respond, requireManager } from "../ui.js";
 import { renderTemplate, TEMPLATE_PLACEHOLDERS } from "../utils.js";
+import { isSafeAssignableRole } from "../permissions.js";
 
 export class Foundation {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.embeds=new Embeds(client,store,logger);}
@@ -23,7 +24,7 @@ export class Foundation {
       const role=i.options.getRole("role");
       if(role){
         const me=await i.guild.members.fetchMe();
-        if(role.managed||role.id===i.guild.id||role.position>=me.roles.highest.position)
+        if(!isSafeAssignableRole(role,i.guild.id)||role.position>=me.roles.highest.position)
           return respond(i,"Choose a normal role below Timi's highest role.");
         s.auto_role_id=role.id;
       }else s.auto_role_id="";
