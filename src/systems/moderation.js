@@ -164,6 +164,11 @@ export class Moderation {
   async warn(guild,user,reason){
     const now=Date.now(),cases=this.store.data.moderation_cases[guild]||[];
     const kept=cases.filter(v=>v.type!=="warning"||now-(v.created_at||now)<=this.warningRetention);
+    const warnings=kept.filter(v=>v.type==="warning");
+    while(warnings.length>=5000){
+      const oldest=warnings.shift(),index=kept.indexOf(oldest);
+      if(index>=0)kept.splice(index,1);
+    }
     const id=kept.reduce((max,v)=>Math.max(max,Number(v.id)||0),0)+1;
     kept.push({id,type:"warning",user_id:user,moderator_id:"timi",reason,created_at:now,automatic:true});
     this.store.data.moderation_cases[guild]=kept;this.store.save();return id;
