@@ -27,7 +27,7 @@ export function createSecurityLibrary({client,store,logger,foundation}){
       if(id.startsWith("verify:")||id.startsWith("botguard:"))return verification.handle(i);
     },
     async messageDelete(message){await moderation.onMessageDelete(message);},
-    async messageUpdate(oldMessage,newMessage){await moderation.onMessageUpdate(oldMessage,newMessage);},
+    async messageUpdate(oldMessage,newMessage){await Promise.all([moderation.onMessageUpdate(oldMessage,newMessage),recovery.updateMessage(newMessage)]);},
     async memberUpdate(oldMember,newMember){await moderation.onMemberUpdate(oldMember,newMember);},
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
     async messageCreate(message){
