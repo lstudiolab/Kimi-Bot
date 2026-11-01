@@ -164,12 +164,9 @@ export class Store{
   verify(guild){
     this.data.verification[guild]||={};
     const value=fillDefaults(this.data.verification[guild],{
-      role_id:"",required_role_id:"",review_channel_id:"",min_age_days:7,panel_title:"Verify your account",
-      panel_description:"Press Verify to have Timi assess your account and server history.",published_panels:[],
-      points:{age:40,history:20,attempts:20,behavior:10,avatar:10},thresholds:{pass:80,review:60}
+      role_id:"",review_channel_id:"",min_age_days:7
     });
-    value.points=fillDefaults(value.points||{},{age:40,history:20,attempts:20,behavior:10,avatar:10});
-    value.thresholds=fillDefaults(value.thresholds||{},{pass:80,review:60});return value;
+    return value;
   }
   member(guild,user){
     const key=guild+":"+user;this.data.members[key]||={};
