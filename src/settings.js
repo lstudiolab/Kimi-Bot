@@ -45,10 +45,10 @@ export class TimiSettings {
       return i.editReply({embeds:[embed(tr("title"),"Manage Timi's systems, libraries and server preferences.\n\nChoose a section below.")],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
-        row(button("settings:advanced",tr("advanced")))
+        row(button("settings:configure",tr("configure")||"Configure")),\n        row(button("settings:advanced",tr("advanced")))
       ]});
     }
-    if(page==="modules"){
+    if(page==="configure"){\n      const sections=[];\n      if(installed(this.store,id,"Security"))sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));\n      if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets","Tickets")));\n      if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:welcome","Welcome"),button("settings:config:roles","Role Picker")));\n      if(installed(this.store,id,"Scratch"))sections.push(row(button("settings:config:scratch","TbScript")));\n      sections.push(row(button("settings:home",tr("back"))));\n      return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});\n    }\n    if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\n");
       const options=MODULES.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
       const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose")).addOptions(options);
@@ -102,7 +102,7 @@ export class TimiSettings {
     }
     if(!i.isButton())return;
     if(id==="settings:home")return this.show(i,"home");
-    if(id==="settings:modules")return this.show(i,"modules");
+    if(id==="settings:modules")return this.show(i,"modules");\n    if(id==="settings:configure")return this.show(i,"configure");\n    if(id.startsWith("settings:config:")){\n      const section=id.split(":")[2];\n      const library=section==="moderation"||section==="verification"?"Security":section==="tickets"?"Support":section==="welcome"||section==="roles"?"Foundation":"Scratch";\n      if(!installed(this.store,i.guildId,library))return this.show(i,"configure");\n      if(!this.hooks.openConfiguration)return i.editReply({content:"This configuration page is not available yet.",components:[],embeds:[]});\n      return this.hooks.openConfiguration(i,section);\n    }
     if(id==="settings:install"||id==="settings:uninstall")return this.show(i,id.slice("settings:".length));
     if(id==="settings:language")return this.show(i,"language");
     if(id==="settings:status")return this.show(i,"status");
