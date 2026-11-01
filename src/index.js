@@ -27,7 +27,7 @@ function recordAnalytics(guildId,metric,commandName=""){
  store.queueSave();
 }
 const commandModule={
- "verify":"verification","verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
+ "verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
  "ticket-panel":"tickets",
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
@@ -202,18 +202,22 @@ client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security")
 client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
 client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security")&&moduleEnabled(guild.id,"protection"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
+ const record=store.member(m.guild.id,m.id);
+ record.joins++;
+ record.last_join=Date.now();
+ store.save();
  if(manager.installed(m.guild.id,"Scratch")&&moduleEnabled(m.guild.id,"scratch"))libraries.Scratch.onMemberJoin(m).catch(e=>logger.error("TBScript member-join event failed:",e));
- if(manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"protection"))libraries.Security.guildMemberAdd(m).catch(e=>logger.error("Member join processing failed:",e));
- if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome")){
-  if(!manager.installed(m.guild.id,"Security")){const r=store.member(m.guild.id,m.id);r.joins++;r.last_join=Date.now();store.save();}
-  libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
+ if(manager.installed(m.guild.id,"Security")){
+  const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
+  if(modules.protection||modules.verification)libraries.Security.guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
+ if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
 });
 client.on(Events.GuildMemberRemove,m=>{
- const foundationInstalled=manager.installed(m.guild.id,"Foundation");
- const securityInstalled=manager.installed(m.guild.id,"Security");
- if((foundationInstalled&&moduleEnabled(m.guild.id,"welcome"))||(securityInstalled&&moduleEnabled(m.guild.id,"protection"))){const record=store.member(m.guild.id,m.id);record.leaves++;store.save();}
- if(foundationInstalled&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
+ const record=store.member(m.guild.id,m.id);
+ record.leaves++;
+ store.save();
+ if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
 client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelCreate(c);});
 client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelUpdate(o,c);});
