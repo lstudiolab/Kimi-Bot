@@ -14,7 +14,7 @@ const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.Gui
 const manager=new LibraryManager(store,logger),context={client,store,logger};
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
 const commandModule={
- "verify":"verification","filter":"moderation","security":"protection",
+ "verify":"verification","security":"protection",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
  "tickets":"tickets","ticket-panel":"tickets",
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
