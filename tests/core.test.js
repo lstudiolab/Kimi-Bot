@@ -116,18 +116,18 @@ test("library installation is isolated per server and preserves data",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { commandData, libraryCommandsForLibraries } from "../src/commands.js";
+import { commandData, libraryCommandsForLibraries, libraryForCommand } from "../src/commands.js";
 test("library management commands are registered with the intended option behavior",()=>{
-  const install=commandData.find(command=>command.name==="install-library");
-  const uninstall=commandData.find(command=>command.name==="uninstall-library");
-  const list=commandData.find(command=>command.name==="library-list");
+  const install=commandData.find(command=>command.name==="install");
+  const uninstall=commandData.find(command=>command.name==="uninstall");
+  const list=commandData.find(command=>command.name==="libraries");
   assert.ok(install&&uninstall&&list);
   assert.equal(install.options[0].name,"libraryname");
   assert.equal(install.options[0].required,false);
   assert.equal(uninstall.options[0].required,true);
-  assert.ok(commandData.some(command=>command.name==="automod-word"));
-  assert.ok(commandData.some(command=>command.name==="security-scan"));
-  for(const name of ["timi-plan","library-list","install-library","code","code-edit","code-template","code-docs","code-validate","code-run","code-stop","code-undo","code-redo","code-import","code-export"]) {
+  assert.ok(commandData.some(command=>command.name==="filter"));
+  assert.ok(commandData.some(command=>command.name==="security"));
+  for(const name of ["plan","libraries","install","script","script-edit","script-template","script-help","script-check","script-run","script-stop","script-undo","script-redo","script-import","script-export"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }
 });
@@ -241,12 +241,12 @@ test("Scratch library installs on the free plan and exposes its project commands
     assert.equal(manager.installed("guild-dev","Scratch"),true);
     assert.ok(manager.list().some(library=>library.name==="Scratch"));
     const developerCommands=libraryCommandsForLibraries(["Scratch"]).map(command=>command.name);
-    for(const name of ["code","code-edit","code-kit","code-run","code-template","code-docs"])assert.ok(developerCommands.includes(name));
+    for(const name of ["script","script-edit","script-kit","script-run","script-template","script-help"])assert.ok(developerCommands.includes(name));
     assert.equal(manager.install("guild-dev","Scratch").ok,false);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["timi-setup","greet-settings","auto-role","setup-role-picker","create-embed","edit-embed","place-embed"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
@@ -304,4 +304,21 @@ test("image OCR link extraction and safety heuristics identify common phishing i
   assert.ok(flags.some(flag=>flag.includes("shortening")));
   assert.ok(flags.some(flag=>flag.includes("HTTPS")));
   assert.ok(flags.some(flag=>flag.includes("IP address")));
+});
+
+test("compact commands are unique and route to their canonical libraries",()=>{
+  const names=commandData.map(command=>command.name);
+  assert.equal(new Set(names).size,names.length);
+  for(const [name,library] of [
+    ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
+    ["verify","Security"],["verify-settings","Security"],["moderation","Security"],["filter","Security"],["security","Security"],
+    ["tickets","Support"],["ticket-panel","Support"],["ticket-settings","Support"],
+    ["script","Scratch"],["script-run","Scratch"],["scripts","Scratch"]
+  ])assert.equal(libraryForCommand(name),library);
+  for(const name of ["plan","libraries","install","uninstall"])assert.equal(libraryForCommand(name),null);
+});
+test("library commands require Manage Server, not Administrator",()=>{
+  for(const command of commandData.filter(command=>libraryForCommand(command.name))){
+    assert.equal(command.default_member_permissions,"32");
+  }
 });
