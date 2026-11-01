@@ -67,7 +67,7 @@ const allCommandBuilders=[
 ];
 
 const commandGroups=Object.freeze({
-  Core:["timi-settings","plan","install","libraries","uninstall"],
+  Core:["timi-settings","plan"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","verify","moderation","filter","security"],
   Support:["tickets","ticket-panel","ticket-config"],
