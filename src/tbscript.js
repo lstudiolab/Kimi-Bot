@@ -246,6 +246,7 @@ function parseSimpleTbScript(source) {
       throw new TbScriptSyntaxError("Only panel properties and UI elements can appear inside panel.",index+1,indent+1);
     destination.push(node);
     if(["panel","onclick","on","if"].includes(node.name)){
+      if(stack.length>=32)throw new TbScriptSyntaxError("TBScript nesting is limited to 32 blocks.",index+1,indent+1);
       stack.push({node,indent,requiresEnd:node.name!=="panel",target:node.children,elseUsed:false});
     }
   }
@@ -348,6 +349,10 @@ function compileSimpleTbScript(source){
     }else if(node.name==="on"){
       const event=String(simpleValue(node.args[0])||"").toLowerCase();
       if(!["member join","message create"].includes(event)){errors.push({message:"Supported events are on member join and on message create.",line:node.line,column:node.column});continue;}
+      if(output.handlers.events.some(item=>item.event===event)){
+        errors.push({message:"Only one handler per event is allowed: "+event+".",line:node.line,column:node.column});
+        continue;
+      }
       output.handlers.events.push({event,actions:simpleActionNodes(node.children,errors)});
     }else errors.push({message:"Unknown top-level keyword: "+node.name+".",line:node.line,column:node.column});
   }
@@ -355,6 +360,14 @@ function compileSimpleTbScript(source){
     button.action=output.handlers.buttons[button.id]||null;
     if(!button.action)errors.push({message:"Button \""+button.id+"\" has no onclick handler.",line:1,column:1});
   }
+  const limits=[
+    ["title",output.title,256],["description",output.description,4096],["footer",output.footer,2048],
+    ["author",output.author,256],["content",output.content,2000]
+  ];
+  for(const [name,value,limit] of limits)if(String(value||"").length>limit)errors.push({message:name+" exceeds Discord's "+limit+" character limit.",line:1,column:1});
+  const totalEmbedText=output.title.length+output.description.length+output.footer.length+output.author.length
+    +output.fields.reduce((sum,field)=>sum+field.name.length+field.value.length,0);
+  if(totalEmbedText>6000)errors.push({message:"The embed exceeds Discord's 6,000-character total limit.",line:1,column:1});
   const hasPresentation=Boolean(output.title||output.description||output.footer||output.author||output.image||output.thumbnail||output.url||output.content||output.fields.length||output.buttons.length);
   if(!hasPresentation&&!output.handlers.events.length)errors.push({message:"Add a panel or an event handler before saving this script.",line:1,column:1});
   if(errors.length)return {ok:false,errors,ast,instructions};
