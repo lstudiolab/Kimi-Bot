@@ -31,6 +31,7 @@ export class AuthStore {
     if (!this.sessions || typeof this.sessions !== "object" || Array.isArray(this.sessions)) this.sessions = {};
     if (!this.links || typeof this.links !== "object" || Array.isArray(this.links)) this.links = {};
     this.logger = logger;
+    this.linkFailures = new Map();
     this.prune();
   }
   saveAccounts() { writeJson(this.accountsFile, this.accounts); }
@@ -103,21 +104,30 @@ export class AuthStore {
   createLinkCode(accountId) {
     for (const [code, item] of Object.entries(this.links)) if (!item || item.expiresAt <= Date.now()) delete this.links[code];
     let code;
-    do { code = String(crypto.randomInt(0, 1000000)).padStart(6, "0"); } while (this.links[code]);
+    do { code = String(crypto.randomInt(0, 100000000)).padStart(8, "0"); } while (this.links[code]);
     this.links[code] = { accountId, expiresAt: Date.now() + LINK_TTL };
     this.saveLinks();
     return { code, expiresAt: this.links[code].expiresAt };
   }
   completeLinkCode(code, discordUser) {
     const normalized = String(code || "").trim();
+    const now = Date.now();
+    const attempt = this.linkFailures.get(discordUser.id) || { count: 0, resetAt: now + LINK_TTL };
+    if (attempt.resetAt <= now) { attempt.count = 0; attempt.resetAt = now + LINK_TTL; }
+    if (attempt.count >= 5) return { error: "Too many incorrect linking codes. Wait 10 minutes and generate a new code." };
     const pending = this.links[normalized];
-    if (!/^\d{6}$/.test(normalized) || !pending || pending.expiresAt <= Date.now()) return { error: "That linking code is invalid or expired. Generate a new one in the Kimi dashboard." };
+    if (!/^\d{8}$/.test(normalized) || !pending || pending.expiresAt <= now) {
+      attempt.count++;
+      this.linkFailures.set(discordUser.id, attempt);
+      return { error: "That linking code is invalid or expired. Generate a new code in the Kimi dashboard." };
+    }
     const account = this.accounts.accounts.find(item => item.id === pending.accountId);
     if (!account) return { error: "Kimi account not found. Sign in again and generate a new code." };
     const linkedElsewhere = this.accounts.accounts.some(item => item.id !== account.id && item.discord?.id === discordUser.id);
     if (linkedElsewhere) return { error: "This Discord account is already linked to another Kimi account." };
     account.discord = { id: discordUser.id, username: discordUser.username, globalName: discordUser.globalName || discordUser.username, avatar: discordUser.avatar || null, linkedAt: new Date().toISOString() };
     delete this.links[normalized];
+    this.linkFailures.delete(discordUser.id);
     this.saveAccounts();
     this.saveLinks();
     this.logger?.info("A Discord identity was linked to a Kimi account.");
