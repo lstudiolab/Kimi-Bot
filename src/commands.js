@@ -53,7 +53,7 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
   Foundation:["setup","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","filter","security"],
+  Security:["verify","security"],
   Support:["tickets","ticket-panel"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
