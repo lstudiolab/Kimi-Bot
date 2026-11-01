@@ -553,6 +553,7 @@ test("critical channel permission changes still trigger anti-nuke containment at
 });
 
 import { getTicketStaffRoles } from "../src/systems/tickets.js";
+import { PermissionFlagsBits } from "discord.js";
 
 test("private ticket access includes configured support and server manager roles",()=>{
   const role=(id,manager=false)=>({id,managed:false,permissions:{has:flag=>manager&&flag===PermissionFlagsBits.ManageGuild}});
