@@ -35,3 +35,34 @@ const data={
 const catalog=Object.fromEntries(Object.entries(data).map(([locale,values])=>[locale,Object.fromEntries(keys.map((key,index)=>[key,values[index]]))]));
 export function t(store,guildId,key){const locale=store?.data?.languages?.[guildId]||"en-US";return catalog[locale]?.[key]||catalog["en-US"][key]||key;}
 export const LOCALE_NAMES={"en-US":"English (US)","en-GB":"English (UK)","bg":"Български","zh-CN":"简体中文","zh-TW":"繁體中文","hr":"Hrvatski","cs":"Čeština","da":"Dansk","nl":"Nederlands","fi":"Suomi","fr":"Français","de":"Deutsch","el":"Ελληνικά","hi":"हिन्दी","hu":"Magyar","id":"Bahasa Indonesia","it":"Italiano","ja":"日本語","ko":"한국어","lt":"Lietuvių","no":"Norsk","pl":"Polski","pt-BR":"Português (Brasil)","ro":"Română","ru":"Русский","es-ES":"Español","sv-SE":"Svenska","th":"ไทย","tr":"Türkçe","uk":"Українська","vi":"Tiếng Việt"};
+
+const phraseToKey={
+ "Timi Settings":"title","Modules":"modules","Install Libraries":"install",
+ "Uninstall Libraries":"uninstall","Language":"language","System Status":"status",
+ "Permissions":"permissions","Advanced":"advanced","Back":"back","Enable":"enable",
+ "Disable":"disable","Details":"details","Choose a system":"choose","Enabled":"enabled",
+ "Disabled":"disabled","Library not installed":"missing","Done":"done"
+};
+export function translateText(store,guildId,value){
+ if(typeof value!=="string")return value;
+ let result=value;
+ for(const [phrase,key] of Object.entries(phraseToKey)){
+  const translated=t(store,guildId,key);
+  if(translated!==phrase)result=result.split(phrase).join(translated);
+ }
+ return result;
+}
+export function translatePayload(store,guildId,payload){
+ if(!payload||typeof payload!=="object")return payload;
+ const visit=value=>{
+  if(typeof value==="string")return translateText(store,guildId,value);
+  if(Array.isArray(value))return value.map(visit);
+  if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,visit(item)]));
+  return value;
+ };
+ const plain=value=>typeof value?.toJSON==="function"?value.toJSON():value;
+ const result={...payload};
+ for(const key of ["embeds","components"])if(result[key])result[key]=result[key].map(item=>visit(plain(item)));
+ for(const key of ["content"])if(typeof result[key]==="string")result[key]=translateText(store,guildId,result[key]);
+ return result;
+}
