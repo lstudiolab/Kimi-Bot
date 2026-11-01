@@ -40,7 +40,7 @@ export class Moderation {
           const existing=await guild.bans.fetch(job.user_id).catch(()=>null);
           if(!existing)await guild.members.ban(job.user_id,{deleteMessageSeconds:Math.max(0,Math.min(60,Number(job.action_duration_seconds)||0)),reason:job.reason});
         }else if(member){
-          if(job.action==="timeout")await member.timeout(Math.max(60000,Number(job.timeout_minutes)||10)*60000,job.reason);
+          if(job.action==="timeout")await member.timeout(Math.max(1,Number(job.timeout_minutes)||10)*60000,job.reason);
           else if(job.action==="kick")await member.kick(job.reason);
         }
         job.steps.sanction=true;job.updated_at=Date.now();this.store.save();
