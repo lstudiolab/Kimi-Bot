@@ -3,7 +3,7 @@ import { nowMs, snowflakeTime, DAY } from "../utils.js";
 
 const WEEK=7*DAY,MAX_MESSAGES=25000;
 export class Recovery {
-  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.deletions=new Map();}
+  constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.deletions=new Map();this.recovering=new Set();}
   snapshot(channel) {
     if(!channel.guild||!channel.id)return;
     const permissions=channel.permissionOverwrites?.cache?.map(o=>({
@@ -42,13 +42,15 @@ export class Recovery {
     const actor=entry?.executor;
     if(!actor||actor.id===guild.ownerId||actor.id===this.client.user.id||actor.bot)return;
     const key=guild.id+":"+actor.id,now=Date.now();
+    for(const [storedKey,items] of this.deletions)if(!items.length||now-items[items.length-1].at>60000)this.deletions.delete(storedKey);
     const entries=(this.deletions.get(key)||[]).filter(item=>now-item.at<=60000);
     entries.push({at:now,id});
     this.deletions.set(key,entries);
     const log=await this.findLogChannel(guild);
     if(log)await log.send({content:`Security alert: a moderator or member deleted #${channel.name||"unknown"} (${id}). ${entries.length} channel deletion(s) in 60 seconds.`});
-    if(entries.length<3)return;
-
+    if(entries.length<3||this.recovering.has(key))return;
+    this.recovering.add(key);
+    try{
     let restored=0;
     for(const item of entries) {
       const snapshot=this.store.data.channels[guild.id+":"+item.id];
@@ -100,5 +102,6 @@ export class Recovery {
     }
     if(log)await log.send({content:`Anti-nuke recovery finished: recreated ${restored} of ${entries.length} deleted channel(s). <@${actor.id}> ${timeoutOk?"timed out for 60 minutes":"could not be timed out"}; removed ${removed} manageable role(s). Reposted archives are copies with new message IDs; attachment source links may expire.`});
     this.deletions.delete(key);
+    }finally{this.recovering.delete(key);}
   }
 }
