@@ -32,7 +32,7 @@ export class Tickets {
   async command(i) {
     if (!await requireManager(i)) return;
     const guild=i.guild, name=i.commandName;
-    if (name==="ticket-setup") {
+    if (name==="tickets") {
       const category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()==="ticket")
         || await guild.channels.create({name:"ticket",type:ChannelType.GuildCategory});
       for (const n of ["timi-logs","timi-confirmations"]) {
