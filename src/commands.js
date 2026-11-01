@@ -18,11 +18,6 @@ const allCommandBuilders=[
 
   new SlashCommandBuilder().setName("verify").setDescription("Publish the verification panel."),
   new SlashCommandBuilder().setName("security").setDescription("Audit this server for common security risks."),
-  new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
-    .addSubcommand(s=>s.setName("add").setDescription("Block a word or phrase.").addStringOption(o=>o.setName("phrase").setDescription("Word or phrase").setRequired(true).setMaxLength(100)))
-    .addSubcommand(s=>s.setName("remove").setDescription("Remove a blocked word or phrase.").addStringOption(o=>o.setName("phrase").setDescription("Exact phrase").setRequired(true).setMaxLength(100)))
-    .addSubcommand(s=>s.setName("list").setDescription("List blocked words and phrases.")),
-
   new SlashCommandBuilder().setName("script").setDescription("Create a TbScript project.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
     .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)")),
