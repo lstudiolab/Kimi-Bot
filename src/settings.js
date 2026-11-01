@@ -78,10 +78,7 @@ export class TimiSettings {
       const components=choices.length?[row(menu)]:[];
       if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:library-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
       components.push(row(button("settings:home",tr("back"))));
-      const description=choices.length?choices.map(lib=>`**${lib.name}**
-${lib.description}`).join("
-
-"):(page==="install"?"All available libraries are installed.":"There are no installed libraries to remove.");
+      const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available libraries are installed.":"There are no installed libraries to remove.");
       return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
