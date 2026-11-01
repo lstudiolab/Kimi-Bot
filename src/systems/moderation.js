@@ -22,6 +22,7 @@ export class Moderation {
   async processJob(guild,job){
     if(this.processingJobs.has(job.id)||job.status==="completed"||job.status==="cancelled")return;
     this.processingJobs.add(job.id);
+    job.steps={deleted:false,sanction:false,logged:false,...(job.steps||{})};
     try{
       job.status="processing";job.updated_at=Date.now();this.store.save();
       if(!job.steps.deleted){
@@ -35,17 +36,19 @@ export class Moderation {
       }
       if(!job.steps.sanction){
         const member=await guild.members.fetch(job.user_id).catch(()=>null);
-        if(member){
-          if(job.action==="timeout")await member.timeout(job.timeout_minutes*60000,job.reason);
+        if(job.action==="ban"){
+          const existing=await guild.bans.fetch(job.user_id).catch(()=>null);
+          if(!existing)await guild.members.ban(job.user_id,{deleteMessageSeconds:Math.max(0,Math.min(60,Number(job.action_duration_seconds)||0)),reason:job.reason});
+        }else if(member){
+          if(job.action==="timeout")await member.timeout(Math.max(60000,Number(job.timeout_minutes)||10)*60000,job.reason);
           else if(job.action==="kick")await member.kick(job.reason);
-          else if(job.action==="ban")await guild.members.ban(job.user_id,{deleteMessageSeconds:Math.min(60,job.action_duration_seconds),reason:job.reason});
         }
         job.steps.sanction=true;job.updated_at=Date.now();this.store.save();
       }
       if(!job.steps.logged){
         const x=this.store.mods(guild.id);
         let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
-        if(!channel)channel=guild.channels.cache.find(c=>c.name==="timi"&&c.type===ChannelType.GuildText);
+        if(!channel)channel=guild.channels.cache.find(c=>["timi-log","timi-logs","timi"].includes(c.name)&&c.type===ChannelType.GuildText);
         if(channel?.isTextBased())await channel.send({content:`Anti-spam action: ${job.action_result}. Automatic warning #${job.warning_id} issued to <@${job.user_id}>. Channel: <#${job.channel_id}>. Reason: ${job.reason}.`,allowedMentions:{parse:[]}});
         job.steps.logged=true;job.updated_at=Date.now();this.store.save();
       }
@@ -144,7 +147,7 @@ export class Moderation {
   async log(guild,content){
     const x=this.store.mods(guild.id);
     let channel=x.log_channel_id?await guild.channels.fetch(x.log_channel_id).catch(()=>null):null;
-    if(!channel)channel=guild.channels.cache.find(c=>c.name==="timi"&&c.type===ChannelType.GuildText);
+    if(!channel)channel=guild.channels.cache.find(c=>["timi-log","timi-logs","timi"].includes(c.name)&&c.type===ChannelType.GuildText);
     if(channel?.isTextBased())await channel.send({content,allowedMentions:{parse:[]}}).catch(()=>{});
   }
   async warn(guild,user,reason){
@@ -172,6 +175,10 @@ export class Moderation {
       }
     }
     const key=`${guild.id}:${message.channelId}:${message.author.id}`,now=Date.now();
+    if(this.spam.size>20000){
+      for(const [storedKey,items] of this.spam)if(!items.length||now-items[items.length-1].at>20000)this.spam.delete(storedKey);
+      while(this.spam.size>20000)this.spam.delete(this.spam.keys().next().value);
+    }
     const recent=(this.spam.get(key)||[]).filter(v=>now-v.at<=20000);
     const normalized=normalizeMessage(content),links=(content.match(/https?:\/\/\S+/g)||[]).length;
     const letters=content.match(/[a-z]/gi)||[],caps=letters.length>=12&&letters.filter(c=>c===c.toUpperCase()).length/letters.length>=.75;
