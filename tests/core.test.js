@@ -332,8 +332,11 @@ test("transcript chunking preserves every character of oversized lines",()=>{
 });
 test("every library factory can be instantiated with the shared runtime context",()=>{
   const context={client:{},store:{data:{}},logger:quiet,foundation:{}};
+  const foundation=LIBRARIES.Foundation.create(context);
+  assert.equal(typeof foundation.ensureSetup,"function","Foundation must expose the shared idempotent setup service");
+  const shared={...context,foundation};
   for(const library of Object.values(LIBRARIES)){
-    const instance=library.create(context);
+    const instance=library.create(shared);
     assert.equal(typeof instance.handleInteraction,"function",library.name+" must expose an interaction handler");
   }
 });
