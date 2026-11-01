@@ -197,7 +197,6 @@ function parseSimpleLine(raw,lineNumber,column) {
   const lower=raw.toLowerCase();
   if(lower==="end")return {name:"$end",args:[],children:[],line:lineNumber,column};
   const known=["create channel","make private","give role","remove role","title","description","footer","author","image","thumbnail","url","content","color","field","button","ephemeral","reply","send","allow"];
-  const lower=raw.toLowerCase();
   const keyword=known.find(value=>lower===value||lower.startsWith(value+" "));
   if(!keyword)throw new TbScriptSyntaxError("Unknown TBScript keyword.",lineNumber,column);
   const rest=raw.slice(keyword.length).trim();
