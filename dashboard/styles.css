@@ -43,3 +43,9 @@
 .auth-form [hidden]{display:none}
 .auth-form .button{width:100%;justify-content:center;margin-top:4px}
 .auth-tab:focus-visible,.auth-form input:focus-visible,.auth-form .button:focus-visible{outline:2px solid #aeb6bb;outline-offset:2px}
+
+.discord-link-result{display:grid;gap:9px;margin-top:16px;padding:16px;border:1px solid #3a4146;border-radius:12px;background:#151719}
+.discord-link-result[hidden]{display:none}
+.discord-link-result span,.discord-link-result small{color:#9da5aa;font-size:12px}
+.discord-link-result code{font-size:28px;letter-spacing:.18em;font-weight:650;color:#f5f6f7}
+.discord-link-result .button{justify-self:start}
