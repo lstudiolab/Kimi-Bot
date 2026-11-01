@@ -35,6 +35,7 @@ const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== fa
 export class TimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
+    if(!hasAccess(i))return i.editReply({content:"You need Manage Server permission to use Timi Settings.",embeds:[],components:[]});
     const guild=i.guild, id=guild.id;
     const language=this.store.data.languages?.[id]||"en-US";
     if(page==="home"){
