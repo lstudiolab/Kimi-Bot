@@ -18,6 +18,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("moderation").setDescription("Create or update the moderation settings panel."),
   new SlashCommandBuilder().setName("tickets").setDescription("Prepare the ticket category and private support channels."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
+  new SlashCommandBuilder().setName("ticket-config").setDescription("View ticket settings and configure support roles."),
 
   new SlashCommandBuilder().setName("roles").setDescription("Create a self-service role selection menu."),
   new SlashCommandBuilder().setName("embed-new").setDescription("Create a reusable server embed."),
@@ -25,6 +26,18 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
   new SlashCommandBuilder().setName("verify").setDescription("Publish the verification panel."),
+  new SlashCommandBuilder().setName("verify-config").setDescription("Configure verification requirements and panel text.")
+    .addRoleOption(o=>o.setName("role").setDescription("Role assigned after verification"))
+    .addRoleOption(o=>o.setName("required-role").setDescription("Role members must already have"))
+    .addBooleanOption(o=>o.setName("clear-required-role").setDescription("Remove the required-role rule"))
+    .addIntegerOption(o=>o.setName("min-age-days").setDescription("Minimum Discord account age in days").setMinValue(0).setMaxValue(3650))
+    .addChannelOption(o=>o.setName("review-channel").setDescription("Private channel for manual reviews").addChannelTypes(ChannelType.GuildText))
+    .addStringOption(o=>o.setName("title").setDescription("Verification panel title").setMaxLength(256))
+    .addStringOption(o=>o.setName("description").setDescription("Verification panel description").setMaxLength(4000)),
+  new SlashCommandBuilder().setName("filter").setDescription("Manage blocked words and phrases.")
+    .addSubcommand(s=>s.setName("add").setDescription("Block a word or phrase").addStringOption(o=>o.setName("phrase").setDescription("Phrase to block").setRequired(true).setMaxLength(100)))
+    .addSubcommand(s=>s.setName("remove").setDescription("Unblock a word or phrase").addStringOption(o=>o.setName("phrase").setDescription("Phrase to remove").setRequired(true).setMaxLength(100)))
+    .addSubcommand(s=>s.setName("list").setDescription("List blocked words and phrases")),
   new SlashCommandBuilder().setName("security").setDescription("Audit this server for common security risks."),
   new SlashCommandBuilder().setName("script").setDescription("Create a TbScript project.")
     .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
@@ -56,8 +69,8 @@ const allCommandBuilders=[
 const commandGroups=Object.freeze({
   Core:["timi-settings","plan"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","security","moderation"],
-  Support:["tickets","ticket-panel"],
+  Security:["verify","verify-config","filter","security","moderation"],
+  Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
