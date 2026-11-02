@@ -113,7 +113,7 @@ function allowSystemTrigger(guildId){
 async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded"){
  const guild=member.guild;
  const incidents=store.data.guard_state[guild.id].incidents||(store.data.guard_state[guild.id].incidents={});
- if(["restricted","kept"].includes(incidents[member.id]?.status))return incidents[member.id];
+ if(["restricted","kept","review_required"].includes(incidents[member.id]?.status))return incidents[member.id];
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
  const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
