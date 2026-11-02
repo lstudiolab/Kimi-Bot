@@ -40,7 +40,8 @@ extension KimiRuntime {
   guard let interactionType=event["type"] as? Int,interactionType==2 || interactionType==3 else { return false }
   guard let id=event["id"] as? String,let token=event["token"] as? String,let app=event["application_id"] as? String else { return false }
   let guild=event["guild_id"] as? String ?? ""
-  let user=(event["user"] as? [String:Any])?["id"] as? String ?? (event["member"] as? [String:Any])?["user"] as? [String:Any] as? String ?? ""
+  let memberUser=(event["member"] as? [String:Any])?["user"] as? [String:Any] ?? [:]
+  let user=(event["user"] as? [String:Any])?["id"] as? String ?? memberUser["id"] as? String ?? ""
   let data=event["data"] as? [String:Any] ?? [:]
   let name=data["name"] as? String ?? ""
   let options=data["options"] as? [[String:Any]] ?? []
