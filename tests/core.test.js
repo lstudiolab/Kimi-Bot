@@ -98,15 +98,16 @@ test("legacy configuration files are imported without overwriting new data",()=>
 import { LibraryManager } from "../src/module-manager.js";
 import { LIBRARIES, normalizeLibraryName } from "../src/libraries/index.js";
 
-test("Timi exposes four focused first-party libraries",()=>{
-  assert.deepEqual(Object.keys(LIBRARIES),["Foundation","Security","Support","Scratch"]);
+test("Kimi exposes three focused first-party libraries",()=>{
+  assert.deepEqual(Object.keys(LIBRARIES),["Foundation","Kimi Lock","Support"]);
   for(const library of Object.values(LIBRARIES)){
     assert.equal(typeof library.create,"function");
     assert.ok(library.systems.length>0);
     assert.ok(library.description.length>20);
   }
-  assert.equal(normalizeLibraryName(" moderation "),"Security");
-  assert.equal(normalizeLibraryName("Developer"),"Scratch");
+  assert.equal(normalizeLibraryName(" moderation "),"Kimi Lock");
+  assert.equal(normalizeLibraryName("Security"),"Kimi Lock");
+  assert.equal(normalizeLibraryName("Developer"),null);
   assert.equal(normalizeLibraryName("Support"),"Support");
   assert.equal(normalizeLibraryName("Unknown"),null);
 });
@@ -136,7 +137,7 @@ test("library management commands are registered with the intended option behavi
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="filter"));
   assert.ok(commandData.some(command=>command.name==="security"));
-  for(const name of ["plan","libraries","install","script","script-edit","script-template","script-help","script-check","script-run","script-stop","script-undo","script-redo","script-import","script-export"]) {
+  for(const name of ["plan","libraries","install"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }
 });
@@ -161,62 +162,7 @@ test("pending moderation jobs survive a process restart",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { parseTbScript, compileTbScript, autoFixTbScript, renderTbScript } from "../src/tbscript.js";
 import { PLANS, getGuildPlan, getStorageReport, canStoreGuildState, getGuildStorageBytes } from "../src/subscriptions.js";
-
-test("TbScript keeps the nested brace-block syntax and transpiles each instruction",()=>{
-  const source=[
-    "{",
-    '   {title:"Welcome"}',
-    '   {description:"Hello, {user}!"}',
-    '   {addbutton:true:"Verify":"":false}',
-    '   {onclick(button):giverole:"Member"}',
-    '   {ephemeral:true}',
-    "}"
-  ].join("\n");
-  const parsed=parseTbScript(source);
-  assert.equal(parsed.ok,true);
-  assert.equal(parsed.ast.children.length,5);
-  const compiled=compileTbScript(source);
-  assert.equal(compiled.ok,true);
-  assert.equal(compiled.output.title,"Welcome");
-  assert.equal(compiled.output.ephemeral,true);
-  assert.equal(compiled.output.buttons[0].action.type,"giverole");
-  assert.equal(compiled.output.buttons[0].action.role,"Member");
-  assert.equal(compiled.instructions.length,5);
-});
-
-test("TbScript parses nested modal input blocks and renders components",()=>{
-  const source=[
-    "{",
-    '   {title:"Contact"}',
-    '   {modal:"Contact form"',
-    '      {input:"Subject":"Your subject"}',
-    '      {input:"Details":"More details":true}',
-    "   }",
-    "}"
-  ].join("\n");
-  const compiled=compileTbScript(source);
-  assert.equal(compiled.ok,true);
-  assert.equal(compiled.output.modal.inputs.length,2);
-  const rendered=renderTbScript(compiled,{scope:"test"});
-  assert.equal(rendered.embeds[0].data.title,"Contact");
-  assert.equal(rendered.components.length,1);
-});
-
-test("TbScript reports invalid syntax and does not accept statement semicolons",()=>{
-  assert.equal(compileTbScript('{\n  {title:"valid"};\n}').ok,false);
-  const invalid=compileTbScript('{\n  {unknown:"value"}\n}');
-  assert.equal(invalid.ok,false);
-  assert.match(invalid.errors[0],/Unknown TbScript keyword/);
-});
-
-test("TbScript structural auto-fix only adds missing closing braces",()=>{
-  const source='{\n  {title:"Fixed"}';
-  const fixed=autoFixTbScript(source);
-  assert.equal((fixed.match(/}/g)||[]).length,2);
-  assert.equal(compileTbScript(fixed).ok,true);
-});
 
 test("Timi has one free plan with a 5 MB per-server storage limit",()=>{
   assert.equal(PLANS.free.storageBytes,5*1024*1024);
@@ -251,19 +197,6 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
     const report=canStoreGuildState(store,"guild-free",{developer_projects:projects});
     assert.equal(report.ok,false);
     assert.equal(report.limit,5*1024*1024);
-  }finally{fs.rmSync(dir,{recursive:true,force:true});}
-});
-
-test("Scratch library installs on the free plan and exposes its project commands",()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-developer-lib-"));
-  try{
-    const store=new Store(dir,quiet),manager=new LibraryManager(store,quiet);
-    assert.equal(manager.install("guild-dev","Scratch").ok,true);
-    assert.equal(manager.installed("guild-dev","Scratch"),true);
-    assert.ok(manager.list().some(library=>library.name==="Scratch"));
-    const developerCommands=libraryCommandsForLibraries(["Scratch"]).map(command=>command.name);
-    for(const name of ["script","script-edit","script-kit","script-run","script-template","script-help"])assert.ok(developerCommands.includes(name));
-    assert.equal(manager.install("guild-dev","Scratch").ok,false);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -334,7 +267,6 @@ test("compact commands are unique and route to their canonical libraries",()=>{
     ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
     ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
     ["tickets","Support"],["ticket-panel","Support"],["ticket-config","Support"],
-    ["script","Scratch"],["script-run","Scratch"],["scripts","Scratch"]
   ])assert.equal(libraryForCommand(name),library);
   for(const name of ["plan","libraries","install","uninstall"])assert.equal(libraryForCommand(name),null);
 });
@@ -478,22 +410,6 @@ test("AutoMod blocked phrases match whole words without false substrings",()=>{
   assert.equal(matchesBlockedPhrase("💩ass!","ass"),true,"symbols remain valid word boundaries");
 });
 
-import { isTrustedTbScriptAttachmentUrl } from "../src/systems/scratch.js";
-
-test("TbScript attachment imports reject non-Discord and non-HTTPS URLs",()=>{
-  for(const url of [
-    "https://cdn.discordapp.com/attachments/123/456/source.tdl",
-    "https://media.discordapp.net/attachments/123/456/source.tdl"
-  ])assert.equal(isTrustedTbScriptAttachmentUrl(url),true,url);
-  for(const url of [
-    "http://cdn.discordapp.com/attachments/source.tdl",
-    "https://cdn.discordapp.com.evil.example/source.tdl",
-    "https://example.com/source.tdl",
-    "https://user:pass@cdn.discordapp.com/source.tdl",
-    "file:///etc/passwd",
-    "invalid"
-  ])assert.equal(isTrustedTbScriptAttachmentUrl(url),false,url);
-});
 
 test("recovery archives track message edits before a later deletion",async()=>{
   const store={data:{messages:{guild:[{id:"message",channel_id:"channel",author_id:"member",author_tag:"member",content:"before",timestamp_ms:Date.now(),attachments:[]}]}},queueSave(){this.queued=true;}};
@@ -703,8 +619,7 @@ test("all persistent component prefixes route to their installed library",()=>{
   for(const [id,library] of [
     ["ticket:close","Support"],["modpanel:enable","Kimi Lock"],["botguard:yes:123","Kimi Lock"],
     ["verify:start","Kimi Lock"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
-    ["tbs:button:1","Scratch"],["tbm:open:1","Scratch"],["tbm-submit:form","Scratch"],
-    ["developer:editor:new:test","Scratch"]
+    
   ])assert.equal(libraryForComponent(id),library,id);
   assert.equal(libraryForComponent("unknown:component"),null);
 });
