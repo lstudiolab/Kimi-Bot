@@ -424,7 +424,8 @@ extension KimiRuntime {
     await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0,welcomeEnabled:installed.contains("Welcome"),autoRoleEnabled:installed.contains("Auto Role"))
    }
    if installed.contains("Kimi Lock") {
-    await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
+    if await migratedModuleEnabled("verification",guild:guild){await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")}
+    if protectionEnabled {
     let snowflake=Int64(id) ?? 0
     let createdAt=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
     await RaidProtectionService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,createdAt:createdAt,isBot:user["bot"] as? Bool ?? false)
