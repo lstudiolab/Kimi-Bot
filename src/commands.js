@@ -3,12 +3,11 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-moderation").setDescription("Configure the Moderation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure the Kimi Lock library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-studio").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
   new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's available bundles."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},)),
 
@@ -41,39 +40,13 @@ const allCommandBuilders=[
     .addSubcommand(s=>s.setName("remove").setDescription("Unblock a word or phrase").addStringOption(o=>o.setName("phrase").setDescription("Phrase to remove").setRequired(true).setMaxLength(100)))
     .addSubcommand(s=>s.setName("list").setDescription("List blocked words and phrases")),
   new SlashCommandBuilder().setName("security").setDescription("Audit this server for common security risks."),
-  new SlashCommandBuilder().setName("script").setDescription("Create a TbScript project.")
-    .addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24))
-    .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file (up to 64 KB)")),
-  new SlashCommandBuilder().setName("script-edit").setDescription("Edit a TbScript project or supported Kimi panel.")
-    .addStringOption(o=>o.setName("target").setDescription("What to edit").setRequired(true)
-      .addChoices({name:"Project",value:"project"},{name:"Ticket panel",value:"ticket-panel"},{name:"Verification panel",value:"verification-panel"},{name:"Moderation panel",value:"moderation-panel"},{name:"Role picker panels",value:"role-picker-panel"}))
-    .addStringOption(o=>o.setName("name").setDescription("Project name").setMaxLength(24))
-    .addAttachmentOption(o=>o.setName("file").setDescription("Optional .tdl source file")),
-  new SlashCommandBuilder().setName("scripts").setDescription("List saved TbScript projects."),
-  new SlashCommandBuilder().setName("script-run").setDescription("Test a saved TbScript project.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-stop").setDescription("Stop a running TbScript project.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-delete").setDescription("Delete a TbScript project.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-export").setDescription("Export a TbScript project as a .tdl file.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-import").setDescription("Import a TbScript .tdl file.").addAttachmentOption(o=>o.setName("file").setDescription("TbScript .tdl file").setRequired(true)).addBooleanOption(o=>o.setName("replace").setDescription("Replace an existing project and keep its history")),
-  new SlashCommandBuilder().setName("script-history").setDescription("Show saved project versions.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-check").setDescription("Validate a TbScript project.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-undo").setDescription("Undo the last project change.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-redo").setDescription("Redo the last undone project change.").addStringOption(o=>o.setName("name").setDescription("Project name").setRequired(true).setMaxLength(24)),
-  new SlashCommandBuilder().setName("script-kit").setDescription("Open the TbScript component kit."),
-  new SlashCommandBuilder().setName("script-help").setDescription("Open TbScript documentation.").addStringOption(o=>o.setName("topic").setDescription("Documentation topic")
-    .addChoices({name:"Syntax",value:"syntax"},{name:"Keywords",value:"keywords"},{name:"Actions",value:"actions"},{name:"Conditions",value:"conditions"},{name:"Placeholders",value:"placeholders"},{name:"Safety",value:"safety"})),
-  new SlashCommandBuilder().setName("script-template").setDescription("Create a TbScript starter project.")
-    .addStringOption(o=>o.setName("name").setDescription("New project name").setRequired(true).setMaxLength(24))
-    .addStringOption(o=>o.setName("template").setDescription("Starter template").setRequired(true)
-      .addChoices({name:"Basic panel",value:"panel"},{name:"Button panel",value:"button"},{name:"Welcome event",value:"welcome"},{name:"Message event",value:"message"},{name:"Ticket panel",value:"ticket"},{name:"Verification panel",value:"verification"}))
-];
+ ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-moderation","configure-support","configure-studio","plan","web-token"],
+  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify","verify-config","filter","security","moderation"],
+  "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
-  Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
 for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))command.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
