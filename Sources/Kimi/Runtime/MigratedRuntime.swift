@@ -153,7 +153,11 @@ extension KimiRuntime {
      reply=enabled ? "Automation enabled.":"Automation disabled."
     } else {
      let rules=await engine.rules(guildID:guild)
-     reply=rules.isEmpty ? "No automation rules configured. Use /automations create to add one.":rules.map{$0.name+" · "+$0.trigger+" → "+$0.action+" · "+($0.enabled ? "Enabled":"Disabled")+" · "+$0.id}.joined(separator:"\n")
+     if rules.isEmpty { reply="No automation rules configured. Use /automations create to add one." }
+     else {
+      let rows=rules.map{rule in rule.name+" · "+rule.trigger+" → "+rule.action+" · "+(rule.enabled ? "Enabled":"Disabled")+" · "+rule.id}
+      reply=rows.joined(separator:"\n")
+     }
     }
    case "verify","verify-config":
     let service=VerificationService(store:store,rest:rest,logger:logger)
