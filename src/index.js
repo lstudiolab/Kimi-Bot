@@ -166,7 +166,8 @@ async function handleInteraction(i){
   return respond(i,result.error||"This server is now connected to the Kimi account that generated the token. Return to the dashboard.");
  }
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
- if(i.isRepliable()&&!opensModal(i))await startWorking(i);
+ const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-core","configure-shield","configure-support","configure-studio"].includes(i.commandName);
+ if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
   if(["kimi","configure-core","configure-shield","configure-support","configure-studio","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
