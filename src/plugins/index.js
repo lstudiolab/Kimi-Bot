@@ -10,9 +10,9 @@ export const APPS = Object.freeze({
   Support: Object.freeze({name:"Support",description:"A focused support desk for members and staff.",systems:["Private tickets, staff handoff, priority, transcripts and support activity"],helpers:["Ticket setup assistant","Staff access validator","Transcript exporter","Queue and priority manager"],create:createSupportLibrary}),
 });
 export function normalizeAppName(value){
-  const key=String(value||"").trim().toLowerCase().replace(/[\\s_-]/g,"");
+  const key=String(value||"").trim().toLowerCase().replace(/[\s_-]/g,"");
   const aliases={moderation:"Kimi Lock",security:"Kimi Lock",lock:"Kimi Lock",core:"Welcome",foundation:"Welcome",ticket:"Support",role:"Roles",embed:"Embeds"};
-  return aliases[key]||Object.keys(APPS).find(name=>name.toLowerCase().replace(/\\s/g,"")===key)||null;
+  return aliases[key]||Object.keys(APPS).find(name=>name.toLowerCase().replace(/\s/g,"")===key)||null;
 }
 export const PLUGINS=APPS;
 export const normalizePluginName=normalizeAppName;
