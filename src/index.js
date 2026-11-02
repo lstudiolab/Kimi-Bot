@@ -178,6 +178,7 @@ async function coreCommand(i){
   incident.status="kept";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
   return respond(i,wasContained?"The bot remains restricted. Only you can release it with /guard-review.":"Kimi could not apply an automatic restriction. Remove the bot or revoke its access manually; this incident will remain recorded.");
  }
+ if(i.commandName==="setup")return foundation.setup(i);
  if(i.commandName==="automations")return automationEngine.handleInteraction(i);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
