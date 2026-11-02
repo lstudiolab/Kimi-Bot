@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { spawnSync } from "node:child_process";
@@ -135,7 +136,10 @@ export function runModuleChecks(root){
   for(const [file,data] of scanned.entries){
     if(!file.endsWith(".js"))continue;
     const source=data.toString("utf8").replace(/\\n$/,"\n");
-    const result=spawnSync(process.execPath,["--check"],{input:source,encoding:"utf8",timeout:5000});
+    const checkFile=path.join(os.tmpdir(),"kimi-module-check-"+process.pid+"-"+crypto.randomBytes(5).toString("hex")+".mjs");
+    let result;
+    try{fs.writeFileSync(checkFile,source,{mode:0o600});result=spawnSync(process.execPath,["--check",checkFile],{encoding:"utf8",timeout:5000});}
+    finally{fs.rmSync(checkFile,{force:true});}
     if(result.status!==0)syntax.push({file,error:(result.stderr||result.stdout||"Syntax check failed").trim()});
   }
   const high=scanned.findings.filter(item=>item.severity==="high");
