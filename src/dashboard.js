@@ -171,9 +171,18 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
     const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
     const method = req.method || "GET";
     try {
-      if (method === "POST" && req.headers.origin) {
-        const origin = new URL(req.headers.origin).host;
-        if (origin !== req.headers.host) return send(res, 403, { error: "Cross-origin request blocked." });
+      if (["POST","PUT","PATCH","DELETE"].includes(method)) {
+        const originHeader = req.headers.origin;
+        if (!originHeader) return send(res, 403, { error: "A same-origin request is required." });
+        let origin;
+        try { origin = new URL(originHeader); }
+        catch { return send(res, 403, { error: "Invalid request origin." }); }
+        if (origin.host.toLowerCase() !== String(req.headers.host || "").toLowerCase()) {
+          return send(res, 403, { error: "Cross-origin request blocked." });
+        }
+        if (req.headers["sec-fetch-site"] === "cross-site") {
+          return send(res, 403, { error: "Cross-site request blocked." });
+        }
       }
       if (method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, service: "kimi-dashboard", botReady: client.isReady() });
 
@@ -181,6 +190,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
         const body = await parseBody(req);
         const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
         for (const [key, value] of authAttempts) if (value.resetAt <= Date.now()) authAttempts.delete(key);
+        if (!authAttempts.has(ip) && authAttempts.size >= 5000) authAttempts.delete(authAttempts.keys().next().value);
         const attempt = authAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
         if (attempt.resetAt <= Date.now()) { attempt.count = 0; attempt.resetAt = Date.now() + 15 * 60 * 1000; }
         if (attempt.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
