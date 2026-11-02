@@ -131,12 +131,14 @@ export class Tickets {
       const channels=await i.guild.channels.fetch();
       const already=channels.find(c=>c.type===ChannelType.GuildText&&c.topic===`timi-ticket-owner:${i.user.id}`);
       if(already)return respond(i,`You already have a ticket open: <#${already.id}>`);
+      const activeTickets=channels.filter(c=>c.type===ChannelType.GuildText&&String(c.topic||"").startsWith("timi-ticket-owner:")).size;
+      if(activeTickets>=100)return deny(i,"This server has reached its 100 active-ticket safety limit. Ask the support team to close older tickets first.");
       if(now-(this.cooldowns.get(key)||0)<10000)return deny(i,"Please wait a few seconds before opening another ticket.");
       this.cooldowns.set(key,now);
       return await this.createTicket(i,channels);
     }finally{
       this.opening.delete(key);
-      if(this.cooldowns.size>5000)for(const [id,at] of this.cooldowns)if(now-at>60*60*1000)this.cooldowns.delete(id);
+      if(this.cooldowns.size>5000){for(const [id,at] of this.cooldowns)if(now-at>60*60*1000)this.cooldowns.delete(id);while(this.cooldowns.size>5000)this.cooldowns.delete(this.cooldowns.keys().next().value);}
     }
   }
   async createTicket(i,channels) {
