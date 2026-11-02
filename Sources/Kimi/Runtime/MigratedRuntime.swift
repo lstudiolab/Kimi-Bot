@@ -182,7 +182,9 @@ extension KimiRuntime {
      let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:existing?.footer)
      reply="Embed **"+saved.name+"** saved."
     }
-   case "guard-review":reply="Kimi Guard incident review is being migrated."
+   case "guard-review":
+    guard let target=value("bot"),let decision=value("decision") else{throw KimiError.configuration("Choose an account and decision.")}
+    reply=try await KimiGuardService(store:store,rest:rest,logger:logger).review(guild:guild,actor:target,decision:decision,reviewer:user)
    case "web-token":reply="Dashboard authentication is being migrated to Swift. No email verification is required."
    default:reply="This command is not available in the current Swift runtime."
    }
@@ -291,11 +293,11 @@ extension KimiRuntime {
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureMessage(guild,channel,message,user,data["content"] as? String ?? "")}
   case "MESSAGE_DELETE":
-   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
-   let wasModerationDelete=await store.get("moderation.deleted."+message,as:Bool.self) ?? false
-   if wasModerationDelete{return}
+   return
+  case "MESSAGE_DELETE_BULK":
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String],ids.count>=5 else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message)}
+   if installed.contains("Kimi Lock"){for id in ids{await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,id)}}
   case "CHANNEL_CREATE","CHANNEL_UPDATE":
    guard let guild=data["guild_id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
@@ -303,13 +305,20 @@ extension KimiRuntime {
   case "CHANNEL_DELETE":
    guard let guild=data["guild_id"] as? String,let channel=data["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreChannel(guild,channel)}
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).queueDeletedChannel(guild,channel)}
   case "GUILD_AUDIT_LOG_ENTRY_CREATE":
    guard let guild=data["guild_id"] as? String,let actor=data["user_id"] as? String,let action=data["action_type"] as? Int else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
    guard installed.contains("Kimi Lock") else{return}
-   do {if let incident=try await AuditProtection(store:store).record(guildID:guild,actorID:actor,action:String(action)){await logger.log("WARN","Kimi Lock incident: "+incident.reason)}}
-   catch {await logger.log("ERROR","Audit incident save failed: "+error.localizedDescription)}
+   do {
+    if let incident=try await AuditProtection(store:store).record(guildID:guild,actorID:actor,action:String(action)){
+     await logger.log("WARN","Kimi Lock incident: "+incident.reason)
+     if ["12","32","50","22","20","30","10","1"].contains(incident.action){
+      _ = try await KimiGuardService(store:store,rest:rest,logger:logger).contain(guild:guild,actor:actor,action:incident.action)
+     }
+     if incident.action=="12"{await RecoveryService(store:store,logger:logger,rest:rest).restorePendingChannels(guild)}
+    }
+   } catch {await logger.log("ERROR","Audit incident containment failed: "+error.localizedDescription)}
   default:break
   }
  }
