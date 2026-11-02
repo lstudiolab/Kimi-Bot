@@ -15,9 +15,9 @@ The App Store currently presents Kimi's built-in apps. Downloaded third-party pa
 Kimi Guard uses independent per-server token buckets for member activity, third-party bot messages, and Kimi's own automation triggers.
 
 - Members receive 10 action tokens. Each message or Discord interaction consumes one token; one token returns every 2 seconds, up to the 10-token capacity.
-- Other bots receive a separate 10-token bucket. Their messages and incoming mentions each consume one token. Regeneration starts only after that bot has had no messages or mentions for 2 seconds; continued activity keeps moving the quiet window.
+- Other bots receive a separate 10-token bucket. Only messages authored by that bot consume its tokens; another member mentioning a bot cannot drain its bucket or trigger quarantine. Regeneration starts only after that bot has been quiet for 2 seconds; continued messages keep moving the quiet window.
 - When a member exhausts all 10 tokens, Kimi locks their actions until the full 10-token bucket has regenerated (up to 20 seconds from an empty bucket). Interactions receive an ephemeral cooldown notice. Ordinary messages that exceed the member bucket are deleted because Discord does not support ephemeral replies to normal messages.
 - When a third-party bot exhausts its bucket, Kimi records an incident, removes roles it can safely manage, and attempts a 28-day timeout. Discord may reject timeouts for bot accounts, so role removal is the primary restriction.
-- Only the server owner can use `/guard-review` to restore the bot's saved roles or keep it restricted. Kimi cannot review or restrict its own account.
+- Only the server owner can use `/guard-review` to restore the bot's saved roles or keep it restricted. New-bot approval and rejection controls are also owner-only and are posted only in a private owner channel. Kimi cannot review or restrict its own account.
 - Kimi's own automation triggers use the bot-style quiet-window bucket. Critical Kimi Lock security and recovery handlers are not paused by automation backpressure.
 - Rate state is persisted, inactive buckets expire after seven days, and the data is included in each server's storage quota.
