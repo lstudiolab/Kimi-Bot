@@ -80,6 +80,38 @@ final class DashboardServer:@unchecked Sendable {
    let page=await renderGuild(session,guild:guild,name:selected.name,owner:selected.owner==true)
    write(fd,200,page,"text/html; charset=utf-8",["Cache-Control":"no-store"]);return
   }
+  if request.method=="POST" && path=="/settings"{
+   guard let session else{redirect(fd,"/login");return}
+   guard sameOrigin(request,host:host) else{write(fd,403,"Cross-origin request blocked.","text/plain");return}
+   let form=parseForm(request.body),guild=form["guild"] ?? ""
+   guard form["csrf"]==session.csrf,let selected=session.guilds.first(where:{$0.id==guild}),await canManage(selected),await botIsPresent(guild) else{write(fd,403,"Server settings access denied.","text/plain");return}
+   do{
+    var languages=await store.get("languages",as:[String:String].self) ?? [:]
+    let locale=form["language"] ?? "en-US"
+    guard KimiLocalization.names[locale] != nil else{throw KimiError.configuration("Unsupported language.")}
+    languages[guild]=locale;try await store.set(languages,key:"languages")
+    let foundation=FoundationEngine(store:store,rest:rest,logger:logger)
+    var welcome=await foundation.settings(guildID:guild)
+    welcome.welcomeChannel=form["welcome-channel"];welcome.goodbyeChannel=form["goodbye-channel"]
+    welcome.autoRole=form["auto-role"]
+    welcome.welcomeMessage=form["welcome-message"] ?? welcome.welcomeMessage
+    welcome.goodbyeMessage=form["goodbye-message"] ?? welcome.goodbyeMessage
+    try await foundation.configure(guildID:guild,welcome)
+    let moderation=ModerationEngine(store:store)
+    var policy=await moderation.policy(guildID:guild)
+    policy.enabled=form["moderation-enabled"]=="true"
+    policy.messagesPerMinute=Int(form["messages-per-minute"] ?? "") ?? policy.messagesPerMinute
+    policy.timeoutMinutes=Int(form["timeout-minutes"] ?? "") ?? policy.timeoutMinutes
+    policy.sanction=form["sanction"] ?? policy.sanction
+    policy.logChannelID=form["log-channel"]
+    policy.blockInvites=form["block-invites"]=="true"
+    policy.blockMassMentions=form["block-mentions"]=="true"
+    policy.blockExcessiveCaps=form["block-caps"]=="true"
+    try await moderation.configure(policy,guildID:guild)
+    write(fd,303,"","text/plain",["Location":"/guild?id="+guild])
+   }catch{write(fd,400,page("Settings could not be saved",error.localizedDescription),"text/html")}
+   return
+  }
   if request.method=="POST" && path=="/app"{
    guard let session else{redirect(fd,"/login");return}
    guard sameOrigin(request,host:host) else{write(fd,403,"Cross-origin request blocked.","text/plain");return}
@@ -163,12 +195,26 @@ final class DashboardServer:@unchecked Sendable {
  }
  private func renderGuild(_ session:Session,guild:String,name:String,owner:Bool)async->String{
   let installed=await AppManager(store:store).installed(guildID:guild)
+  let locale=(await store.get("languages",as:[String:String].self) ?? [:])[guild] ?? "en-US"
+  let languageOptions=KimiLocalization.locales.map{code in "<option value='"+escape(code)+"'"+(locale==code ? " selected":"")+">"+escape(KimiLocalization.names[code] ?? code)+"</option>"}.joined()
   let cards=CommandCatalog.appNames().map{app in
    let active=installed.contains(app)
    let button=owner ? "<form method='post' action='/app'><input type='hidden' name='csrf' value='"+escape(session.csrf)+"'><input type='hidden' name='guild' value='"+escape(guild)+"'><input type='hidden' name='app' value='"+escape(app)+"'><input type='hidden' name='action' value='"+(active ? "uninstall":"install")+"'><button class='"+(active ? "secondary":"primary")+"'>"+(active ? "Remove":"Install")+"</button></form>":""
    return "<article class='app'><div><b>"+escape(app)+"</b><small>"+(active ? "Installed":"Available")+"</small></div>"+button+"</article>"
   }.joined()
-  return shell(name,"Kimi app management","<a class='back' href='/'>← All servers</a><section class='panel'><h2>App Store</h2><p>"+(owner ? "As server owner, you can install or remove apps.":"Only the server owner can change installed apps.")+"</p>"+cards+"</section>")
+  let analytics=await AnalyticsService(store:store).report(guild:guild)
+  let stats="<div class='stats'><div><b>"+String(analytics.messages)+"</b><small>Messages</small></div><div><b>"+String(analytics.joins)+"</b><small>Joins</small></div><div><b>"+String(analytics.commands)+"</b><small>Commands</small></div><div><b>"+String(analytics.moderation)+"</b><small>Moderation</small></div></div>"
+  let foundation=FoundationEngine(store:store,rest:rest,logger:logger)
+  let welcome=await foundation.settings(guildID:guild)
+  let policy=await ModerationEngine(store:store).policy(guildID:guild)
+  let settings="<section class='panel'><h2>Server settings</h2><form method='post' action='/settings'><input type='hidden' name='csrf' value='"+escape(session.csrf)+"'><input type='hidden' name='guild' value='"+escape(guild)+"'><label>Language<select name='language'>"+languageOptions+"</select></label><h3>Welcome</h3><label>Welcome channel ID<input name='welcome-channel' value='"+escape(welcome.welcomeChannel ?? "")+"'></label><label>Goodbye channel ID<input name='goodbye-channel' value='"+escape(welcome.goodbyeChannel ?? "")+"'></label><label>Automatic role ID<input name='auto-role' value='"+escape(welcome.autoRole ?? "")+"'></label><label>Welcome message<input name='welcome-message' value='"+escape(welcome.welcomeMessage)+"'></label><label>Goodbye message<input name='goodbye-message' value='"+escape(welcome.goodbyeMessage)+"'></label><h3>Kimi Lock</h3><input type='hidden' name='moderation-enabled' value='false'><label class='check'><input type='checkbox' name='moderation-enabled' value='true'"+(policy.enabled ? " checked":"")+"> Enable automatic moderation</label><label>Messages per minute<input type='number' min='2' max='100' name='messages-per-minute' value='"+String(policy.messagesPerMinute)+"'></label><label>Timeout minutes<input type='number' min='1' max='40320' name='timeout-minutes' value='"+String(policy.timeoutMinutes)+"'></label><label>Sanction<select name='sanction'>"+["delete","timeout","kick","ban"].map{v in "<option value='"+v+"'"+(policy.sanction==v ? " selected":"")+">"+v.capitalized+"</option>"}.joined()+"</select></label><label>Moderation log channel ID<input name='log-channel' value='"+escape(policy.logChannelID ?? "")+"'></label><input type='hidden' name='block-invites' value='false'><label class='check'><input type='checkbox' name='block-invites' value='true'"+(policy.blockInvites ? " checked":"")+"> Block Discord invites</label><input type='hidden' name='block-mentions' value='false'><label class='check'><input type='checkbox' name='block-mentions' value='true'"+(policy.blockMassMentions ? " checked":"")+"> Block mass mentions</label><input type='hidden' name='block-caps' value='false'><label class='check'><input type='checkbox' name='block-caps' value='true'"+(policy.blockExcessiveCaps ? " checked":"")+"> Block excessive capitals</label><button class='primary'>Save settings</button></form></section>"
+  let commandNames=(CommandCatalog.globalCommands()+CommandCatalog.guildCommands(installed:installed)).compactMap{$0["name"] as? String}.sorted()
+  let commandHTML="<section class='panel'><h2>Commands</h2><p>Commands available in this server.</p><div class='chips'>"+commandNames.map{"<code>/"+escape($0)+"</code>"}.joined(separator:" ")+"</div></section>"
+  let entries=await logger.recent(limit:120)
+  let logs=entries.filter{$0.message.contains(guild)}.suffix(30).map{entry in "<div class='log'><small>"+escape(ISO8601DateFormatter().string(from:entry.date))+" · "+escape(entry.level)+"</small><p>"+escape(entry.message)+"</p></div>"}.joined()
+  let activity="<section class='panel'><h2>Recent activity</h2>"+(logs.isEmpty ? "<p class='muted'>No recent activity for this server.</p>":logs)+"</section>"
+  let overview="<section class='panel'><h2>Overview · Last 30 days</h2>"+stats+"<p>Active days: "+String(analytics.activeDays)+" · Leaves: "+String(analytics.leaves)+" · Tickets opened: "+String(analytics.ticketsOpened)+" · Tickets closed: "+String(analytics.ticketsClosed)+"</p></section>"
+  return shell(name,"Kimi server workspace","<a class='back' href='/'>← All servers</a>"+overview+"<section class='panel'><h2>App Store</h2><p>"+(owner ? "As server owner, you can install or remove apps.":"Only the server owner can change installed apps.")+"</p>"+cards+"</section>"+settings+commandHTML+activity)
  }
  private func canManage(_ guild:OAuthGuild)async->Bool{
   if guild.owner==true{return true}
@@ -201,7 +247,7 @@ final class DashboardServer:@unchecked Sendable {
  private func escape(_ value:String)->String{value.replacingOccurrences(of:"&",with:"&amp;").replacingOccurrences(of:"<",with:"&lt;").replacingOccurrences(of:">",with:"&gt;").replacingOccurrences(of:"\"",with:"&quot;").replacingOccurrences(of:"'",with:"&#39;")}
  private func page(_ title:String,_ description:String)->String{shell(title,description,"<section class='panel'><p>"+escape(description)+"</p><a class='button' href='/login'>Continue</a></section>")}
  private func shell(_ title:String,_ subtitle:String,_ body:String)->String{
-  "<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta name='theme-color' content='#101112'><title>"+escape(title)+" · Kimi</title><style>*{box-sizing:border-box}body{margin:0;background:#101112;color:#f3f4f5;font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}main{width:min(760px,calc(100% - 32px));margin:8vh auto}.brand{font-size:22px;font-weight:650;letter-spacing:-1px;margin-bottom:48px}.brand i{display:inline-grid;place-items:center;width:34px;height:34px;background:#eee;color:#111;border-radius:11px;margin-right:9px;font-style:normal}.eyebrow{font-size:11px;letter-spacing:1.5px;color:#8b9095;margin:0 0 10px}h1{font-size:38px;letter-spacing:-1.5px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}p{color:#a4a9ae;line-height:1.6}.panel{background:#191b1e;border:1px solid #303337;border-radius:18px;padding:24px;margin-top:28px}.server,.app{display:flex;align-items:center;gap:14px;padding:15px 0;border-top:1px solid #303337;color:#f3f4f5;text-decoration:none}.server-icon{width:38px;height:38px;display:grid;place-items:center;background:#303337;border-radius:12px}.server small,.app small{display:block;color:#8b9095;margin-top:4px}.arrow{margin-left:auto;color:#aaa}.app form{margin-left:auto}.button,button{border:0;border-radius:10px;padding:11px 16px;background:#e6e8ea;color:#151617;text-decoration:none;font-weight:600;cursor:pointer}.secondary{background:#292c30;color:#e6e8ea}.back{color:#c4c8cc;text-decoration:none}.muted{color:#999}</style><main><div class='brand'><i>K</i>kimi</div><div class='eyebrow'>KIMI CONTROL CENTER</div><h1>"+escape(title)+"</h1><p>"+escape(subtitle)+"</p>"+body+"<p class='muted'>Kimi Swift · Discord OAuth · Server-side rendering</p></main></html>"
+  "<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta name='theme-color' content='#101112'><title>"+escape(title)+" · Kimi</title><style>*{box-sizing:border-box}body{margin:0;background:#101112;color:#f3f4f5;font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}main{width:min(760px,calc(100% - 32px));margin:8vh auto}.brand{font-size:22px;font-weight:650;letter-spacing:-1px;margin-bottom:48px}.brand i{display:inline-grid;place-items:center;width:34px;height:34px;background:#eee;color:#111;border-radius:11px;margin-right:9px;font-style:normal}.eyebrow{font-size:11px;letter-spacing:1.5px;color:#8b9095;margin:0 0 10px}h1{font-size:38px;letter-spacing:-1.5px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}p{color:#a4a9ae;line-height:1.6}.panel{background:#191b1e;border:1px solid #303337;border-radius:18px;padding:24px;margin-top:28px}.server,.app{display:flex;align-items:center;gap:14px;padding:15px 0;border-top:1px solid #303337;color:#f3f4f5;text-decoration:none}.server-icon{width:38px;height:38px;display:grid;place-items:center;background:#303337;border-radius:12px}.server small,.app small{display:block;color:#8b9095;margin-top:4px}.arrow{margin-left:auto;color:#aaa}.app form{margin-left:auto}.button,button{border:0;border-radius:10px;padding:11px 16px;background:#e6e8ea;color:#151617;text-decoration:none;font-weight:600;cursor:pointer}.secondary{background:#292c30;color:#e6e8ea}.back{color:#c4c8cc;text-decoration:none}.muted{color:#999}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}.stats div{background:#222529;border-radius:12px;padding:14px}.stats b{display:block;font-size:24px}.stats small{color:#999}.panel label{display:block;color:#c6cbd0;margin:14px 0}.panel input:not([type=checkbox]),.panel select{display:block;width:100%;margin-top:6px;padding:11px;background:#111315;color:#eee;border:1px solid #383c40;border-radius:9px}.panel .check{display:flex;align-items:center;gap:9px}.log{border-top:1px solid #303337;padding:8px 0}.log small{color:#888}.log p{margin:4px 0}.chips code{display:inline-block;background:#25282c;border-radius:6px;padding:5px 7px;margin:3px}</style><main><div class='brand'><i>K</i>kimi</div><div class='eyebrow'>KIMI CONTROL CENTER</div><h1>"+escape(title)+"</h1><p>"+escape(subtitle)+"</p>"+body+"<p class='muted'>Kimi Swift · Discord OAuth · Server-side rendering</p></main></html>"
  }
  private func redirect(_ fd:Int32,_ location:String){write(fd,303,"","text/plain",["Location":location])}
  private func write(_ fd:Int32,_ status:Int,_ body:String,_ type:String,_ headers:[String:String]=[:]){
