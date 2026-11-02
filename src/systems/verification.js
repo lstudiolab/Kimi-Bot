@@ -182,16 +182,19 @@ export class Verification {
       return respond(i,"Bot rejected and removed from the server.");
     }
     const channels=await guild.channels.fetch();let failures=0;
+    const setup=this.store.data.timi_setup?.[guildId]||{};
+    const privateIds=new Set([setup.log_channel_id,setup.confirmation_channel_id].filter(Boolean));
     for(const channel of channels.values()){
-      if(channel.permissionOverwrites?.cache?.has(botId)&&!["timi","timi-log","timi-logs","timi-confirmations","timi-settings"].includes(channel.name)){
-        await channel.permissionOverwrites.delete(botId).catch(error=>{
-          failures++;this.logger.warn("Could not remove a temporary bot restriction from "+channel.id+":",error.message);
-        });
-      }
+      if(!channel.permissionOverwrites?.cache?.has(botId)||privateIds.has(channel.id))continue;
+      const everyoneCanView=channel.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel)===true;
+      if(!everyoneCanView)continue;
+      await channel.permissionOverwrites.delete(botId).catch(error=>{
+        failures++;this.logger.warn("Could not remove a temporary bot restriction from "+channel.id+":",error.message);
+      });
     }
     if(failures)return respond(i,"Bot approval could not be completed: Timi failed to remove restrictions in "+failures+" channel(s). The request remains available so you can retry after checking permissions.");
     delete this.store.data.pending_bots[key];this.store.save();
-    return respond(i,"Bot approved. Temporary channel restrictions were removed; private Timi channels remain inaccessible.");
+    return respond(i,"Bot approved. Temporary restrictions were removed from public channels. Private channels remain restricted, even when the bot has role-based access.");
   }
   async handle(i){
     if(i.isChatInputCommand()&&["verify","verify-config"].includes(i.commandName))return this.command(i);
