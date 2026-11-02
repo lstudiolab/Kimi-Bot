@@ -234,10 +234,6 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const welcomeChannel=channelId("welcome-channel"),goodbyeChannel=channelId("goodbye-channel");
       for(const value of [welcomeChannel,goodbyeChannel])if(value&&!/^\d{15,22}$/.test(value))return i.editReply({content:"Enter a valid Discord channel ID or leave it blank.",components:[],embeds:[]});
       for(const value of [welcomeChannel,goodbyeChannel])if(value&&(!i.guild.channels.cache.has(value)||!i.guild.channels.cache.get(value).isTextBased()))return i.editReply({content:"Choose text channels from this server.",components:[],embeds:[]});
-      if(roleId){
-        const role=i.guild.roles.cache.get(roleId),bot=await i.guild.members.fetchMe();
-        if(!isSafeAssignableRole(role,i.guildId)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Choose a normal role below Kimi's highest role. Kimi also needs Manage Roles permission.",components:[],embeds:[]});
-      }
       this.store.data.welcome[i.guildId]={...current,welcome_channel_id:welcomeChannel,welcome_message:read("welcome-message")||current.welcome_message,goodbye_channel_id:goodbyeChannel,goodbye_message:read("goodbye-message")||current.goodbye_message,auto_role_id:current.auto_role_id||""};
       this.store.save();
       return i.editReply({content:"Welcome and goodbye settings saved. Configure automatic roles in the Roles app with /autorole.",components:[],embeds:[]});
