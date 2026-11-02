@@ -64,8 +64,7 @@ actor LibraryPackageManager {
   try? FileManager.default.removeItem(at:target)
   return true
  }
- func installed()->[Installed]{getInstalled()}
- private func getInstalled()->[Installed]{[]}
+ func installed()async->[Installed]{Array((await store.get("libraries.installed",as:[String:Installed].self) ?? [:]).values).sorted{$0.name<$1.name}}
  private func safeRelative(_ path:String)->Bool{
   guard !path.isEmpty,!path.hasPrefix("/"),!path.contains("\\"),!path.contains("\0") else{return false}
   let components=path.split(separator:"/",omittingEmptySubsequences:false)
