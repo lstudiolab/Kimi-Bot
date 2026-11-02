@@ -303,8 +303,7 @@ client.on(Events.MessageCreate,async m=>{
   return;
  }
  if(m.author.bot)return;
- if(!allowSystemTrigger(m.guild.id))return;
- automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
+ if(allowSystemTrigger(m.guild.id))automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
   if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation app is not added to this server.").catch(()=>{});
@@ -319,15 +318,15 @@ client.on(Events.MessageCreate,async m=>{
  }
   if(manager.installed(m.guildId,"Kimi Lock"))plugins["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
-client.on(Events.MessageDelete,m=>{if(m.guild&&!allowSystemTrigger(m.guild.id))return;if(m.guild&&manager.installed(m.guild.id,"Kimi Lock")&&moduleEnabled(m.guild.id,"moderation"))plugins["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
-client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&!allowSystemTrigger(newMessage.guild.id))return;if(newMessage.guild&&manager.installed(newMessage.guild.id,"Kimi Lock")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))plugins["Kimi Lock"].messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
-client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(!allowSystemTrigger(newMember.guild.id))return;if(manager.installed(newMember.guild.id,"Kimi Lock")&&moduleEnabled(newMember.guild.id,"moderation"))plugins["Kimi Lock"].memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
-client.on(Events.GuildBanAdd,ban=>{if(!allowSystemTrigger(ban.guild.id))return;if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
-client.on(Events.GuildBanRemove,ban=>{if(!allowSystemTrigger(ban.guild.id))return;if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
-client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(!allowSystemTrigger(guild.id))return;if(manager.installed(guild.id,"Kimi Lock")&&moduleEnabled(guild.id,"protection"))plugins["Kimi Lock"].auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Kimi Lock")&&moduleEnabled(m.guild.id,"moderation"))plugins["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Kimi Lock")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))plugins["Kimi Lock"].messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
+client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Kimi Lock")&&moduleEnabled(newMember.guild.id,"moderation"))plugins["Kimi Lock"].memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
+client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
+client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Kimi Lock")&&moduleEnabled(guild.id,"protection"))plugins["Kimi Lock"].auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
- if(!allowSystemTrigger(m.guild.id))return;
- automationEngine.memberJoin(m).catch(error=>logger.error("Automation join trigger failed:",error));
+ const allowAutomation=allowSystemTrigger(m.guild.id);
+ if(allowAutomation)automationEngine.memberJoin(m).catch(error=>logger.error("Automation join trigger failed:",error));
  const record=store.member(m.guild.id,m.id);
  record.joins++;
  record.last_join=Date.now();
@@ -336,19 +335,19 @@ client.on(Events.GuildMemberAdd,m=>{
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
   if(modules.protection||modules.verification)plugins["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
- if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
+ if(allowAutomation&&manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
 });
 client.on(Events.GuildMemberRemove,m=>{
- if(!allowSystemTrigger(m.guild.id))return;
- automationEngine.memberLeave(m).catch(error=>logger.error("Automation leave trigger failed:",error));
+ const allowAutomation=allowSystemTrigger(m.guild.id);
+ if(allowAutomation)automationEngine.memberLeave(m).catch(error=>logger.error("Automation leave trigger failed:",error));
  const record=store.member(m.guild.id,m.id);
  record.leaves++;
  store.queueSave();
- if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
+ if(allowAutomation&&manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
-client.on(Events.ChannelCreate,c=>{if(c.guild&&!allowSystemTrigger(c.guild.id))return;if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelCreate(c);});
-client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&!allowSystemTrigger(c.guild.id))return;if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelUpdate(o,c);});
-client.on(Events.ChannelDelete,c=>{if(c.guild&&!allowSystemTrigger(c.guild.id))return;if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
+client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelCreate(c);});
+client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelUpdate(o,c);});
+client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
