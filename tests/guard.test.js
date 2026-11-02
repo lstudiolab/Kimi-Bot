@@ -34,5 +34,6 @@ test("malformed persisted rate state is repaired instead of crashing",()=>{
  const result=g.consume("g","u","user",2000);
  assert.equal(result.allowed,true);
  assert.equal(result.tokens,9);
- assert.equal(store.data.guard_state.g.users.old.tokens,10);
+ const repaired=g.consume("g","old","user",2000);
+ assert.equal(repaired.tokens,9,"stored token counts are clamped when a bucket is used");
 });
