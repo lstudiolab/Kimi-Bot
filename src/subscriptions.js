@@ -5,9 +5,10 @@ export const PLANS = Object.freeze({
 });
 
 const STORAGE_COLLECTIONS = Object.freeze([
-  "installed_libraries", "welcome", "tickets", "moderation", "verification",
-  "developer_projects", "developer_history", "developer_redo", "panel_scripts",
-  "customizations", "library_data", "timi_setup", "automod_words", "moderation_cases", "moderation_jobs", "pending_bots", "developer_active"
+  "installed_plugins", "modules", "command_settings", "languages", "automations",
+  "welcome", "tickets", "moderation", "verification", "verification_logs",
+  "analytics_requests", "customizations", "library_data", "timi_setup",
+  "automod_words", "moderation_cases", "moderation_jobs", "guard_state", "messages"
 ]);
 
 export function getPlanForData(_data, _guildId) { return "free"; }
@@ -25,7 +26,7 @@ function guildStorageSnapshot(data, guildId, overrides = {}) {
     for (const [key, value] of Object.entries(source)) if (value?.guild_id === guildId) selected[key] = value;
     if (Object.keys(selected).length) snapshot[collection] = selected;
   }
-  for (const collection of ["embeds", "members", "pending_bots"]) {
+  for (const collection of ["embeds", "members", "pending_bots", "channels"]) {
     const selected = {};
     for (const [key, value] of Object.entries(data[collection] || {})) if (key.startsWith(guildId + ":")) selected[key] = value;
     if (Object.keys(selected).length) snapshot[collection] = selected;
