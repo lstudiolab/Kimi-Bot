@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const LINK_TTL = 10 * 60 * 1000;
 const WEB_TOKEN_TTL = 10 * 60 * 1000;
+const MAX_ACCOUNTS = 10000;
 
 function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); }
@@ -63,6 +64,7 @@ export class AuthStore {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) return { error: "Enter a valid email address." };
     if (String(password || "").length < 10 || String(password).length > 128) return { error: "Password must be between 10 and 128 characters." };
     if (this.accounts.accounts.some(account => account.email === normalized)) return { error: "An account with this email already exists." };
+    if (this.accounts.accounts.length >= MAX_ACCOUNTS) return { error: "Kimi account capacity has been reached. Contact support." };
     const salt = crypto.randomBytes(16).toString("hex");
     const passwordHash = crypto.scryptSync(String(password), salt, 64).toString("hex");
     const account = {
