@@ -17,14 +17,12 @@ const MODULES = Object.freeze([
   { id: "protection", name: "Server protection", library: "Kimi Lock" },
   { id: "recovery", name: "Recovery", library: "Kimi Lock" },
   { id: "tickets", name: "Tickets", library: "Support" },
-  { id: "scratch", name: "TbScript", library: "Scratch" }
 ]);
-const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support", "Scratch"]);
+const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support"]);
 const COMMAND_GROUPS = Object.freeze({
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify-config","filter","security","moderation"],
+  "Kimi Lock":["verify","verify-config","filter","security","moderation","lock"],
   Support:["tickets","ticket-panel","ticket-config"],
-  Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
 const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,bundle}))));
 
@@ -265,7 +263,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           for(const row of recent)for(const [name,count] of Object.entries(row.commandCounts||{}))commandCounts[name]=(commandCounts[name]||0)+count;
           const topCommands=Object.entries(commandCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name,count])=>({name,count}));
           const rules=await context.guild.autoModerationRules.fetch().catch(()=>null);
-          return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activeLibraries:(store.data.installed_plugins?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
+          return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activePlugins:(store.data.installed_plugins?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
         }
         const verificationLogsMatch=url.pathname.match(/^\/api\/guilds\/(\d+)\/verification-logs$/);
         if(method==="GET"&&verificationLogsMatch){
@@ -312,7 +310,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             return send(res,200,{ok:true,language:body.language});
           }
         }
-        const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|libraries)\/([a-zA-Z-]+))?$/);
+        const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|plugins|libraries)\/([a-zA-Z-]+))?$/);
         if (guildMatch) {
           const guildId = guildMatch[1];
           const context = await requireGuild(req, res, session, guildId);
@@ -331,7 +329,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             logger.info("Dashboard changed " + module.id + " to " + (body.enabled ? "enabled" : "disabled") + " in guild " + guildId);
             return send(res, 200, { ok: true, module: module.id, enabled: body.enabled });
           }
-          if (method === "POST" && guildMatch[2] === "libraries") {
+          if (method === "POST" && (guildMatch[2] === "plugins" || guildMatch[2] === "libraries")) {
             const body = await parseBody(req);
             const name = guildMatch[3];
             if (!PLUGIN_NAMES.has(name) || !["install", "uninstall"].includes(body.action)) {
