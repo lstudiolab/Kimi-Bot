@@ -32,11 +32,9 @@ function recordAnalytics(guildId,metric,commandName=""){
 const commandModule={
  "verify":"verification","verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","kimi-channel":"setup","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
- "ticket-panel":"tickets",
- "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
- "script-export":"scratch","script-import":"scratch","script-history":"scratch","script-check":"scratch","script-undo":"scratch","script-redo":"scratch","script-kit":"scratch","script-help":"scratch","script-template":"scratch"
+ "ticket-panel":"tickets"
 };
-const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":(id.startsWith("tbs:")||id.startsWith("tbm:"))?"scratch":null;
+const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":null;
 const foundation=LIBRARIES.Foundation.create(context);context.foundation=foundation;
 const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
 context.libraries=libraries;
@@ -55,13 +53,11 @@ async function syncGuildCommands(guildId){
 }
 function opensModal(i){
  if(i.isChatInputCommand()){
-  const file=i.commandName==="script"||i.commandName==="script-edit" ? i.options.getAttachment("file") : null;
-  if(file)return false;
   return ["embed-new","web-token"].includes(i.commandName);
  }
  if(!i.isButton())return false;
  const id=i.customId;
- return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="settings:appearance-color"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
+ return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="settings:appearance-color"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:");
 }
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
@@ -129,7 +125,7 @@ async function coreCommand(i){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
   const result=manager.uninstall(i.guildId,i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
-  const libraryKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.library.name]||result.library.name;
+  const libraryKey=result.library.name;
   if(libraries[libraryKey]?.onUninstall)await libraries[libraryKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
   return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
@@ -137,7 +133,7 @@ async function coreCommand(i){
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi libraries.");
   const name=i.options.getString("library");
-  if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Moderation, Support. Use /libraries for details.");
+  if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Kimi Lock, Support. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.library.name);
   try {
@@ -259,7 +255,7 @@ client.on(Events.MessageCreate,async m=>{
  }
   if(manager.installed(m.guildId,"Kimi Lock"))libraries["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
-client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
 client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries.Security.messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
 client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security")&&moduleEnabled(newMember.guild.id,"moderation"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
 client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
