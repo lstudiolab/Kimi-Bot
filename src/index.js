@@ -191,7 +191,7 @@ async function handleInteraction(i){
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
- if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed. This control is inactive.`);
+ if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** app is not added. This control is inactive.`);
  return plugins[required].handleInteraction(i);
 }
 client.on(Events.GuildCreate,guild=>{
@@ -251,7 +251,7 @@ client.on(Events.MessageCreate,async m=>{
  automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
-  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation plugin is not installed in this server.").catch(()=>{});
+  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation app is not added to this server.").catch(()=>{});
   try{
    const sent=await foundation.testGreet(m.member);
    if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Kimi can view and send messages there.").catch(()=>{});
