@@ -182,7 +182,7 @@ async function handleInteraction(i){
  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /kimi.`);
  const required=libraryForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
- const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||id.startsWith("developer:")||ticketAdminControl;
+ const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
@@ -255,21 +255,21 @@ client.on(Events.MessageCreate,async m=>{
  }
   if(manager.installed(m.guildId,"Kimi Lock"))libraries["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
-client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
-client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries.Security.messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
-client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Security")&&moduleEnabled(newMember.guild.id,"moderation"))libraries.Security.memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
-client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
-client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Security")&&moduleEnabled(ban.guild.id,"moderation"))libraries.Security.ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
-client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Security")&&moduleEnabled(guild.id,"protection"))libraries.Security.auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Kimi Lock")&&moduleEnabled(m.guild.id,"moderation"))libraries["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Kimi Lock")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries["Kimi Lock"].messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
+client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Kimi Lock")&&moduleEnabled(newMember.guild.id,"moderation"))libraries["Kimi Lock"].memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
+client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))libraries["Kimi Lock"].ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
+client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))libraries["Kimi Lock"].ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Kimi Lock")&&moduleEnabled(guild.id,"protection"))libraries["Kimi Lock"].auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
  const record=store.member(m.guild.id,m.id);
  record.joins++;
  record.last_join=Date.now();
  store.queueSave();
  if(manager.installed(m.guild.id,"Scratch")&&moduleEnabled(m.guild.id,"scratch"))libraries.Scratch.onMemberJoin(m).catch(e=>logger.error("TBScript member-join event failed:",e));
- if(manager.installed(m.guild.id,"Security")){
+ if(manager.installed(m.guild.id,"Kimi Lock")){
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
-  if(modules.protection||modules.verification)libraries.Security.guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
+  if(modules.protection||modules.verification)libraries["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
  if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
 });
@@ -279,9 +279,9 @@ client.on(Events.GuildMemberRemove,m=>{
  store.queueSave();
  if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
-client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelCreate(c);});
-client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelUpdate(o,c);});
-client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
+client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelCreate(c);});
+client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelUpdate(o,c);});
+client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
