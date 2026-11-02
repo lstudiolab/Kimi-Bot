@@ -118,7 +118,6 @@ actor DiscordREST {
   let configuration=URLSessionConfiguration.ephemeral
   configuration.timeoutIntervalForRequest=30
   configuration.timeoutIntervalForResource=60
-  configuration.waitsForConnectivity=false
   session=URLSession(configuration:configuration)
  }
  func call(_ method:String,_ path:String,body:Any?=nil,auditReason:String?=nil)async throws->Any{
