@@ -52,6 +52,7 @@ export class AutomationEngine{
   async triggerPicker(i){
     const menu=select("automation:trigger","Choose what starts this automation",[
       {label:"Run manually",value:"manual",description:"Start this automation with a Run button"},
+      {label:"Run manually",value:"manual",description:"Run this flow from the automation dashboard"},
       {label:"Member joins",value:"member_join",description:"When someone joins this server"},
       {label:"Member leaves",value:"member_leave",description:"When someone leaves this server"},
       {label:"A message is sent",value:"message_create",description:"When a member sends a message"}
@@ -184,6 +185,12 @@ export class AutomationEngine{
       const results=await this.run(i.guild,"manual",{guild:i.guild,member,accountAgeDays:Math.floor((Date.now()-i.user.createdTimestamp)/86400000)},"manual:"+randomUUID());
       const failed=results.reduce((total,result)=>total+(result.status==="rejected"?1:Number(result.value?.failedSteps||0)),0);
       return i.editReply({embeds:[embed(failed?"Automation finished with errors":"Automation completed",failed?failed+" background step(s) could not be queued. Check Kimi's logs.":"**"+automation.name+"** finished running.")],components:[row(button("automation:home","Done"))]});
+    }
+    if(id.startsWith("automation:run:")){
+      const target=id.slice("automation:run:".length),automation=this.list(i.guildId).find(a=>a.id===target);
+      if(!automation||!automation.enabled||automation.trigger!=="manual")return this.dashboard(i,target);
+      await this.run(i.guild,"manual",{},randomUUID());
+      return i.editReply({embeds:[embed("Automation Started",automation.name+" was run. Kimi is processing its actions.")],components:[row(button("automation:home","Done"))]});
     }
     if(id.startsWith("automation:toggle:")){
       const automation=this.list(i.guildId).find(a=>a.id===id.slice("automation:toggle:".length));if(automation){automation.enabled=!automation.enabled;automation.updated_at=Date.now();this.store.save();}
