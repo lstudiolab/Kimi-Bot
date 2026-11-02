@@ -37,3 +37,9 @@ test("malformed persisted rate state is repaired instead of crashing",()=>{
  const repaired=g.consume("g","old","user",2000);
  assert.equal(repaired.tokens,9,"stored token counts are clamped when a bucket is used");
 });
+
+test("Guard rate-limit storage stays bounded under many unique actors",()=>{
+ const store={data:{guard_state:{}},queueSave(){}},g=new GuardRateLimiter(store);
+ for(let index=0;index<20050;index++)g.consume("g",String(100000000000000000+index),"user",1000+index);
+ assert.ok(Object.keys(store.data.guard_state.g.users).length<=20000);
+});
