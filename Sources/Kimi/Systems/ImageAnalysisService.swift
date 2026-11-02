@@ -78,7 +78,7 @@ actor ImageAnalysisService {
   if b.count>=3 && b[0]==0xff && b[1]==0xd8 && b[2]==0xff{return Metadata(type:"jpeg",width:nil,height:nil,bytes:b.count)}
   if b.count>=30 && String(bytes:b[0..<4],encoding:.ascii)=="RIFF" && String(bytes:b[8..<12],encoding:.ascii)=="WEBP"{
    let chunk=String(bytes:b[12..<16],encoding:.ascii) ?? ""
-   if chunk=="VP8X"{let w=1+Int(b[24])+Int(b[25])<<8+Int(b[26])<<16;let h=1+Int(b[27])+Int(b[28])<<8+Int(b[29])<<16;return Metadata(type:"webp",width:w,height:h,bytes:b.count)}
+   if chunk=="VP8X"{let w=1+(Int(b[24]) | (Int(b[25]) << 8) | (Int(b[26]) << 16));let h=1+(Int(b[27]) | (Int(b[28]) << 8) | (Int(b[29]) << 16));return Metadata(type:"webp",width:w,height:h,bytes:b.count)}
    return Metadata(type:"webp",width:nil,height:nil,bytes:b.count)
   }
   return nil
