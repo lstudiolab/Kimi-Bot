@@ -53,7 +53,7 @@ function cookieValue(req, name) {
   const raw = req.headers.cookie || "";
   for (const part of raw.split(";")) {
     const [key, ...value] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(value.join("="));
+    if (key === name) { try { return decodeURIComponent(value.join("=")); } catch { return ""; } }
   }
   return "";
 }
@@ -189,14 +189,20 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
       if (method === "POST" && ["/auth/register", "/auth/login"].includes(url.pathname)) {
         const body = await parseBody(req);
         const ip = String(req.socket.remoteAddress || "unknown");
-        for (const [key, value] of authAttempts) if (value.resetAt <= Date.now()) authAttempts.delete(key);
-        if (!authAttempts.has(ip) && authAttempts.size >= 5000) authAttempts.delete(authAttempts.keys().next().value);
-        const attempt = authAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
-        if (attempt.resetAt <= Date.now()) { attempt.count = 0; attempt.resetAt = Date.now() + 15 * 60 * 1000; }
-        if (attempt.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
+        const emailKey = "account:" + String(body.email || "").trim().toLowerCase().slice(0,254);
+        for (const [key, value] of authAttempts) if (!value || value.resetAt <= Date.now()) authAttempts.delete(key);
+        const getAttempt = key => {
+          if (!authAttempts.has(key) && authAttempts.size >= 5000) authAttempts.delete(authAttempts.keys().next().value);
+          const value = authAttempts.get(key) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
+          if (value.resetAt <= Date.now()) { value.count = 0; value.resetAt = Date.now() + 15 * 60 * 1000; }
+          return value;
+        };
+        const attempt = getAttempt("ip:" + ip);
+        const accountAttempt = url.pathname === "/auth/login" ? getAttempt(emailKey) : null;
+        if (attempt.count >= 8 || accountAttempt?.count >= 8) return send(res, 429, { error: "Too many attempts. Wait 15 minutes and try again." });
         if (url.pathname === "/auth/register") {
           attempt.count++;
-          authAttempts.set(ip, attempt);
+          authAttempts.set("ip:" + ip, attempt);
           const result = authStore.createAccount({ email: body.email, password: body.password, displayName: body.displayName });
           if (result.error) return send(res, 400, { error: result.error });
           const token = authStore.createSession(result.account.id);
@@ -210,7 +216,8 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
           authAttempts.set(ip, attempt);
           return send(res, 401, { error: "Email or password is incorrect." });
         }
-        authAttempts.delete(ip);
+        authAttempts.delete("ip:" + ip);
+        authAttempts.delete(emailKey);
         const token = authStore.createSession(account.id);
         setSessionCookie(res, token);
         return send(res, 200, { ok: true }, { "Set-Cookie": res.getHeader("Set-Cookie") });
