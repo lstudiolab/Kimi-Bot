@@ -53,7 +53,6 @@ export class AutomationEngine{
   }
   async triggerPicker(i){
     const menu=select("automation:trigger","Choose what starts this automation",[
-      {label:"Run manually",value:"manual",description:"Start this automation with a Run button"},
       {label:"Run manually",value:"manual",description:"Run this flow from the automation dashboard"},
       {label:"Member joins",value:"member_join",description:"When someone joins this server"},
       {label:"Member leaves",value:"member_leave",description:"When someone leaves this server"},
@@ -117,7 +116,12 @@ export class AutomationEngine{
     if(id==="automation:cancel"){this.drafts.delete(key(i.guildId,i.user.id));return this.dashboard(i);}
     if(id==="automation:add-action")return this.actionPicker(i);
     if(id.startsWith("automation:trigger")&&i.isStringSelectMenu()){
-      this.drafts.set(key(i.guildId,i.user.id),{name:"",trigger:i.values[0],condition:{type:"always",label:"Every time"},actions:[]});
+      const draftKey=key(i.guildId,i.user.id),now=Date.now();
+      if(!this.drafts.has(draftKey)&&this.drafts.size>=2000){
+        for(const [draftId,draft] of this.drafts)if(now-(draft.created_at||0)>60*60*1000)this.drafts.delete(draftId);
+        while(this.drafts.size>=2000)this.drafts.delete(this.drafts.keys().next().value);
+      }
+      this.drafts.set(draftKey,{name:"",trigger:i.values[0],condition:{type:"always",label:"Every time"},actions:[],created_at:now});
       return this.conditionPicker(i);
     }
     if(id==="automation:condition"&&i.isStringSelectMenu()){
@@ -238,7 +242,7 @@ export class AutomationEngine{
         }finally{this.running.delete(runKey);}
         return {failedSteps};
       };
-      if(this.services?.background)queued.push(this.services.background.enqueue("automation:"+runKey,task));
+      if(this.services?.background)queued.push(this.services.background.enqueue("automation:"+runKey,task).catch(error=>{this.running.delete(runKey);this.logger.warn("Automation was not queued ("+automation.id+"):",error.message);throw error;}));
       else queued.push(task());
     }
     return Promise.allSettled(queued);
