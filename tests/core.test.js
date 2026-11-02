@@ -500,7 +500,7 @@ test("verification review approval assigns the verified role and closes the revi
   const records={};
   const store={
     data:{verification:{},members:{}},
-    member(guildId,userId){return records[userId]||=( {last_verified:0,failed:0,last_reason:""} );},
+    member(guildId,userId){return records[userId]||=( {last_verified:0,failed:0,last_reason:"",pending_review_message_id:"review-message",pending_review_channel_id:"review-channel"} );},
     verify(){return {role_id:"verified-role"};},
     save(){}
   };
@@ -510,13 +510,13 @@ test("verification review approval assigns the verified role and closes the revi
     id:"123456789012345678",ownerId:"111111111111111111",
     members:{fetch:async()=>member},roles:{fetch:async()=>role}
   };
-  const verification=new Verification({guilds:{fetch:async()=>guild}},store,quiet);
+  const verification=new Verification({user:{id:"kimi"},guilds:{fetch:async()=>guild}},store,quiet);
   verification.validateRole=async()=>[true];
   const interaction={
     customId:"verify:review:approve:123456789012345678:234567890123456789",
-    guildId:guild.id,guild,user:{id:"333333333333333333"},
+    guildId:guild.id,channelId:"review-channel",guild,user:{id:"333333333333333333"},
     isChatInputCommand:()=>false,memberPermissions:{has:()=>true},isButton:()=>true,deferred:true,replied:false,
-    message:{edit:async payload=>{edited=payload.components.length===0;}},
+    message:{id:"review-message",author:{id:"kimi"},edit:async payload=>{edited=payload.components.length===0;}},
     editReply:async payload=>{response=payload;}
   };
   await verification.handle(interaction);
