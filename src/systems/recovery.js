@@ -86,7 +86,7 @@ export class Recovery {
     const guild=channel.guild,id=channel.id;
     await new Promise(resolve=>setTimeout(resolve,1200));
     const audit=await guild.fetchAuditLogs({type:AuditLogEvent.ChannelDelete,limit:8}).catch(()=>null);
-    const entry=audit?.entries.find(e=>e.target?.id===id);
+    const entry=audit?.entries.find(e=>e.target?.id===id&&Date.now()-e.createdTimestamp<=15000);
     const actor=entry?.executor;
     if(!actor||actor.id===guild.ownerId||actor.id===this.client.user.id||actor.bot)return;
     const key=guild.id+":"+actor.id,now=Date.now();
@@ -114,7 +114,15 @@ export class Recovery {
         if(log)await log.send({content:`Recovery incomplete: no saved channel configuration exists for deleted channel ID ${item.id}.`});
         continue;
       }
-      const overwrites=(snapshot.permission_overwrites||[]).map(o=>({
+      const allowedTypes=new Set([ChannelType.GuildText,ChannelType.GuildVoice,ChannelType.GuildCategory,ChannelType.GuildAnnouncement,ChannelType.GuildStageVoice,ChannelType.GuildForum]);
+      const rawOverwrites=snapshot.permission_overwrites;
+      const validSnapshot=allowedTypes.has(snapshot.type)&&typeof snapshot.name==="string"&&snapshot.name.length>0&&snapshot.name.length<=100&&
+        Array.isArray(rawOverwrites)&&rawOverwrites.length<=100&&rawOverwrites.every(o=>/^\d{15,22}$/.test(String(o.id||""))&&[0,1].includes(o.type)&&/^\d{1,25}$/.test(String(o.allow??"0"))&&/^\d{1,25}$/.test(String(o.deny??"0")));
+      if(!validSnapshot){
+        if(log)await log.send({content:"Recovery skipped deleted channel "+item.id+" because its saved configuration failed safety validation."});
+        continue;
+      }
+      const overwrites=rawOverwrites.map(o=>({
         id:o.id,allow:BigInt(o.allow||"0"),deny:BigInt(o.deny||"0"),type:o.type
       }));
       let parentId=snapshot.parent_id?restoredChannelIds.get(snapshot.parent_id)||null:null;
