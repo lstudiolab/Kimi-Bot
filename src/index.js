@@ -144,6 +144,7 @@ async function coreCommand(i){
   modal.addComponents(new ActionRowBuilder().addComponents(tokenInput));
   return i.showModal(modal);
  }
+ if(i.commandName==="setup")return foundation.handleInteraction(i);
  if(i.commandName==="kimi")return settings.show(i,"home");
  const configurePlugin={"configure-foundation":"Welcome","configure-welcome":"Welcome","configure-roles":"Role Picker","configure-auto-role":"Auto Role","configure-embeds":"Embeds","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
  if(configurePlugin)return settings.show(i,"plugin",configurePlugin);
