@@ -9,7 +9,7 @@ export class GuardRateLimiter{
     const collection=kind==="bot"?guild.bots:guild.users;
     for(const [id,value] of Object.entries(collection))if(now-(value.last_consumed||value.updated_at||now)>7*86400000)delete collection[id];
     let state=collection[actorId];
-    if(!state)state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:Date.now(),last_activity:0};
+    if(!state)state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:now,last_activity:0};
     return state;
   }
   consume(guildId,actorId,kind="user",now=Date.now()){
