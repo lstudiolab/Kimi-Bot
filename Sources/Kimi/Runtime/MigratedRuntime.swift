@@ -346,7 +346,7 @@ extension KimiRuntime {
     let isStaff=supportSettings.supportRoleID.map{staffRoles.contains($0)} ?? false
     guard ticket.userID==actorID || owner==actorID || isStaff else{throw KimiError.configuration("Only the ticket opener, support staff or server owner can close this ticket.")}
     let controls=[["type":1,"components":[["type":2,"style":4,"label":"Yes, close it","custom_id":"ticket:confirm-close:"+ticketID],["type":2,"style":2,"label":"Cancel","custom_id":"ticket:cancel-close"]]]] as [[String:Any]]
-    _ = try await rest.call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":"Close this support ticket?","components":controls,"allowed_mentions":["parse":[]]])
+    _ = try await rest.call("PATCH","webhooks/\(app)/\(token)/messages/@original",body:["content":"Close this support ticket?","components":controls,"allowed_mentions":["parse":[]]])
    } else if custom.hasPrefix("ticket:confirm-close:") {
     let ticketID=String(custom.dropFirst("ticket:confirm-close:".count))
     let tickets=await SupportTickets(store:store).all()
