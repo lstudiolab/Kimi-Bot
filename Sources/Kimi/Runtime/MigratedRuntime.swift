@@ -270,7 +270,29 @@ extension KimiRuntime {
    if installed.contains("Welcome") || installed.contains("Auto Role") {
     await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0,welcomeEnabled:installed.contains("Welcome"),autoRoleEnabled:installed.contains("Auto Role"))
    }
-   if installed.contains("Kimi Lock"){await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")}
+   if installed.contains("Kimi Lock") {
+    await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
+    if user["bot"] as? Bool == true {
+     do {
+      let owner=try await rest.ownerID(guild)
+      let me=try await rest.call("GET","users/@me") as? [String:Any] ?? [:]
+      guard let botID=me["id"] as? String else { throw KimiError.invalidResponse }
+      let key="guard.confirmation."+guild
+      var confirmation=await store.get(key,as:String.self)
+      if let current=confirmation { _ = try? await rest.call("GET","channels/"+current) }
+      if confirmation == nil { confirmation=try await rest.createPrivateTextChannel(guild,"kimi-confirmations",owner,botID); if let confirmation { try await store.set(confirmation,key:key) } }
+      guard let confirmation else { throw KimiError.configuration("Could not create the private bot approval channel.") }
+      let containment=try await KimiGuardService(store:store,rest:rest,logger:logger).contain(guild:guild,actor:id,action:"new bot joined; awaiting owner approval")
+      let roles=try await rest.call("GET","guilds/"+guild+"/roles") as? [[String:Any]] ?? []
+      let member=try await rest.call("GET","guilds/"+guild+"/members/"+id) as? [String:Any] ?? [:]
+      let memberRoles=Set(member["roles"] as? [String] ?? [])
+      let admin=roles.contains{role in memberRoles.contains(role["id"] as? String ?? "") && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & 8) != 0}
+      let warning=admin ? "This bot has Administrator access. Discord Administrator bypasses channel restrictions; remove that permission before approving." : "Kimi temporarily removed manageable bot roles while approval is pending."
+      let controls=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"botguard:yes:"+guild+":"+id],["type":2,"style":4,"label":"Reject","custom_id":"botguard:no:"+guild+":"+id]]]] as [[String:Any]]
+      _ = try await rest.call("POST","channels/"+confirmation+"/messages",body:["content":"**New bot approval required**\\nBot: <@"+id+">\\n"+warning+"\\nContainment: "+String(containment?.removedCount ?? 0)+" role(s) removed.","components":controls,"allowed_mentions":["parse":[]]])
+     } catch { await logger.log("ERROR","Kimi Guard bot approval failed: "+error.localizedDescription) }
+    }
+   }
    await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
@@ -299,7 +321,11 @@ extension KimiRuntime {
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureMessage(guild,channel,message,user,data["content"] as? String ?? "")}
   case "MESSAGE_DELETE":
-   return
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
+   let moderated=await store.get("moderation.deleted."+message,as:Bool.self) ?? false
+   if moderated { return }
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock") { await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message) }
   case "MESSAGE_DELETE_BULK":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String],ids.count>=5 else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
