@@ -221,8 +221,16 @@ function localizeInteraction(i){
 async function handleInteraction(i){
  localizeInteraction(i);
  if(i.isRepliable()&&i.guildId){
-  const limit=guard.consume(i.guildId,i.user.id,"user");
-  if(!limit.allowed)return i.reply({content:"Kimi is pausing your actions because your activity limit is exhausted. Wait about "+Math.ceil(limit.retryAfterMs/1000)+" second(s) for all 10 tokens to return.",ephemeral:true,allowedMentions:{parse:[]}});
+  const actorKind=i.user.bot?"bot":"user";
+  const limit=guard.consume(i.guildId,i.user.id,actorKind);
+  if(!limit.allowed){
+   if(actorKind==="bot"){
+    if(i.message?.deletable)await i.message.delete().catch(()=>{});
+    const member=await i.guild?.members.fetch(i.user.id).catch(()=>null);
+    if(member)await restrictBot(member,"Kimi Guard bot interaction activity limit exhausted").catch(error=>logger.error("Kimi Guard interaction restriction failed:",error));
+   }
+   return i.reply({content:"Kimi is pausing your actions because your activity limit is exhausted. Wait about "+Math.ceil(limit.retryAfterMs/1000)+" second(s) for all 10 tokens to return.",ephemeral:true,allowedMentions:{parse:[]}});
+  }
  }
  if(i.isModalSubmit()&&i.customId==="web-token:submit"){
   if(!i.inGuild())return respond(i,"Use this form inside a Discord server.");
