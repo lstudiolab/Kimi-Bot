@@ -421,11 +421,6 @@ extension KimiRuntime {
    guard installed.contains("Kimi Lock") else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    await recovery.captureMessage(guild,channel,message,user,content)
-   if content.contains("http://") || content.contains("https://") || !(data["attachments"] as? [[String:Any]] ?? []).isEmpty {
-    let botID=await store.get("runtime.bot_id",as:String.self) ?? ""
-    await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:data["attachments"] as? [[String:Any]] ?? [])
-    _ = botID
-   }
    let attachments=data["attachments"] as? [[String:Any]] ?? []
    await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)
    let owner=(try? await rest.ownerID(guild)) ?? ""
@@ -457,11 +452,14 @@ extension KimiRuntime {
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureMessage(guild,channel,message,user,data["content"] as? String ?? "")}
   case "MESSAGE_DELETE":
-   return
-  case "MESSAGE_DELETE_BULK":
-   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String],ids.count>=5 else{return}
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
+   if await store.get("moderation.deleted."+message,as:Bool.self) == true{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){for id in ids{await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,id)}}
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message)}
+  case "MESSAGE_DELETE_BULK":
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String] else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){for id in ids{if await store.get("moderation.deleted."+id,as:Bool.self) != true{await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,id)}}}
   case "CHANNEL_CREATE","CHANNEL_UPDATE":
    guard let guild=data["guild_id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
