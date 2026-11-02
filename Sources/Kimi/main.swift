@@ -220,28 +220,8 @@ actor DiscordGateway {
 actor KimiRuntime {
  let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String;let dashboardURL:String?;let performance:PerformanceMonitor
  init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String,dashboardURL:String?=nil,performance:PerformanceMonitor=PerformanceMonitor()){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID;self.dashboardURL=dashboardURL;self.performance=performance}
- func handle(_ event:[String:Any])async{
-  if await handleMigratedCommand(event){return}
-  guard let id=event["id"] as? String,let token=event["token"] as? String else{return}
-  let data=event["data"] as? [String:Any] ?? [:];let name=data["name"] as? String ?? "";let guild=event["guild_id"] as? String ?? ""
-  do{
-   let message:String
-   switch name{
-   case "kimi":message="**Kimi**\nSwift runtime is online. Use /apps to view the available apps."
-   case "apps":message="**Kimi Apps**\nFoundation — server setup and configuration\nKimi Lock — security and moderation\nSupport — tickets and staff workflows"
-   case "setup":let channel=try await rest.createChannel(guild:guild,name:"kimi-logs");message="Created Kimi log channel (\(channel)). Restrict access to administrators and Kimi staff."
-   case "moderation":message="**Kimi Lock**\nThe security module is online. Configure policies before enabling automated sanctions."
-   case "ticketpanel":let channel=try await rest.createChannel(guild:guild,name:"ticket",type:4);message="Created Support category (\(channel))."
-   case "plan":message="**Kimi Free**\nPersistent server data is stored locally in the Kimi data directory."
-   case "verifypanel":message="Verification engine is available. Configure account-age and review policies before publishing a panel."
-   case "automations":
-    let rules=await AutomationEngine(store:store,rest:rest,logger:logger).rules(guildID:guild)
-    message=rules.isEmpty ? "No automation rules configured. Use /automations create to build one.":rules.map{$0.name+" · "+$0.trigger+" · "+($0.enabled ? "On":"Off")}.joined(separator:"\n")
-   default:message="Kimi could not route this interaction. Check that the command is registered for this server."
-   }
-   try await rest.respond(id,token,message);await logger.log("INFO","Handled /\(name)")
-  }catch{await logger.log("ERROR","/\(name): \(error.localizedDescription)");try? await rest.respond(id,token,"Kimi could not complete that action. The error was recorded.")}
- }
+ func handle(_ event:[String:Any])async{ _ = await handleMigratedCommand(event) }
+
 }
 @main struct KimiApp {
  static func main()async{
