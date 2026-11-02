@@ -9,7 +9,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("install").setDescription("Install a Kimi plugin.").addStringOption(o=>o.setName("plugin").setDescription("Plugin to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
   new SlashCommandBuilder().setName("plugins").setDescription("Show available plugins."),
-  new SlashCommandBuilder().setName("libraries").setDescription("Legacy alias for plugins."),
   new SlashCommandBuilder().setName("automations").setDescription("Build and manage server automations."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi plugin (server owner only).").addStringOption(o=>o.setName("plugin").setDescription("Plugin to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
@@ -45,7 +44,7 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","plugins","libraries","automations"],
+  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","plugins","automations"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
