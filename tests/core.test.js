@@ -126,7 +126,7 @@ test("plugin installation is isolated per server and preserves data",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { commandData, pluginCommandsForPlugins, pluginForCommand } from "../src/commands.js";
+import { commandData, coreCommandData, pluginCommandsForPlugins, pluginForCommand } from "../src/commands.js";
 test("app management commands are registered with the intended option behavior",()=>{
   const install=commandData.find(command=>command.name==="install");
   const uninstall=commandData.find(command=>command.name==="uninstall");
@@ -137,8 +137,9 @@ test("app management commands are registered with the intended option behavior",
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="filter"));
   assert.ok(commandData.some(command=>command.name==="security"));
-  for(const name of ["plan","apps","app-store","install"]) {
+  for(const name of ["plan","apps","app-store","install","uninstall"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
+    assert.ok(coreCommandData.some(command=>command.name===name),"missing core app command: "+name);
   }
 });
 
