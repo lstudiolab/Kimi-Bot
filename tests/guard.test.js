@@ -17,3 +17,11 @@ test("user and bot buckets are independent",()=>{
  const g=setup();for(let n=0;n<TOKEN_CAPACITY;n++)g.consume("g","same","user",1000+n);
  assert.equal(g.consume("g","same","bot",2000).allowed,true);
 });
+
+import {coreCommandData} from "../src/commands.js";
+test("bot restriction review is an owner-only core command",()=>{
+ const command=coreCommandData.find(item=>item.name==="guard-review");
+ assert.ok(command);
+ assert.equal(command.options[0].name,"bot");
+ assert.equal(command.options[1].name,"decision");
+});
