@@ -17,7 +17,7 @@ enum CommandCatalog {
    "install":command("install","Install a Kimi app",[text("app","App to install",true,apps)]),"uninstall":command("uninstall","Uninstall a Kimi app",[text("app","App to remove",true,apps)]),
    "automations":command("automations","Manage server automations",[
     ["type":1,"name":"list","description":"List saved automation rules"],
-    ["type":1,"name":"create","description":"Create an event automation","options":[text("name","Rule name",true),text("trigger","Trigger: message_create, member_join or member_leave",true),text("action","Action: delete_message, send_message:CHANNEL:TEXT, timeout:MINUTES or add_role:ROLE",true)]],
+    ["type":1,"name":"create","description":"Create an event automation","options":[text("name","Rule name",true),text("trigger","Trigger: message_create, message_contains, member_join or member_leave",true),text("condition","Required text when trigger is message_contains"),text("action","Action: delete_message, send_message:CHANNEL:TEXT, timeout:MINUTES, add_role:ROLE or remove_role:ROLE",true)]],
     ["type":1,"name":"remove","description":"Remove an automation rule","options":[text("id","Rule ID",true)]],
     ["type":1,"name":"toggle","description":"Enable or disable a rule","options":[text("id","Rule ID",true),["type":5,"name":"enabled","description":"Enable this rule","required":true]]]
    ]),"guard-review":command("guard-review","Review bot containment",[user("bot","Bot under review"),text("decision","Restore or keep restricted",true,[["name":"Restore","value":"restore"],["name":"Keep restricted","value":"keep"]])]),"web-token":command("web-token","Open the Kimi dashboard"),"analytics":command("analytics","View server activity and system statistics"),
