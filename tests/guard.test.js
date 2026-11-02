@@ -43,3 +43,11 @@ test("Guard rate-limit storage stays bounded under many unique actors",()=>{
  for(let index=0;index<20050;index++)g.consume("g",String(100000000000000000+index),"user",1000+index);
  assert.ok(Object.keys(store.data.guard_state.g.users).length<=20000);
 });
+
+test("Guard repairs malformed top-level persisted state",()=>{
+ const store={data:{guard_state:"invalid"},queueSave(){}};
+ const g=new GuardRateLimiter(store);
+ assert.equal(g.consume("g","u","user",1000).allowed,true);
+ assert.equal(typeof store.data.guard_state,"object");
+ assert.equal(Array.isArray(store.data.guard_state),false);
+});
