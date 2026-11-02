@@ -24,7 +24,7 @@ const COMMAND_GROUPS = Object.freeze({
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
 });
-const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,plugin:bundle}))));
+const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,app:bundle,plugin:bundle}))));
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -142,12 +142,13 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
       icon: guild.iconURL({ size: 64 }),
       owner: guild.ownerId === (session.account.guilds || []).find(item => item.id === guild.id)?.linkedBy,
       canManage: true,
-      plugins: [...PLUGIN_NAMES].map(name => ({
+      apps: [...PLUGIN_NAMES].map(name => ({
         name,
         installed: installed.includes(name),
         description: manager.get(name)?.description || ""
       })),
-      modules
+      modules: modules.map(module => ({...module, app: module.plugin})),
+      plugins: [...PLUGIN_NAMES].map(name => ({ name, installed: installed.includes(name), description: manager.get(name)?.description || "" }))
     };
   }
   function staticFile(res, file) {
@@ -310,7 +311,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
             return send(res,200,{ok:true,language:body.language});
           }
         }
-        const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|plugins|libraries)\/([a-zA-Z-]+))?$/);
+        const guildMatch = url.pathname.match(/^\/api\/guilds\/(\d+)(?:\/(modules|apps|plugins|libraries)\/([a-zA-Z% -]+))?$/);
         if (guildMatch) {
           const guildId = guildMatch[1];
           const context = await requireGuild(req, res, session, guildId);
@@ -321,7 +322,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
             const module = MODULES.find(item => item.id === guildMatch[3]);
             if (!module || typeof body.enabled !== "boolean") return send(res, 400, { error: "Invalid system or enabled value." });
             if (!(store.data.installed_plugins[guildId] || []).includes(module.plugin)) {
-              return send(res, 409, { error: "Install the " + module.plugin + " library before changing this system." });
+              return send(res, 409, { error: "Add the " + module.plugin + " app before changing this system." });
             }
             store.data.modules[guildId] ||= {};
             store.data.modules[guildId][module.id] = body.enabled;
@@ -329,11 +330,11 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
             logger.info("Dashboard changed " + module.id + " to " + (body.enabled ? "enabled" : "disabled") + " in guild " + guildId);
             return send(res, 200, { ok: true, module: module.id, enabled: body.enabled });
           }
-          if (method === "POST" && (guildMatch[2] === "plugins" || guildMatch[2] === "libraries")) {
+          if (method === "POST" && (guildMatch[2] === "apps" || guildMatch[2] === "plugins" || guildMatch[2] === "libraries")) {
             const body = await parseBody(req);
-            const name = guildMatch[3];
+            const name = decodeURIComponent(guildMatch[3]);
             if (!PLUGIN_NAMES.has(name) || !["install", "uninstall"].includes(body.action)) {
-              return send(res, 400, { error: "Invalid library action." });
+              return send(res, 400, { error: "Invalid app action." });
             }
             // authorizedGuild has already verified Manage Server or Administrator permission.
             if (body.action === "install") {
