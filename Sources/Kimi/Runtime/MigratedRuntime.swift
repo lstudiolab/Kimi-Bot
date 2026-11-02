@@ -139,8 +139,22 @@ extension KimiRuntime {
      reply="Support settings saved."
     }
    case "automations":
-    let rules=await AutomationEngine(store:store).rules(guildID:guild)
-    reply="Automations\nSaved rules: "+String(rules.count)
+    let engine=AutomationEngine(store:store)
+    let sub=options.first?["name"] as? String ?? "list"
+    if sub=="create" {
+     guard let ruleName=value("name"),let trigger=value("trigger"),let action=value("action") else{throw KimiError.configuration("Provide a name, trigger and action.")}
+     let rule=try await engine.add(guildID:guild,name:ruleName,trigger:trigger,action:action)
+     reply="Automation created: "+rule.name+" ("+rule.id+")."
+    } else if sub=="remove" {
+     guard let ruleID=value("id"),try await engine.remove(id:ruleID,guildID:guild) else{throw KimiError.configuration("Automation rule not found.")}
+     reply="Automation removed."
+    } else if sub=="toggle" {
+     guard let ruleID=value("id"),let enabled=options.first(where:{($0["name"] as? String)=="enabled"})?["value"] as? Bool,try await engine.setEnabled(enabled,id:ruleID,guildID:guild) else{throw KimiError.configuration("Automation rule not found or invalid enabled value.")}
+     reply=enabled ? "Automation enabled.":"Automation disabled."
+    } else {
+     let rules=await engine.rules(guildID:guild)
+     reply=rules.isEmpty ? "No automation rules configured. Use /automations create to add one.":rules.map{$0.name+" · "+$0.trigger+" → "+$0.action+" · "+($0.enabled ? "Enabled":"Disabled")+" · "+$0.id}.joined(separator:"\n")
+    }
    case "verify","verify-config":
     let service=VerificationService(store:store,rest:rest,logger:logger)
     var settings=await service.settings(guild)
@@ -246,12 +260,16 @@ extension KimiRuntime {
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0)
    await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
+   await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")
+   await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
   case "MESSAGE_CREATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
-   if let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:data["content"] as? String ?? "") {
+   let messageContent=data["content"] as? String ?? ""
+   await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:messageContent)
+   if let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:messageContent) {
     try? await rest.deleteKimiMessage(channel,message)
     if finding.reason=="Message rate exceeded" {
      let policy=await ModerationEngine(store:store).policy(guildID:guild)
@@ -264,6 +282,37 @@ extension KimiRuntime {
    do {if let incident=try await AuditProtection(store:store).record(guildID:guild,actorID:actor,action:String(action)){await logger.log("WARN","Kimi Lock incident: "+incident.reason)}}
    catch {await logger.log("ERROR","Audit incident save failed: "+error.localizedDescription)}
   default:break
+  }
+ }
+}
+
+extension KimiRuntime {
+ func runAutomations(guild:String,trigger:String,userID:String,channelID:String?,messageID:String?,content:String)async {
+  let engine=AutomationEngine(store:store)
+  var rules=await engine.matching(guildID:guild,trigger:trigger,content:content)
+  if trigger=="message_create" && !content.isEmpty{rules += await engine.matching(guildID:guild,trigger:"message_contains",content:content)}
+  for rule in rules {
+   let parts=rule.action.split(separator:":",maxSplits:2).map(String.init)
+   guard let kind=parts.first else{continue}
+   var success=true,detail="Action completed."
+   do {
+    switch kind {
+    case "send_message":
+     guard parts.count==3 else{throw KimiError.configuration("Invalid send_message action.")}
+     _ = try await rest.call("POST","channels/"+parts[1]+"/messages",body:["content":String(parts[2].prefix(1900)),"allowed_mentions":["parse":[]]])
+    case "delete_message":
+     guard let channelID,let messageID else{throw KimiError.configuration("delete_message requires a message event.")}
+     try await rest.deleteKimiMessage(channelID,messageID)
+    case "timeout":
+     guard parts.count>1,let minutes=Int(parts[1]) else{throw KimiError.configuration("Invalid timeout action.")}
+     try await rest.timeoutKimiMember(guild,userID,minutes,"Kimi automation: "+rule.name)
+    case "add_role":
+     guard parts.count>1 else{throw KimiError.configuration("Invalid add_role action.")}
+     _ = try await rest.call("PUT","guilds/"+guild+"/members/"+userID+"/roles/"+parts[1])
+    default:throw KimiError.configuration("Unknown automation action.")
+    }
+   } catch {success=false;detail=error.localizedDescription;await logger.log("ERROR","Automation "+rule.id+" failed: "+detail)}
+   await engine.record(.init(ruleID:rule.id,guildID:guild,trigger:trigger,success:success,detail:detail,createdAt:Date()))
   }
  }
 }
