@@ -37,6 +37,15 @@ final class CoreTests:XCTestCase {
   let invalid=EmbedValidator.Definition(title:String(repeating:"x",count:257),description:"",fields:[],color:8421504,imageURL:nil)
   XCTAssertFalse(validator.validate(invalid).isEmpty)
  }
+ func testVerificationPassReviewAndRejectThresholds(){
+  let engine=VerificationEngine(),now=Date(timeIntervalSince1970:2_000_000_000)
+  let pass=engine.evaluate(createdAt:now.addingTimeInterval(-10*86400),defaultAvatar:false,suspiciousBehavior:false,attempts:1,minimumAgeDays:7,now:now)
+  XCTAssertEqual(pass.score,100);XCTAssertEqual(pass.decision,.approve)
+  let review=engine.evaluate(createdAt:now.addingTimeInterval(-10*86400),defaultAvatar:true,suspiciousBehavior:false,attempts:3,minimumAgeDays:7,now:now)
+  XCTAssertEqual(review.score,70);XCTAssertEqual(review.decision,.review)
+  let reject=engine.evaluate(createdAt:now.addingTimeInterval(-1*86400),defaultAvatar:true,suspiciousBehavior:true,attempts:3,minimumAgeDays:7,now:now)
+  XCTAssertEqual(reject.score,0);XCTAssertEqual(reject.decision,.reject)
+ }
  func testProtectionThreshold(){
   let engine=ProtectionEngine()
   XCTAssertNil(engine.evaluate(action:"channel_delete",count:3,threshold:3))
