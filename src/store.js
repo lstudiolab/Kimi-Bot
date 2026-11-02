@@ -187,8 +187,16 @@ export class Store{
       this.data.members[key]={};this.memberCount++;
     }
     if(!this.data.members[key]||typeof this.data.members[key]!=="object"||Array.isArray(this.data.members[key]))this.data.members[key]={};
-    return fillDefaults(this.data.members[key],{joins:0,leaves:0,attempts:[],failed:0,suspicious:0,last_join:0,
+    const record=fillDefaults(this.data.members[key],{joins:0,leaves:0,attempts:[],failed:0,suspicious:0,last_join:0,
       last_verified:0,last_suspicious:0,last_reason:"",last_join_audited:0});
+    for(const field of ["joins","leaves","failed","suspicious","last_join","last_verified","last_suspicious","last_join_audited"]){
+      if(!Number.isFinite(record[field])||record[field]<0)record[field]=0;
+    }
+    if(!Array.isArray(record.attempts))record.attempts=[];
+    else if(record.attempts.length>50)record.attempts=record.attempts.slice(-50);
+    if(typeof record.last_reason!=="string")record.last_reason="";
+    else record.last_reason=record.last_reason.slice(0,500);
+    return record;
   }
   embed(guild,name){
     const value=this.data.embeds[guild+":"+name];if(!value)return null;
