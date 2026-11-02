@@ -304,6 +304,14 @@ client.on(Events.MessageCreate,async m=>{
   }
   return;
  }
+ for(const mentioned of m.mentions.users.values()){
+  if(!mentioned.bot||mentioned.id===client.user.id||mentioned.id===m.author.id)continue;
+  const targetLimit=guard.consume(m.guild.id,mentioned.id,"bot");
+  if(!targetLimit.allowed){
+   const member=await m.guild.members.fetch(mentioned.id).catch(()=>null);
+   if(member)await restrictBot(member,"Kimi Guard bot activity limit exhausted by repeated incoming triggers").catch(error=>logger.error("Kimi Guard mentioned-bot restriction failed:",error));
+  }
+ }
  if(m.author.bot)return;
  if(allowSystemTrigger(m.guild.id))automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
