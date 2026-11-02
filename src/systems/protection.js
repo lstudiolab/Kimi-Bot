@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits, ButtonStyle } from "discord.js";
-import { DAY, nowMs, snowflakeTime } from "../utils.js";
+import { DAY, nowMs, snowflakeTime, isPrivateTextChannel } from "../utils.js";
 import { button, row, greyEmbed } from "../ui.js";
 
 const P=PermissionFlagsBits;
@@ -49,7 +49,7 @@ export class Protection {
     const log=await this.privateChannel(guild);
     const setup=this.store.data.timi_setup?.[guild.id]||{};
     const confirmation=setup.confirmation_channel_id?await guild.channels.fetch(setup.confirmation_channel_id).catch(()=>null):null;
-    const requestChannel=confirmation?.isTextBased()?confirmation:log;
+    const requestChannel=isPrivateTextChannel(confirmation,guild)?confirmation:log;
     const msg=await requestChannel.send({
       embeds:[greyEmbed("Bot approval required",`A new bot has joined this server. Review this request before allowing it to access server channels.\n\nBot: <@${member.id}> (${member.user.username})\n\nTimi will temporarily restrict this bot after this request is posted. Select Approve or Reject below.`)],
       components:[row(button(`botguard:yes:${guild.id}:${member.id}`,"Yes",ButtonStyle.Success),button(`botguard:no:${guild.id}:${member.id}`,"No",ButtonStyle.Danger))],
