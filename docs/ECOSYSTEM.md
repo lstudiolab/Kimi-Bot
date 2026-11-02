@@ -21,3 +21,18 @@ Kimi Guard uses independent per-server token buckets for member activity, third-
 - Only the server owner can use `/guard-review` to restore the bot's saved roles or keep it restricted. New-bot approval and rejection controls are also owner-only and are posted only in a private owner channel. Approval is blocked while a bot has Administrator permission because Discord lets Administrator bypass channel overwrites. During approval, temporary denies are removed only from channels visible to @everyone; private-channel denies remain in place. Kimi cannot review or restrict its own account.
 - Kimi's own automation triggers use the bot-style quiet-window bucket. Critical Kimi Lock security and recovery handlers are not paused by automation backpressure.
 - Rate state is persisted, inactive buckets expire after seven days, and the data is included in each server's storage quota.
+
+## Security hardening
+
+The current security controls also enforce the following boundaries:
+
+- Dashboard write requests require a same-origin browser request. Login throttling uses the direct socket peer address rather than trusting client-supplied forwarding headers, and active Discord permissions are refreshed before dashboard access is granted.
+- Self-service role menus are bound to the exact Kimi-authored message and channel. Roles are revalidated against current permissions and hierarchy at assignment time; newly unsafe roles are not granted, and previously selected roles are removable when Kimi can manage them.
+- Ticket open buttons must belong to a currently published Kimi panel. Ticket priority controls must originate from the real ticket message inside the ticket channel; copied or forged controls are rejected.
+- Verification buttons are bound to the exact prompt Kimi sent to that member. Review decisions are bound to a single pending review message, so an old rejection button cannot be replayed after the member rejoins. Bot approval controls require a private Kimi channel and the server owner.
+- Automation messages suppress role and everyone mentions. Automation role changes re-fetch the target member and role, and timeouts skip bots, the server owner, and privileged moderators. Malformed saved automation actions fail closed.
+- Automatic anti-spam sanctions re-check the target immediately before enforcement and skip bots, the owner, and privileged moderators.
+- Channel recovery requires a recent matching audit-log event and validates saved channel types, overwrite counts, IDs, and permission bitfields before recreating a channel.
+- Webhook messages use bot-style activity limits. When a webhook exhausts its bucket, Kimi deletes subsequent messages and privately alerts the owner; Kimi does not silently delete or disable the webhook integration.
+
+These controls reduce abuse paths but do not replace Discord permission hygiene. Kimi cannot override role hierarchy, server ownership, missing permissions, or Discord API restrictions. Review bot permissions and remove integrations you do not trust.
