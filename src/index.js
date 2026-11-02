@@ -335,7 +335,12 @@ client.on(Events.MessageCreate,async m=>{
   }else if(m.webhookId){
    await m.delete().catch(()=>{});
    const guildState=store.data.guard_state[m.guild.id]||(store.data.guard_state[m.guild.id]={users:{},bots:{},incidents:{}});
-   guildState.incidents||={};
+   if(!guildState.incidents||typeof guildState.incidents!=="object"||Array.isArray(guildState.incidents))guildState.incidents={};
+   const webhookIncidents=Object.entries(guildState.incidents).filter(([key,value])=>key.startsWith("webhook:")&&value&&typeof value==="object");
+   if(webhookIncidents.length>=100&&!guildState.incidents["webhook:"+m.webhookId]){
+    webhookIncidents.sort((a,b)=>(a[1].created_at||0)-(b[1].created_at||0));
+    delete guildState.incidents[webhookIncidents[0][0]];
+   }
    const incidentKey="webhook:"+m.webhookId;
    if(!guildState.incidents[incidentKey]){
     guildState.incidents[incidentKey]={source:"webhook",webhook_id:m.webhookId,channel_id:m.channelId,owner_id:m.guild.ownerId,status:"restricted",reason:"Webhook activity bucket exhausted",created_at:Date.now()};
