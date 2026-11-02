@@ -7,14 +7,14 @@ Kimi's Discord bot and optional dashboard run in one Swift process. The dashboar
 ```sh
 pkg update -y
 pkg upgrade -y
-pkg install -y git swift
+pkg install -y git swift tesseract zbar imagemagick
 git clone https://github.com/lstudiolab/Kimi-Bot.git
 cd Kimi-Bot
 ```
 
 If your Termux repository does not provide a Swift package for your Android architecture, use an ARM64 Linux environment through `proot-distro` and install a compatible Swift toolchain there. The project is built and tested in Ubuntu Linux CI; native Android/Termux runtime validation is still required.
 
-## Configure the bot
+Optional image-analysis tools: Tesseract enables OCR, ZBar enables QR decoding, and ImageMagick enables perceptual duplicate matching. Kimi will still validate image signatures, metadata, and suspicious links if one of these tools is unavailable.\n\n## Configure the bot
 
 ```sh
 cp .env.example .env
