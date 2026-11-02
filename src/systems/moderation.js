@@ -4,6 +4,13 @@ import { button,row,textInput,modal,respond,deny,requireManager } from "../ui.js
 
 const P=PermissionFlagsBits;
 const PROTECTED_MODERATOR_PERMISSIONS=[P.Administrator,P.ManageGuild,P.ManageMessages,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.KickMembers,P.BanMembers,P.ModerateMembers,P.ViewAuditLog];
+export function automaticEscalation(strikes,baseAction="timeout",baseMinutes=10){
+  const count=Math.max(1,Math.floor(Number(strikes)||1));
+  if(count===1)return {action:baseAction,timeoutMinutes:Math.max(1,Math.min(40320,Number(baseMinutes)||10)),level:"initial"};
+  if(count===2)return {action:"timeout",timeoutMinutes:Math.max(5,Math.min(60,Number(baseMinutes)||5)),level:"repeat"};
+  if(count===3)return {action:"timeout",timeoutMinutes:60,level:"continued"};
+  return {action:"kick",timeoutMinutes:60,level:"persistent"};
+}
 export class Moderation {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.spam=new Map();this.warningRetention=30*86400000;this.processingJobs=new Set();this.jobTimers=new Map();}
   async resumeJobs(guild){
@@ -255,17 +262,15 @@ export class Moderation {
     this.spam.delete(key);
     const record=this.store.member(guild.id,message.author.id);record.suspicious++;record.last_suspicious=Date.now();record.last_reason=reason;
     const warning=await this.warn(guild.id,message.author.id,reason);
-    const recentWarnings=(this.store.data.moderation_cases[guild.id]||[]).filter(item=>
-      item.type==="warning"&&item.user_id===message.author.id&&Date.now()-(item.created_at||0)<=this.warningRetention);
-    const strike=recentWarnings.length;
-    let action=x.sanction,timeoutMinutes=x.timeout_minutes,actionResult="messages deleted";
-    if(strike>=2){
-      if(strike===2){action="timeout";timeoutMinutes=Math.max(5,Number(x.timeout_minutes)||5);actionResult=`timed out for ${timeoutMinutes} minute(s) (repeat violation)`;}
-      else if(strike===3){action="timeout";timeoutMinutes=60;actionResult="timed out for 60 minutes (continued violations)";}
-      else{action="kick";actionResult="kicked after repeated violations";}
-    }else if(action==="timeout")actionResult=`timed out for ${timeoutMinutes} minute(s)`;
-    else if(action==="kick")actionResult="kicked";
+    const strike=(this.store.data.moderation_cases[guild.id]||[]).filter(item=>
+      item.type==="warning"&&item.user_id===message.author.id&&Date.now()-(item.created_at||0)<=86400000).length;
+    const escalation=automaticEscalation(strike,x.sanction,x.timeout_minutes);
+    const action=escalation.action,timeoutMinutes=escalation.timeoutMinutes;
+    let actionResult="messages deleted";
+    if(action==="timeout")actionResult=`timed out for ${timeoutMinutes} minute(s) (${escalation.level} violation)`;
+    else if(action==="kick")actionResult="kicked after repeated violations";
     else if(action==="ban")actionResult="banned";
+    
     const job={id:`automod:${guild.id}:${message.id}`,type:"automod-sanction",status:"pending",
       guild_id:guild.id,user_id:message.author.id,channel_id:message.channelId,message_ids:window.map(v=>v.id),
       reason:`${reason}; automatic escalation strike ${strike}/4`,warning_id:warning,action,action_result:actionResult,timeout_minutes:timeoutMinutes,
