@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { spawnSync } from "node:child_process";
@@ -63,6 +62,9 @@ function parseTar(buffer){
   while(offset+512<=buffer.length){
     const header=buffer.subarray(offset,offset+512);offset+=512;
     if(header.every(byte=>byte===0))break;
+    const expected=parseInt(header.subarray(148,156).toString().replace(/\0.*$/s,"").trim(),8);
+    const actual=header.reduce((sum,byte,index)=>sum+(index>=148&&index<156?32:byte),0);
+    if(!Number.isFinite(expected)||expected!==actual)throw new Error("Module archive header checksum failed.");
     const name=header.subarray(0,100).toString().replace(/\0.*$/s,"");
     const prefix=header.subarray(345,500).toString().replace(/\0.*$/s,"");
     const full=prefix?prefix+"/"+name:name;
@@ -106,9 +108,14 @@ export function scanModuleDirectory(root){
     }
   }
   const indexedPaths=new Set(manifest.files.map(item=>item.path));
-  for(const entry of fs.readdirSync(root,{withFileTypes:true})){
-    if(entry.isFile()&&entry.name!=="manifest.json"&&!indexedPaths.has(entry.name))findings.push({severity:"medium",file:entry.name,issue:"Unindexed package file."});
+  function findUnindexed(dir,relative=""){
+    for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+      const rel=relative?relative+"/"+entry.name:entry.name;
+      if(entry.isDirectory())findUnindexed(path.join(dir,entry.name),rel);
+      else if(entry.isFile()&&rel!=="manifest.json"&&!indexedPaths.has(rel))findings.push({severity:"medium",file:rel,issue:"Unindexed package file."});
+    }
   }
+  findUnindexed(root);
   if(manifest.dependencies&&Object.keys(manifest.dependencies).length)findings.push({severity:"high",file:"manifest.json",issue:"Third-party runtime dependencies are not allowed in isolated packages."});
   return {ok:findings.every(item=>item.severity!=="high"),manifest,findings,checks:{manifest:true,integrity:true,syntax:true,staticSecurity:true,dependencies:!manifest.dependencies||Object.keys(manifest.dependencies).length===0}};
 }
@@ -141,6 +148,7 @@ export function extractModuleArchive(archiveFile,destination){
   if(compressed.length>MAX_ARCHIVE_BYTES)throw new Error("Compressed module archive exceeds 8 MB.");
   const tar=zlib.gunzipSync(compressed,{maxOutputLength:MAX_UNPACKED_BYTES});
   const entries=parseTar(tar),parent=path.resolve(destination);
+  fs.mkdirSync(path.dirname(parent),{recursive:true});
   const staging=fs.mkdtempSync(path.join(path.dirname(parent),".kmod-stage-"));
   try{
     for(const [name,data] of entries){
