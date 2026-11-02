@@ -70,9 +70,8 @@ export class KimiSettings {
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
       return edit({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
-        row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
-        row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
-        row(button("settings:appearance","Appearance"),button("settings:advanced",tr("advanced")))
+        row(button("settings:modules","Systems"),button("settings:install","Libraries")),
+        row(button("settings:preferences","Preferences"),button("settings:status","Status"))
       ]});
     }
     if(page==="library"){
@@ -151,6 +150,12 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(page==="permissions"){
       return edit({embeds:[embed(tr("permissions"),"Only this server's owner can open or change Kimi Settings. Other administrators cannot modify these settings.")],components:[row(button("settings:home","Back"))]});
+    }
+    if(page==="preferences"){
+      return edit({embeds:[embed("Preferences","Choose how Kimi appears and communicates in this server.")],components:[
+        row(button("settings:language",tr("language")),button("settings:appearance","Appearance")),
+        row(button("settings:home",tr("back")))
+      ]});
     }
     if(page==="appearance"){
       const appearance=this.store.data.customizations?.[id]||{};
@@ -299,6 +304,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return this.hooks.openConfiguration(i,section);
     }
     if(id==="settings:install"||id==="settings:uninstall")return this.show(i,id.slice("settings:".length));
+    if(id==="settings:preferences")return this.show(i,"preferences");
     if(id==="settings:language")return this.show(i,"language");
     if(id==="settings:status")return this.show(i,"status");
     if(id==="settings:permissions")return this.show(i,"permissions");
