@@ -113,7 +113,7 @@ function allowSystemTrigger(guildId){
 async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded"){
  const guild=member.guild;
  const incidents=store.data.guard_state[guild.id].incidents||(store.data.guard_state[guild.id].incidents={});
- if(incidents[member.id]?.status==="restricted")return incidents[member.id];
+ if(["restricted","kept"].includes(incidents[member.id]?.status))return incidents[member.id];
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
  const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
@@ -142,7 +142,7 @@ async function coreCommand(i){
   const target=i.options.getUser("bot"),decision=i.options.getString("decision");
   if(!target.bot||target.id===client.user.id)return respond(i,"Choose another bot account. Kimi cannot review or restrict itself.");
   const incident=store.data.guard_state?.[i.guildId]?.incidents?.[target.id];
-  if(!incident||incident.status!=="restricted")return respond(i,"There is no active Kimi Guard restriction for that bot.");
+  if(!incident||!["restricted","kept"].includes(incident.status))return respond(i,"There is no active Kimi Guard restriction for that bot.");
   if(decision==="restore"){
    const member=await i.guild.members.fetch(target.id).catch(()=>null);
    if(!member)return respond(i,"That bot is no longer in this server. The incident record was kept.");
