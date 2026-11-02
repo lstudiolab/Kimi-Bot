@@ -666,10 +666,10 @@ test("member security records remain bounded under join floods",()=>{
   try{
     const store=new Store(dir,quiet);
     store.data.members={};
-    for(let index=0;index<100000;index++)store.data.members["guild:"+String(100000000000000000+index)]={joins:1};
+    for(let index=0;index<100000;index++)store.data.members["guild:user-"+index]={joins:1};
     store.member("guild","223456789012345678");
     assert.equal(Object.keys(store.data.members).length,100000);
-    assert.equal(Object.hasOwn(store.data.members,"guild:100000000000000000"),false);
+    assert.equal(Object.hasOwn(store.data.members,"guild:user-0"),false);
     assert.equal(store.member("guild","223456789012345678").joins,0);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
