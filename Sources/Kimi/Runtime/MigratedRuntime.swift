@@ -202,7 +202,18 @@ extension KimiRuntime {
      let existing=await service.all(guild:guild).first(where:{$0.name.caseInsensitiveCompare(embedName)==ComparisonResult.orderedSame})
      let title=value("title") ?? existing?.title ?? ""
      let description=value("description") ?? existing?.description ?? ""
-     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:value("footer") ?? existing?.footer,author:value("author"),thumbnailURL:value("thumbnail"),imageURL:value("image"),url:value("url"))
+     var fields=existing?.fields ?? []
+     let fieldName=value("field-name"),fieldValue=value("field-value")
+     if fieldName != nil || fieldValue != nil {
+      guard let fieldName,!fieldName.isEmpty,let fieldValue,!fieldValue.isEmpty else{throw KimiError.configuration("Provide both a field name and field value.")}
+      let inline=options.first(where:{($0["name"] as? String)=="field-inline"})?["value"] as? Bool ?? false
+      fields.append(EmbedService.Field(name:fieldName,value:fieldValue,inline:inline))
+     }
+     if let remove=options.first(where:{($0["name"] as? String)=="remove-field"})?["value"] as? Int {
+      guard remove>=1,remove<=fields.count else{throw KimiError.configuration("Field number is outside the current field list.")}
+      fields.remove(at:remove-1)
+     }
+     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:value("footer") ?? existing?.footer,author:value("author"),thumbnailURL:value("thumbnail"),imageURL:value("image"),url:value("url"),fields:fields)
      reply="Embed **"+saved.name+"** saved."
     }
    case "guard-review":
