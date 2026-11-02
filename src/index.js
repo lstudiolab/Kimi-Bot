@@ -246,10 +246,10 @@ async function handleInteraction(i){
   return respond(i,result.error||"This server is now connected to the Kimi account that generated the token. Return to the dashboard.");
  }
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
- const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support"].includes(i.commandName);
+ const opensPublicSettings=i.isChatInputCommand()&&["setup","kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["setup","kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
