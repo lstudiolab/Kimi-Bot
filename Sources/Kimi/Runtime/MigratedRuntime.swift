@@ -261,7 +261,7 @@ extension KimiRuntime {
     for item in guilds {
      guard let guild=item["id"] as? String else{continue}
      let installed=await AppManager(store:store).installed(guildID:guild)
-     try? await rest.registerGuildCommands(ProcessInfo.processInfo.environment["CLIENT_ID"] ?? "",guildID:guild,installed:installed)
+     try? await rest.registerGuildCommands(clientID,guildID:guild,installed:installed)
     }
    }
   case "GUILD_MEMBER_ADD":
