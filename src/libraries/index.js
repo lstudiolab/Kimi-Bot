@@ -4,8 +4,8 @@ import { createFoundationLibrary } from "./Foundation/index.js";
 import { createScratchLibrary } from "./Scratch/index.js";
 
 export const LIBRARIES = Object.freeze({
-  Foundation: Object.freeze({name:"Core",description:"Essential member experience and presentation systems.",systems:["Greet system","Embed system","Automatic role assignment","Role selection"],create:createFoundationLibrary}),
-  Security: Object.freeze({name:"Shield",description:"Verification, moderation, automated protection and recovery.",systems:["Verification system","Anti-spam and AutoMod","Anti-nuke detection","Bot detector and approval","Warnings and sanctions","Raid protection","Audit logs and recovery"],create:createSecurityLibrary}),
+  Foundation: Object.freeze({name:"Foundation",description:"Essential member experience and presentation systems.",systems:["Greet system","Embed system","Automatic role assignment","Role selection"],create:createFoundationLibrary}),
+  Security: Object.freeze({name:"Moderation",description:"Verification, moderation, automated protection and recovery.",systems:["Verification system","Anti-spam and AutoMod","Anti-nuke detection","Bot detector and approval","Warnings and sanctions","Raid protection","Audit logs and recovery"],create:createSecurityLibrary}),
   Support: Object.freeze({name:"Support",description:"The complete ticket and support system.",systems:["Ticket setup and panels","Private tickets","Staff threads","Transcripts","Permissions and logs"],create:createSupportLibrary}),
   Scratch: Object.freeze({name:"Studio",description:"The TbScript development environment.",systems:["TbScript projects","Editor and component kit","Panel scripting","Run and stop testing","Validation and documentation","Version history and import/export"],create:createScratchLibrary})
 });
