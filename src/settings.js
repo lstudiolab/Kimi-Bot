@@ -31,6 +31,30 @@ const button = (id,label,style=ButtonStyle.Secondary) => new ButtonBuilder().set
 const row = (...items) => new ActionRowBuilder().addComponents(...items);
 const embed = (title,description) => new EmbedBuilder().setColor(GREY).setTitle(title).setDescription(description);
 const hasAccess = i => Boolean(i.guild && i.guild.ownerId === i.user.id);
+
+// Discord rejects a message when any interactive component ID is repeated.
+// Keep every control functional by assigning a reversible suffix to collisions.
+function normalizePanelComponents(components,logger){
+  const seen=new Set();
+  for(const actionRow of components||[]){
+    for(const component of actionRow.components||[]){
+      const data=component.toJSON?.()||component.data||{};
+      const original=data.custom_id;
+      if(!original)continue;
+      let next=original,index=1;
+      while(seen.has(next)){
+        const suffix=":dup:"+index++;
+        next=original.slice(0,100-suffix.length)+suffix;
+      }
+      if(next!==original){
+        component.setCustomId(next);
+        logger?.warn?.("Duplicate component ID corrected in Kimi Settings panel:",original,"→",next);
+      }
+      seen.add(next);
+    }
+  }
+  return components;
+}
 const installed = (store,guildId,name) => (store.data.installed_libraries[guildId]||[]).includes(name);
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
 const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
@@ -39,12 +63,12 @@ export class KimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
     if(i.isChatInputCommand?.()&&!i.deferred&&!i.replied)await i.deferReply({ephemeral:false});
-    if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
-    const guild=i.guild, id=guild.id;
+    if(!hasAccess(i))return edit({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
+    const guild=i.guild, id=guild.id;\n    const edit=payload=>{payload.components=normalizePanelComponents(payload.components,this.logger);return i.editReply(payload);};
     const language=this.store.data.languages?.[id]||"en-US";
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
-      return i.editReply({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
+      return edit({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
         row(button("settings:appearance","Appearance"),button("settings:advanced",tr("advanced")))
@@ -52,8 +76,8 @@ export class KimiSettings {
     }
     if(page==="library"){
       const library=selected;
-      if(!["Foundation","Security","Support","Scratch"].includes(library))return i.editReply({content:"Unknown library.",embeds:[],components:[]});
-      if(!installed(this.store,id,library))return i.editReply({content:`${library} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
+      if(!["Foundation","Security","Support","Scratch"].includes(library))return edit({content:"Unknown library.",embeds:[],components:[]});
+      if(!installed(this.store,id,library))return edit({content:`${library} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
       const sections=[];
       if(library==="Security"){
         sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
@@ -65,7 +89,7 @@ export class KimiSettings {
       }else{
         sections.push(row(button("settings:home","Back to Kimi Settings")));
       }
-      return i.editReply({embeds:[embed(library+" Configuration",`Configure the ${library} library for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
+      return edit({embeds:[embed(library+" Configuration",`Configure the ${library} library for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
     }
     if(page==="configure"){
       const sections=[];
@@ -73,12 +97,12 @@ export class KimiSettings {
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
-      return i.editReply({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
+      return edit({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
     }
     if(page==="filter"){
       const words=this.store.data.automod_words[id]||[];
       const description=words.length?words.map((word,index)=>`${index+1}. ${word}`).join("\n"):"No blocked phrases are configured.";
-      return i.editReply({embeds:[embed("Blocked Phrases",description)],components:[row(button("settings:filter-add","Add Phrase"),button("settings:filter-remove","Remove Phrase")),row(button("settings:configure","Back"))]});
+      return edit({embeds:[embed("Blocked Phrases",description)],components:[row(button("settings:filter-add","Add Phrase"),button("settings:filter-remove","Remove Phrase")),row(button("settings:configure","Back"))]});
     }
     if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
@@ -92,7 +116,7 @@ export class KimiSettings {
         if(m&&installed(this.store,id,m.library))components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
       }
       components.push(row(button("settings:home",tr("back"))));
-      return i.editReply({embeds:[embed(tr("modules"),lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
+      return edit({embeds:[embed(tr("modules"),lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
     }
     if(page==="install"||page==="uninstall"){
       const choices=Object.values(LIBRARIES).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
@@ -102,20 +126,20 @@ export class KimiSettings {
       if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:library-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
       components.push(row(button("settings:home",tr("back"))));
       const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available libraries are installed.":"There are no installed libraries to remove.");
-      return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
+      return edit({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
       const makeLanguageMenu=(items,suffix,customId="settings:language-select")=>new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
       const first=makeLanguageMenu(LANGUAGES.slice(0,25),tr("language"));
       const second=makeLanguageMenu(LANGUAGES.slice(25),tr("language"),"settings:language-select:more");
-      return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LOCALE_NAMES[language]||language}**
+      return edit({embeds:[embed(tr("language"),`Current server language: **${LOCALE_NAMES[language]||language}**
 
 Choose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
       const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\\n");
       const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
-      return i.editReply({embeds:[embed(tr("status"),`**Libraries**
+      return edit({embeds:[embed(tr("status"),`**Libraries**
 ${libs}
 
 **Modules**
@@ -125,23 +149,23 @@ ${mods}
 ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(page==="permissions"){
-      return i.editReply({embeds:[embed(tr("permissions"),"Only this server's owner can open or change Kimi Settings. Other administrators cannot modify these settings.")],components:[row(button("settings:home","Back"))]});
+      return edit({embeds:[embed(tr("permissions"),"Only this server's owner can open or change Kimi Settings. Other administrators cannot modify these settings.")],components:[row(button("settings:home","Back"))]});
     }
     if(page==="appearance"){
       const appearance=this.store.data.customizations?.[id]||{};
       const color=typeof appearance.accent_color==="string"&&/^#[0-9A-F]{6}$/i.test(appearance.accent_color)?appearance.accent_color:"#808080";
       const style=["Primary","Secondary","Success","Danger"].includes(appearance.button_style)?appearance.button_style:"Secondary";
       const styleMenu=new StringSelectMenuBuilder().setCustomId("settings:appearance-style").setPlaceholder("Choose a button style").addOptions(["Primary","Secondary","Success","Danger"].map(value=>({label:value,value,default:value===style})));
-      return i.editReply({embeds:[new EmbedBuilder().setColor(Number.parseInt(color.slice(1),16)).setTitle("Appearance").setDescription("**Accent color:** `"+color+"`\n**Button style:** "+style+"\n\nChoose the visual style Kimi should use for its panels and controls. These preferences are saved for this server.")],components:[row(button("settings:appearance-color","Change Accent Color")),row(styleMenu),row(button("settings:home","Back"))]});
+      return edit({embeds:[new EmbedBuilder().setColor(Number.parseInt(color.slice(1),16)).setTitle("Appearance").setDescription("**Accent color:** `"+color+"`\n**Button style:** "+style+"\n\nChoose the visual style Kimi should use for its panels and controls. These preferences are saved for this server.")],components:[row(button("settings:appearance-color","Change Accent Color")),row(styleMenu),row(button("settings:home","Back"))]});
     }
     if(page==="advanced"){
-      return i.editReply({embeds:[embed(tr("advanced"),"Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
+      return edit({embeds:[embed(tr("advanced"),"Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
     }
   }
   async handle(i){
     if(!i.inGuild())return i.editReply({content:"Use Kimi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
-    const id=i.customId||"";
+    const id=(i.customId||"").replace(/:dup:\\d+$/,"");
     if(i.isModalSubmit()&&id==="settings:appearance-color-modal"){
       const color=i.fields.getTextInputValue("accent-color").trim();
       if(!/^#?[0-9A-Fa-f]{6}$/.test(color))return i.editReply({content:"Enter a valid six-digit hexadecimal color, such as #5865F2.",components:[],embeds:[]});
