@@ -168,8 +168,12 @@ export class Verification {
   async botDecision(i){
     const match=i.customId.match(/^botguard:(yes|no):(\d+):(\d+)$/);
     if(!match)return deny(i,"This bot approval control is invalid.");
-    const [,decision,guildId,botId]=match,guild=await this.client.guilds.fetch(guildId);
-    if(guild.ownerId!==i.user.id&&!isManager(i))return deny(i,"Only the server owner or a member with Manage Server can decide.");
+    const [,decision,guildId,botId]=match;
+    if(i.guildId!==guildId)return deny(i,"This approval request belongs to a different server.");
+    const guild=i.guild||await this.client.guilds.fetch(guildId);
+    if(guild.ownerId!==i.user.id)return deny(i,"Only the server owner can approve or reject another bot.");
+    const botMember=await guild.members.fetch(botId).catch(()=>null);
+    if(!botMember?.user.bot)return deny(i,"The bot is no longer in this server or is not a bot account.");
     const key=guildId+":"+botId,pending=this.store.data.pending_bots[key];
     if(pending!==i.message.id)return deny(i,"This request is no longer pending.");
     if(decision==="no"){
