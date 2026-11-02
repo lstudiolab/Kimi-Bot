@@ -85,7 +85,7 @@ export class KimiSettings {
       }else if(plugin==="Support"){
         sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       }else if(plugin==="Welcome"){
-        sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+        sections.push(row(button("settings:config:welcome","Welcome")));
       }else if(plugin==="Auto Role"){
         sections.push(row(button("settings:config:auto-role","Automatic Role")));
       }else if(plugin==="Role Picker"){
@@ -101,7 +101,7 @@ export class KimiSettings {
       const sections=[];
       if(installed(this.store,id,"Kimi Lock")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
-      if(installed(this.store,id,"Welcome"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+      if(installed(this.store,id,"Welcome"))sections.push(row(button("settings:config:welcome","Welcome")));
       if(installed(this.store,id,"Auto Role"))sections.push(row(button("settings:config:auto-role","Automatic Role")));
       if(installed(this.store,id,"Role Picker"))sections.push(row(button("settings:config:roles","Role Menus")));
       if(installed(this.store,id,"Embeds"))sections.push(row(button("settings:config:embeds","Embed Tools")));
@@ -276,6 +276,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
       const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"?"Welcome":section==="roles"?"Role Picker":section==="auto-role"?"Auto Role":section==="embeds"?"Embeds":"Welcome";
+      if(section==="setup")return respond(i,"Shared Kimi channels are part of core setup. Run `/setup` to prepare them; no app installation is required.");
       if(!installed(this.store,i.guildId,plugin))return respond(i,"That app is no longer added. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
