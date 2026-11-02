@@ -6,8 +6,8 @@ export class GuardRateLimiter{
   bucket(guildId,actorId,kind,now=Date.now()){
     let guild=this.store.data.guard_state[guildId];
     if(!guild||typeof guild!=="object"||Array.isArray(guild))guild=this.store.data.guard_state[guildId]={users:{},bots:{},incidents:{}};
-    if(!guild.users||typeof guild.users!=="object"||Array.isArray(guild.users))guild.users={};
-    if(!guild.bots||typeof guild.bots!=="object"||Array.isArray(guild.bots))guild.bots={};
+    if(!guild.users||typeof guild.users!=="object"||Array.isArray(guild.users)){guild.users={};this.bucketCounts.delete(guildId+":user");}
+    if(!guild.bots||typeof guild.bots!=="object"||Array.isArray(guild.bots)){guild.bots={};this.bucketCounts.delete(guildId+":bot");}
     const collection=kind==="bot"?guild.bots:guild.users;
     const collectionKey=guildId+":"+kind;
     if(now-(this.lastPrune.get(collectionKey)||0)>=60000){
@@ -24,15 +24,16 @@ export class GuardRateLimiter{
     }
     let state=collection[actorId];
     if(!state||typeof state!=="object"||Array.isArray(state)){
+      const existed=Object.hasOwn(collection,actorId);
       let count=this.bucketCounts.get(collectionKey);
       if(count===undefined)count=Object.keys(collection).length;
-      if(count>=20000){
+      if(!existed&&count>=20000){
         const keys=Object.keys(collection),remove=Math.max(1,keys.length-18000+1);
         for(let index=0;index<remove;index++)delete collection[keys[index]];
         count=Math.max(0,keys.length-remove);
       }
       state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:now,last_activity:0};
-      this.bucketCounts.set(collectionKey,count+1);
+      this.bucketCounts.set(collectionKey,count+(existed?0:1));
     }
     state.tokens=Math.max(0,Math.min(TOKEN_CAPACITY,Number.isInteger(state.tokens)?state.tokens:TOKEN_CAPACITY));
     state.updated_at=Math.min(now,Number.isFinite(state.updated_at)?state.updated_at:now);
