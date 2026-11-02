@@ -92,8 +92,7 @@ actor VerificationService {
      let canManage=roles.contains{botIDs.contains($0["id"] as? String ?? "") && ((UInt64($0["permissions"] as? String ?? "") ?? 0) & 268435464 != 0)}
      guard let target=roles.first(where:{($0["id"] as? String)==role}) else{throw KimiError.configuration("The verified role no longer exists.")}
      let permissions=UInt64(target["permissions"] as? String ?? "") ?? 0
-     let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
-     guard canManage,role != guild,(target["position"] as? Int ?? 0)<highest,permissions & dangerous == 0,target["managed"] as? Bool != true else{throw KimiError.configuration("The verified role is unsafe or above Kimi's highest role.")}
+     guard canManage,SecurityPolicy.isSafeRole(roleID:role,guildID:guild,managed:target["managed"] as? Bool ?? false,permissions:permissions),(target["position"] as? Int ?? 0)<highest else{throw KimiError.configuration("The verified role is unsafe or above Kimi's highest role.")}
      _ = try await rest.call("PUT","guilds/"+guild+"/members/"+userID+"/roles/"+role)
     }
     try await records.markVerified(guildID:guild,userID:userID)
