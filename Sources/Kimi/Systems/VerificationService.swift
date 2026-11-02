@@ -36,12 +36,20 @@ actor VerificationService {
   let result=VerificationEngine().evaluate(createdAt:created,defaultAvatar:defaultAvatar,suspiciousBehavior:record.failures>0,attempts:record.attempts,minimumAgeDays:value.minimumAgeDays)
   let age=max(0,Int(Date().timeIntervalSince(created)/86400))
   if result.decision != .approve{
+   if result.decision == .reject { try? await records.markFailed(guildID:guild,userID:userID,reason:result.reasons.joined(separator:"; ")) }
+   var queued=false
    if let review=value.reviewChannelID{
-    let body="Verification review required for <@\(userID)>. Account age: \(age) days; minimum: \(value.minimumAgeDays) days."
+    let details=result.reasons.isEmpty ? "No additional risk signals." : result.reasons.joined(separator:"; ")
+    let body="Verification review required for <@\(userID)>. Score: "+String(result.score)+"/100. Account age: "+String(age)+" days. "+details
     let components=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"verify:approve:"+userID],["type":2,"style":4,"label":"Reject","custom_id":"verify:reject:"+userID]]]] as [[String:Any]]
-    do{_ = try await rest.call("POST","channels/\(review)/messages",body:["content":body,"components":components,"allowed_mentions":["parse":[]]])}catch{await logger.log("ERROR","Verification review could not be queued: "+error.localizedDescription)}
+    do{
+     let posted=try await rest.call("POST","channels/\(review)/messages",body:["content":body,"components":components,"allowed_mentions":["parse":[]]])
+     if let messageID=(posted as? [String:Any])?["id"] as? String{try await records.setReviewMessage(guildID:guild,userID:userID,messageID:messageID)}
+     queued=true
+    }catch{await logger.log("ERROR","Verification review could not be queued: "+error.localizedDescription)}
    }
-   try? await rest.editKimiInteraction(applicationID,interactionToken,"Your account is younger than the server's minimum age. Your verification was sent for manual review.")
+   let response=queued ? "Verification score: "+String(result.score)+"/100. Your request was sent for manual review." : "Verification score: "+String(result.score)+"/100. Manual review is required, but the review channel is not configured."
+   try? await rest.editKimiInteraction(applicationID,interactionToken,response)
    return
   }
   if let role=value.roleID{
