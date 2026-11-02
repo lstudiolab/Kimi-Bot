@@ -12,14 +12,14 @@ const MODULES = Object.freeze([
   { id: "welcome", name: "Welcome", library: "Foundation" },
   { id: "roles", name: "Role picker", library: "Foundation" },
   { id: "embeds", name: "Embeds", library: "Foundation" },
-  { id: "verification", name: "Verification", library: "Security" },
-  { id: "moderation", name: "Moderation", library: "Security" },
-  { id: "protection", name: "Server protection", library: "Security" },
-  { id: "recovery", name: "Recovery", library: "Security" },
+  { id: "verification", name: "Verification", library: "Kimi Lock" },
+  { id: "moderation", name: "Moderation", library: "Kimi Lock" },
+  { id: "protection", name: "Server protection", library: "Kimi Lock" },
+  { id: "recovery", name: "Recovery", library: "Kimi Lock" },
   { id: "tickets", name: "Tickets", library: "Support" },
   { id: "scratch", name: "TbScript", library: "Scratch" }
 ]);
-const LIBRARY_NAMES = new Set(["Foundation", "Security", "Support", "Scratch"]);
+const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support", "Scratch"]);
 const COMMAND_GROUPS = Object.freeze({
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","filter","security","moderation"],
@@ -132,7 +132,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
     return context;
   }
   function guildSnapshot(guild, session) {
-    const installed = store.data.installed_libraries[guild.id] || [];
+    const installed = store.data.installed_plugins[guild.id] || [];
     const modules = MODULES.map(module => ({
       ...module,
       installed: installed.includes(module.library),
@@ -144,7 +144,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
       icon: guild.iconURL({ size: 64 }),
       owner: guild.ownerId === (session.account.guilds || []).find(item => item.id === guild.id)?.linkedBy,
       canManage: true,
-      libraries: [...LIBRARY_NAMES].map(name => ({
+      plugins: [...PLUGIN_NAMES].map(name => ({
         name,
         installed: installed.includes(name),
         description: manager.get(name)?.description || ""
@@ -265,7 +265,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           for(const row of recent)for(const [name,count] of Object.entries(row.commandCounts||{}))commandCounts[name]=(commandCounts[name]||0)+count;
           const topCommands=Object.entries(commandCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name,count])=>({name,count}));
           const rules=await context.guild.autoModerationRules.fetch().catch(()=>null);
-          return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activeLibraries:(store.data.installed_libraries?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
+          return send(res,200,{days,totals,topCommands,server:{members:context.guild.memberCount||0,channels:context.guild.channels.cache.size,roles:context.guild.roles.cache.size,rules:rules?rules.size:null},activeLibraries:(store.data.installed_plugins?.[analyticsMatch[1]]||[]).length,enabledSystems:Object.values(store.data.modules?.[analyticsMatch[1]]||{}).filter(value=>value!==false).length,uptimeSeconds:Math.floor(process.uptime())});
         }
         const verificationLogsMatch=url.pathname.match(/^\/api\/guilds\/(\d+)\/verification-logs$/);
         if(method==="GET"&&verificationLogsMatch){
@@ -285,7 +285,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           const commandContext=await requireGuild(req,res,session,commandsMatch[1]);
           if(!commandContext)return;
           const settings=store.data.command_settings?.[commandsMatch[1]]||{};
-          if(method==="GET"&&!commandsMatch[2])return send(res,200,{commands:COMMAND_NAMES.map(item=>({...item,enabled:settings[item.name]!==false,installed:(store.data.installed_libraries[commandsMatch[1]]||[]).includes(item.bundle)}))});
+          if(method==="GET"&&!commandsMatch[2])return send(res,200,{commands:COMMAND_NAMES.map(item=>({...item,enabled:settings[item.name]!==false,installed:(store.data.installed_plugins[commandsMatch[1]]||[]).includes(item.bundle)}))});
           if(method==="POST"&&commandsMatch[2]){
             const body=await parseBody(req);
             if(!COMMAND_NAMES.some(item=>item.name===commandsMatch[2])||typeof body.enabled!=="boolean")return send(res,400,{error:"Invalid command setting."});
@@ -322,7 +322,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
             const body = await parseBody(req);
             const module = MODULES.find(item => item.id === guildMatch[3]);
             if (!module || typeof body.enabled !== "boolean") return send(res, 400, { error: "Invalid system or enabled value." });
-            if (!(store.data.installed_libraries[guildId] || []).includes(module.library)) {
+            if (!(store.data.installed_plugins[guildId] || []).includes(module.library)) {
               return send(res, 409, { error: "Install the " + module.library + " library before changing this system." });
             }
             store.data.modules[guildId] ||= {};
@@ -334,7 +334,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           if (method === "POST" && guildMatch[2] === "libraries") {
             const body = await parseBody(req);
             const name = guildMatch[3];
-            if (!LIBRARY_NAMES.has(name) || !["install", "uninstall"].includes(body.action)) {
+            if (!PLUGIN_NAMES.has(name) || !["install", "uninstall"].includes(body.action)) {
               return send(res, 400, { error: "Invalid library action." });
             }
             // authorizedGuild has already verified Manage Server or Administrator permission.

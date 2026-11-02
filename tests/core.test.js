@@ -95,26 +95,26 @@ test("legacy configuration files are imported without overwriting new data",()=>
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { LibraryManager } from "../src/module-manager.js";
-import { LIBRARIES, normalizeLibraryName } from "../src/libraries/index.js";
+import { PluginManager } from "../src/plugin-manager.js";
+import { PLUGINS, normalizePluginName } from "../src/plugins/index.js";
 
-test("Kimi exposes three focused first-party libraries",()=>{
-  assert.deepEqual(Object.keys(LIBRARIES),["Foundation","Kimi Lock","Support"]);
-  for(const library of Object.values(LIBRARIES)){
-    assert.equal(typeof library.create,"function");
-    assert.ok(library.systems.length>0);
-    assert.ok(library.description.length>20);
+test("Kimi exposes three focused first-party plugins",()=>{
+  assert.deepEqual(Object.keys(PLUGINS),["Foundation","Kimi Lock","Support"]);
+  for(const plugin of Object.values(PLUGINS)){
+    assert.equal(typeof plugin.create,"function");
+    assert.ok(plugin.systems.length>0);
+    assert.ok(plugin.description.length>20);
   }
-  assert.equal(normalizeLibraryName(" moderation "),"Kimi Lock");
-  assert.equal(normalizeLibraryName("Security"),"Kimi Lock");
-  assert.equal(normalizeLibraryName("Developer"),null);
-  assert.equal(normalizeLibraryName("Support"),"Support");
-  assert.equal(normalizeLibraryName("Unknown"),null);
+  assert.equal(normalizePluginName(" moderation "),"Kimi Lock");
+  assert.equal(normalizePluginName("Security"),"Kimi Lock");
+  assert.equal(normalizePluginName("Developer"),null);
+  assert.equal(normalizePluginName("Support"),"Support");
+  assert.equal(normalizePluginName("Unknown"),null);
 });
-test("library installation is isolated per server and preserves data",()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-libraries-"));
+test("plugin installation is isolated per server and preserves data",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"timi-plugins-"));
   try{
-    const store=new Store(dir,quiet),manager=new LibraryManager(store,quiet);
+    const store=new Store(dir,quiet),manager=new PluginManager(store,quiet);
     store.ticket("guild-a").panel_title="Saved support";store.save();
     assert.equal(manager.install("guild-a","Support").ok,true);
     assert.equal(manager.installed("guild-a","Support"),true);
@@ -126,18 +126,18 @@ test("library installation is isolated per server and preserves data",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { commandData, libraryCommandsForLibraries, libraryForCommand } from "../src/commands.js";
-test("library management commands are registered with the intended option behavior",()=>{
+import { commandData, pluginCommandsForLibraries, pluginForCommand } from "../src/commands.js";
+test("plugin management commands are registered with the intended option behavior",()=>{
   const install=commandData.find(command=>command.name==="install");
   const uninstall=commandData.find(command=>command.name==="uninstall");
-  const list=commandData.find(command=>command.name==="libraries");
+  const list=commandData.find(command=>command.name==="plugins");
   assert.ok(install&&uninstall&&list);
-  assert.equal(install.options[0].name,"library");
+  assert.equal(install.options[0].name,"plugin");
   assert.equal(install.options[0].required,true);
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="filter"));
   assert.ok(commandData.some(command=>command.name==="security"));
-  for(const name of ["plan","libraries","install"]) {
+  for(const name of ["plan","plugins","install"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }
 });
@@ -200,7 +200,7 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation publishes only its requested member systems",()=>{const names=libraryCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+test("Foundation publishes only its requested member systems",()=>{const names=pluginCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
@@ -260,18 +260,18 @@ test("image OCR link extraction and safety heuristics identify common phishing i
   assert.ok(flags.some(flag=>flag.includes("IP address")));
 });
 
-test("compact commands are unique and route to their canonical libraries",()=>{
+test("compact commands are unique and route to their canonical plugins",()=>{
   const names=commandData.map(command=>command.name);
   assert.equal(new Set(names).size,names.length);
-  for(const [name,library] of [
+  for(const [name,plugin] of [
     ["welcome","Foundation"],["autorole","Foundation"],["foundation","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
     ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["lock","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
     ["tickets","Support"],["support","Support"],["ticket-panel","Support"],["ticket-config","Support"],
-  ])assert.equal(libraryForCommand(name),library);
-  for(const name of ["plan","libraries","install","uninstall"])assert.equal(libraryForCommand(name),null);
+  ])assert.equal(pluginForCommand(name),plugin);
+  for(const name of ["plan","plugins","install","uninstall"])assert.equal(pluginForCommand(name),null);
 });
-test("library commands require Manage Server, not Administrator",()=>{
-  for(const command of commandData.filter(command=>libraryForCommand(command.name))){
+test("plugin commands require Manage Server, not Administrator",()=>{
+  for(const command of commandData.filter(command=>pluginForCommand(command.name))){
     assert.equal(command.default_member_permissions,"32");
   }
 });
@@ -283,14 +283,14 @@ test("transcript chunking preserves every character of oversized lines",()=>{
   assert.ok(chunks.every(chunk=>chunk.length<=1900));
   assert.equal(chunks.join("").replace(/\n/g,""),source.replace(/\n/g,""));
 });
-test("every library factory can be instantiated with the shared runtime context",()=>{
+test("every plugin factory can be instantiated with the shared runtime context",()=>{
   const context={client:{},store:{data:{}},logger:quiet,foundation:{}};
-  const foundation=LIBRARIES.Foundation.create(context);
+  const foundation=PLUGINS.Foundation.create(context);
   assert.equal(typeof foundation.ensureSetup,"function","Foundation must expose the shared idempotent setup service");
   const shared={...context,foundation};
-  for(const library of Object.values(LIBRARIES)){
-    const instance=library.create(shared);
-    assert.equal(typeof instance.handleInteraction,"function",library.name+" must expose an interaction handler");
+  for(const plugin of Object.values(PLUGINS)){
+    const instance=plugin.create(shared);
+    assert.equal(typeof instance.handleInteraction,"function",plugin.name+" must expose an interaction handler");
   }
 });
 
@@ -613,13 +613,13 @@ test("private-channel checks reject public and non-text destinations",()=>{
   assert.equal(isPrivateTextChannel(null,guild),false);
 });
 
-import { libraryForComponent } from "../src/component-routing.js";
+import { pluginForComponent } from "../src/component-routing.js";
 
-test("all persistent component prefixes route to their installed library",()=>{
-  for(const [id,library] of [
+test("all persistent component prefixes route to their installed plugin",()=>{
+  for(const [id,plugin] of [
     ["ticket:close","Support"],["modpanel:enable","Kimi Lock"],["botguard:yes:123","Kimi Lock"],
     ["verify:start","Kimi Lock"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
     
-  ])assert.equal(libraryForComponent(id),library,id);
-  assert.equal(libraryForComponent("unknown:component"),null);
+  ])assert.equal(pluginForComponent(id),plugin,id);
+  assert.equal(pluginForComponent("unknown:component"),null);
 });
