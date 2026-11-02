@@ -41,7 +41,7 @@ export class AutomationEngine{
       components.unshift(row(select("automation:select","Choose an automation",items.slice(0,25).map(a=>({label:a.name.slice(0,100),value:a.id,description:(a.trigger+" · "+(a.enabled?"On":"Off")).slice(0,100)})))));
       if(selectedId&&items.some(a=>a.id===selectedId)){
         const a=items.find(x=>x.id===selectedId);
-        components.splice(1,0,row(button("automation:toggle:"+a.id,a.enabled?"Turn Off":"Turn On"),button("automation:delete:"+a.id,"Delete",ButtonStyle.Danger)));
+        components.splice(1,0,row(...(a.trigger==="manual"?[button("automation:run:"+a.id,"Run Now",ButtonStyle.Success)]:[]),button("automation:toggle:"+a.id,a.enabled?"Turn Off":"Turn On"),button("automation:delete:"+a.id,"Delete",ButtonStyle.Danger)));
       }
     }
     components.push(row(button("automation:help","How automations work")));
@@ -51,6 +51,7 @@ export class AutomationEngine{
   }
   async triggerPicker(i){
     const menu=select("automation:trigger","Choose what starts this automation",[
+      {label:"Run manually",value:"manual",description:"Start this automation with a Run button"},
       {label:"Member joins",value:"member_join",description:"When someone joins this server"},
       {label:"Member leaves",value:"member_leave",description:"When someone leaves this server"},
       {label:"A message is sent",value:"message_create",description:"When a member sends a message"}
@@ -74,8 +75,8 @@ export class AutomationEngine{
   async actionPicker(i){
     const d=this.drafts.get(key(i.guildId,i.user.id));if(!d)return this.dashboard(i);
     const options=[{label:"Send a message",value:"send_message",description:"Post a templated message to a channel"}];
-    if(d.trigger==="member_join")options.push({label:"Assign a role",value:"assign_role",description:"Give the joining member a role"});
-    if(d.trigger==="member_join"||d.trigger==="member_leave")options.push({label:"Remove a role",value:"remove_role",description:"Remove a role from the member"});
+    if(d.trigger==="member_join"||d.trigger==="manual")options.push({label:"Assign a role",value:"assign_role",description:d.trigger==="manual"?"Give the person who runs it a role":"Give the joining member a role"});
+    if(d.trigger==="member_join"||d.trigger==="member_leave"||d.trigger==="manual")options.push({label:"Remove a role",value:"remove_role",description:"Remove a role from the member"});
     if(d.trigger==="message_create")options.push(
       {label:"Delete the triggering message",value:"delete_message",description:"Remove the message that matched the flow"},
       {label:"Timeout the message author",value:"timeout_member",description:"Apply a temporary timeout"}
@@ -175,6 +176,15 @@ export class AutomationEngine{
       this.logger.info("Automation created for guild "+i.guildId+": "+automation.id);
       return i.editReply({embeds:[embed("Automation Active",automation.name+" is now enabled. Kimi will run this flow when its trigger and condition match.")],components:[row(button("automation:home","Done"))]});
     }
+    if(id.startsWith("automation:run:")){
+      const automation=this.list(i.guildId).find(a=>a.id===id.slice("automation:run:".length));
+      if(!automation||automation.trigger!=="manual"||!automation.enabled)return i.editReply({content:"This manual automation is unavailable or turned off.",components:[],embeds:[]});
+      const member=await i.guild.members.fetch(i.user.id).catch(()=>null);
+      if(!member)return i.editReply({content:"Kimi could not load your server member profile.",components:[],embeds:[]});
+      const results=await this.run(i.guild,"manual",{guild:i.guild,member,accountAgeDays:Math.floor((Date.now()-i.user.createdTimestamp)/86400000)},"manual:"+randomUUID());
+      const failed=results.filter(result=>result.status==="rejected").length;
+      return i.editReply({embeds:[embed(failed?"Automation finished with errors":"Automation completed",failed?failed+" background step(s) could not be queued. Check Kimi's logs.":"**"+automation.name+"** finished running.")],components:[row(button("automation:home","Done"))]});
+    }
     if(id.startsWith("automation:toggle:")){
       const automation=this.list(i.guildId).find(a=>a.id===id.slice("automation:toggle:".length));if(automation){automation.enabled=!automation.enabled;automation.updated_at=Date.now();this.store.save();}
       return this.dashboard(i,automation?.id||"");
@@ -186,6 +196,7 @@ export class AutomationEngine{
   }
   async run(guild,trigger,context,eventId){
     const jobs=this.list(guild.id).filter(a=>a.enabled&&a.trigger===trigger&&conditionMatches(a.condition,context));
+    const queued=[];
     for(const automation of jobs){
       const runKey=automation.id+":"+eventId;if(this.running.has(runKey))continue;this.running.add(runKey);
       const task=async()=>{
@@ -212,9 +223,10 @@ export class AutomationEngine{
           }
         }finally{this.running.delete(runKey);}
       };
-      if(this.services?.background)this.services.background.enqueue("automation:"+runKey,task).catch(error=>{this.running.delete(runKey);this.logger.warn("Automation queue rejected work:",error.message);});
-      else await task();
+      if(this.services?.background)queued.push(this.services.background.enqueue("automation:"+runKey,task));
+      else queued.push(task());
     }
+    return Promise.allSettled(queued);
   }
   async memberJoin(member){const accountAgeDays=Math.floor((Date.now()-member.user.createdTimestamp)/86400000);return this.run(member.guild,"member_join",{member,accountAgeDays},member.id+":"+member.joinedTimestamp);}
   async memberLeave(member){return this.run(member.guild,"member_leave",{member},member.id+":"+Date.now());}
