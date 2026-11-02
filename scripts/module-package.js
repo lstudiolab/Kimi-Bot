@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createModuleArchive, downloadModuleArchive, extractModuleArchive, runModuleChecks } from "../src/package-manager.js";
 
@@ -23,9 +24,14 @@ try{
     console.log(JSON.stringify({installed:destination,id:result.manifest.id,kind:result.manifest.kind,checks:result.checks,findings:result.findings},null,2));
   }else if(action==="download"){
     const [url,destination]=args;
-    if(!url||!destination)throw new Error("Usage: node scripts/module-package.js download <https-url> <destination.kmod>");
-    const result=await downloadModuleArchive(url,path.resolve(destination));
-    console.log(JSON.stringify({downloaded:result.file,bytes:result.bytes,sha256:result.sha256},null,2));
+    if(!url||!destination)throw new Error("Usage: node scripts/module-package.js download <https-url> <install-directory>");
+    const temporary=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-module-download-"));
+    try{
+      const archive=path.join(temporary,"package.kmod");
+      const downloaded=await downloadModuleArchive(url,archive);
+      const installed=extractModuleArchive(archive,path.resolve(destination));
+      console.log(JSON.stringify({downloadedBytes:downloaded.bytes,archiveSha256:downloaded.sha256,installed:destination,id:installed.manifest.id,kind:installed.manifest.kind,checks:installed.checks,findings:installed.findings},null,2));
+    }finally{fs.rmSync(temporary,{recursive:true,force:true});}
   }else{
     throw new Error("Actions: pack, download, unpack, check");
   }
