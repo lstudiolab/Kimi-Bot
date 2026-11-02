@@ -266,7 +266,6 @@ client.on(Events.GuildMemberAdd,m=>{
  record.joins++;
  record.last_join=Date.now();
  store.queueSave();
- if(manager.installed(m.guild.id,"Scratch")&&moduleEnabled(m.guild.id,"scratch"))libraries.Scratch.onMemberJoin(m).catch(e=>logger.error("TBScript member-join event failed:",e));
  if(manager.installed(m.guild.id,"Kimi Lock")){
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
   if(modules.protection||modules.verification)libraries["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
