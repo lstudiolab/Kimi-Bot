@@ -81,14 +81,14 @@ const openConfiguration=async(i,section)=>{
 const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function showInstallAnimation(interaction,moduleName){
  const frames=[
-  {bar:"░░░░░░░░░░",percent:0,status:"Preparing https://kimimodules.com"},
-  {bar:"█░░░░░░░░░",percent:10,status:"Loading module's"},
-  {bar:"██░░░░░░░░",percent:20,status:"Finding module's name"},
+  {bar:"░░░░░░░░░░",percent:0,status:"Preparing library"},
+  {bar:"█░░░░░░░░░",percent:10,status:"Loading library"},
+  {bar:"██░░░░░░░░",percent:20,status:"Checking library identity"},
   {bar:"███░░░░░░░",percent:30,status:"Checking module structure"},
-  {bar:"████░░░░░░",percent:40,status:"Decompressing module"},
+  {bar:"████░░░░░░",percent:40,status:"Preparing library systems"},
   {bar:"█████░░░░░",percent:50,status:"Listing slash commands"},
   {bar:"██████░░░░",percent:60,status:"Checking slash commands"},
-  {bar:"███████░░░",percent:70,status:"Registering slash command"},
+  {bar:"███████░░░",percent:70,status:"Publishing commands"},
   {bar:"████████░░",percent:80,status:"Activating module"},
   {bar:"█████████░",percent:90,status:"Checking module status"},
   {bar:"██████████",percent:100,status:"Installation completed"}
@@ -98,7 +98,7 @@ async function showInstallAnimation(interaction,moduleName){
    content:"**Installing "+moduleName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status,
    components:[],embeds:[],allowedMentions:{parse:[]}
   });
-  if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,500));
+  if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,120));
  }
 }
 async function coreCommand(i){
@@ -119,7 +119,7 @@ async function coreCommand(i){
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
-   return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ");
+   return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
   });
   return respond(i,"**Kimi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi.");
  }

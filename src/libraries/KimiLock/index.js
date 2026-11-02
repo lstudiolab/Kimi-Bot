@@ -16,6 +16,7 @@ export function createKimiLockLibrary({client,store,logger,foundation,services})
   recovery.protection=protection;
   return {
     async ready(guild){
+      if(foundation?.ensureSetup)await foundation.ensureSetup(guild);
       if(store.data.modules?.[guild.id]?.moderation!==false)await moderation.resumeJobs(guild);
       if(store.data.modules?.[guild.id]?.protection!==false)await protection.ready(guild);
       if(store.data.modules?.[guild.id]?.recovery!==false){
@@ -39,7 +40,7 @@ export function createKimiLockLibrary({client,store,logger,foundation,services})
       if(modules.recovery)recovery.backupMessage(message);
       if(modules.moderation){await moderation.onMessage(message);if(services?.background)services.background.enqueue("image:"+message.id,()=>imageAnalysis.handleMessage(message)).catch(error=>logger.error("Kimi Lock image analysis failed:",error));else await imageAnalysis.handleMessage(message);}
     },
-    async guildMemberAdd(member,modules={protection:true,verification:true}){const tasks=[];if(modules.protection)tasks.push(protection.memberJoin(member));if(modules.verification)tasks.push(verification.memberJoin(member));const results=await Promise.allSettled(tasks);for(const result of results)if(result.status==="rejected")logger.error("Security join check failed:",result.reason);},
+    async guildMemberAdd(member,modules={protection:true,verification:true}){const tasks=[];if(modules.protection)tasks.push(protection.memberJoin(member));if(modules.verification)tasks.push(verification.memberJoin(member));const results=await Promise.allSettled(tasks);for(const result of results)if(result.status==="rejected")logger.error("Kimi Lock join check failed:",result.reason);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
     channelCreate(channel){recovery.snapshot(channel);},
     channelUpdate(oldChannel,channel){recovery.snapshot(channel);},

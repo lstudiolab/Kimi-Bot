@@ -10,6 +10,7 @@ export function createFoundationLibrary({client,store,logger,services}){
   const greet=new Foundation(client,store,logger);
   verificationHelper.ensureSetup=guild=>greet.ensureSetup(guild);
   return {
+    async ready(guild){await greet.ensureSetup(guild);},
     async handleInteraction(i){
       if(i.isChatInputCommand()){
         if(i.commandName==="roles")return rolePicker.handle(i);
