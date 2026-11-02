@@ -9,8 +9,17 @@ export class Recovery {
     const permissions=channel.permissionOverwrites?.cache?.map(o=>({
       id:o.id,type:o.type,allow:o.allow.bitfield.toString(),deny:o.deny.bitfield.toString()
     }))||[];
-    this.store.data.channels[channel.guild.id+":"+channel.id]={
-      id:channel.id,name:channel.name,type:channel.type,topic:channel.topic??null,
+    const snapshotKey=channel.guild.id+":"+channel.id,existing=this.store.data.channels[snapshotKey];
+    if(!existing){
+      const prefix=channel.guild.id+":";
+      const snapshots=Object.entries(this.store.data.channels).filter(([key])=>key.startsWith(prefix));
+      if(snapshots.length>=1000){
+        snapshots.sort((a,b)=>(a[1]?.saved_at||0)-(b[1]?.saved_at||0));
+        for(const [key] of snapshots.slice(0,snapshots.length-999))delete this.store.data.channels[key];
+      }
+    }
+    this.store.data.channels[snapshotKey]={
+      id:channel.id,saved_at:nowMs(),name:channel.name,type:channel.type,topic:channel.topic??null,
       parent_id:channel.parentId??null,position:channel.position??0,nsfw:channel.nsfw??false,
       rate_limit_per_user:channel.rateLimitPerUser??0,bitrate:channel.bitrate??null,
       user_limit:channel.userLimit??null,permission_overwrites:permissions
