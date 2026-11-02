@@ -210,6 +210,7 @@ extension KimiRuntime {
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
   do { try await rest.editKimiInteraction(app,token,reply) }
   catch { await logger.log("ERROR","Interaction response update failed: "+error.localizedDescription) }
+  await AnalyticsService(store:store).record(guild:guild,event:"command")
   return true
  }
  func handleMigratedComponent(_ event:[String:Any],data:[String:Any]) async -> Bool {
@@ -226,6 +227,7 @@ extension KimiRuntime {
     let me=try await rest.call("GET","users/@me")
     guard let bot=(me as? [String:Any])?["id"] as? String else{throw KimiError.invalidResponse}
     let ticket=try await SupportService(store:store,rest:rest,logger:logger).open(guild:guild,user:actorID,username:username,bot:bot)
+    await AnalyticsService(store:store).record(guild:guild,event:"ticket_open")
     try await rest.editKimiInteraction(app,token,"Your private ticket is ready: <#"+ticket.channelID+">")
    } else if custom.hasPrefix("ticket:priority:") {
     let value=String(custom.dropFirst("ticket:priority:".count)).split(separator:":").map(String.init)
@@ -255,6 +257,7 @@ extension KimiRuntime {
     let owner=try await rest.ownerID(guild)
     guard ticket.userID==actorID || owner==actorID else{throw KimiError.configuration("Only the ticket opener or server owner can close this ticket.")}
     let closed=try await SupportService(store:store,rest:rest,logger:logger).close(guild:guild,ticketID:ticketID)
+    await AnalyticsService(store:store).record(guild:guild,event:"ticket_close")
     try await rest.editKimiInteraction(app,token,"Ticket closed. Transcript retained in Kimi storage. Channel: <#"+closed.channelID+">")
    } else if custom=="ticket:cancel-close" {
     try await rest.editKimiInteraction(app,token,"Ticket remains open.")
@@ -297,6 +300,7 @@ extension KimiRuntime {
  func dispatchMigratedEvent(_ name:String,_ data:[String:Any]) async {
   switch name {
   case "READY":
+   if let bot=(data["user"] as? [String:Any])?["id"] as? String{try? await store.set(bot,key:"runtime.bot_id")}
    if let guilds=data["guilds"] as? [[String:Any]] {
     for item in guilds {
      guard let guild=item["id"] as? String else{continue}
@@ -304,6 +308,10 @@ extension KimiRuntime {
      try? await rest.registerGuildCommands(clientID,guildID:guild,installed:installed)
     }
    }
+  case "GUILD_CREATE":
+   guard let guild=data["id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   try? await rest.registerGuildCommands(clientID,guildID:guild,installed:installed)
   case "GUILD_MEMBER_ADD":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
@@ -333,20 +341,28 @@ extension KimiRuntime {
      } catch { await logger.log("ERROR","Kimi Guard bot approval failed: "+error.localizedDescription) }
     }
    }
+   await AnalyticsService(store:store).record(guild:guild,event:"join")
    await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Welcome"){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
+   await AnalyticsService(store:store).record(guild:guild,event:"leave")
    await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
   case "MESSAGE_CREATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
    let content=data["content"] as? String ?? ""
+   await AnalyticsService(store:store).record(guild:guild,event:"message")
    await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:content)
    let installed=await AppManager(store:store).installed(guildID:guild)
    guard installed.contains("Kimi Lock") else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    await recovery.captureMessage(guild,channel,message,user,content)
+   if content.contains("http://") || content.contains("https://") || !(data["attachments"] as? [[String:Any]] ?? []).isEmpty {
+    let botID=await store.get("runtime.bot_id",as:String.self) ?? ""
+    await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:data["attachments"] as? [[String:Any]] ?? [])
+    _ = botID
+   }
    let attachments=data["attachments"] as? [[String:Any]] ?? []
    await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)
    let owner=(try? await rest.ownerID(guild)) ?? ""
@@ -370,6 +386,7 @@ extension KimiRuntime {
     var logChannel=policy.logChannelID
     if logChannel == nil { let setup=await store.getLegacy("timi_setup",as:[String:[String:String]].self); logChannel=setup?[guild]?["log_channel_id"] }
     if let logChannel { _ = try? await rest.call("POST","channels/"+logChannel+"/messages",body:["content":"Kimi Lock removed a message from <@"+user+"> in <#"+channel+">. Reason: "+finding.reason+". Sanction: "+policy.sanction+".","allowed_mentions":["parse":[]]]) }
+    await AnalyticsService(store:store).record(guild:guild,event:"moderation")
     await logger.log("WARN","Kimi Lock moderation: "+finding.reason+"; sanction: "+policy.sanction)
    }
   case "MESSAGE_UPDATE":
@@ -377,11 +394,7 @@ extension KimiRuntime {
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureMessage(guild,channel,message,user,data["content"] as? String ?? "")}
   case "MESSAGE_DELETE":
-   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
-   let moderated=await store.get("moderation.deleted."+message,as:Bool.self) ?? false
-   if moderated { return }
-   let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock") { await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message) }
+   return
   case "MESSAGE_DELETE_BULK":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String],ids.count>=5 else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
