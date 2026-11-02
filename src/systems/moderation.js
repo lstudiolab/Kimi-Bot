@@ -29,7 +29,7 @@ export class Moderation {
         !["timeout","kick","ban","delete"].includes(job.action)){
         job.status="cancelled";job.cancel_reason="Invalid or unsafe persisted moderation job";job.updated_at=Date.now();this.store.save();return;
       }
-      const initialTarget=await guild.members.fetch(job.user_id).catch(()=>null);
+      const initialTarget=await guild.members.fetch({user:job.user_id,force:true}).catch(()=>null);
       if(initialTarget&&(initialTarget.id===guild.ownerId||initialTarget.user.bot||
         initialTarget.permissions.has(P.Administrator)||initialTarget.permissions.has(P.ManageMessages))){
         job.status="cancelled";job.cancel_reason="Target is now privileged or is a bot; automatic sanction cancelled";job.updated_at=Date.now();this.store.save();return;
