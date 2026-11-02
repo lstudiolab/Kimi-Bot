@@ -84,4 +84,44 @@ final class CoreTests:XCTestCase {
   XCTAssertTrue(removed)
  }
 
+ func testPersistentStoreRoundTripsCommittedValues() async throws {
+  let directory=FileManager.default.temporaryDirectory.appendingPathComponent("kimi-store-" + UUID().uuidString,isDirectory:true)
+  defer { try? FileManager.default.removeItem(at:directory) }
+  try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+
+  let store=try PersistentStore(directory:directory)
+  try await store.set(["enabled":true,"threshold":20],key:"moderation.policy")
+
+  let reopened=try PersistentStore(directory:directory)
+  let saved=await reopened.get("moderation.policy",as:[String:IntOrBool].self)
+  XCTAssertEqual(saved?["threshold"],.integer(20))
+  XCTAssertEqual(saved?["enabled"],.boolean(true))
+ }
+
+ func testPersistentStoreDoesNotPublishUncommittedValues() async throws {
+  let directory=FileManager.default.temporaryDirectory.appendingPathComponent("kimi-store-failure-" + UUID().uuidString,isDirectory:true)
+  defer { try? FileManager.default.removeItem(at:directory) }
+  try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+  try FileManager.default.createDirectory(at:directory.appendingPathComponent("timi.json"),withIntermediateDirectories:true)
+
+  let store=try PersistentStore(directory:directory)
+  do {
+   try await store.set("not committed",key:"test.value")
+   XCTFail("A write over a directory must fail.")
+  } catch {}
+  let value=await store.get("test.value",as:String.self)
+  XCTAssertNil(value,"Failed disk writes must not mutate in-memory state.")
+ }
+
+ private enum IntOrBool:Decodable,Equatable {
+  case integer(Int)
+  case boolean(Bool)
+
+  init(from decoder:Decoder)throws {
+   let container=try decoder.singleValueContainer()
+   if let value=try? container.decode(Bool.self) { self = .boolean(value); return }
+   self = .integer(try container.decode(Int.self))
+  }
+ }
+
 }
