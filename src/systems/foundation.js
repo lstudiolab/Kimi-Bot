@@ -122,16 +122,16 @@ export class Foundation {
     if(channel?.type!==ChannelType.GuildText)return null;
     return this.sendWelcome(member,channel);
   }
-  async memberAdd(member){
+  async memberAdd(member,{welcome=true,autorole=true}={}){
     if(member.user.bot)return;
     const s=this.settings(member.guild.id);
-    if(s.auto_role_id){
+    if(autorole&&s.auto_role_id){
       const role=await member.guild.roles.fetch(s.auto_role_id).catch(()=>null);
       const me=await member.guild.members.fetchMe();
       if(role&&isSafeAssignableRole(role,member.guild.id)&&me.permissions.has(PermissionFlagsBits.ManageRoles)&&role.position<me.roles.highest.position)
         await member.roles.add(role,"Timi automatic role").catch(error=>this.logger.warn("Automatic role assignment failed:",error.message));
     }
-    if(!s.welcome_channel_id)return;
+    if(!welcome||!s.welcome_channel_id)return;
     const channel=await member.guild.channels.fetch(s.welcome_channel_id).catch(()=>null);
     if(channel?.type===ChannelType.GuildText)
       await this.sendWelcome(member,channel);
