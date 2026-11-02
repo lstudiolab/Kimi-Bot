@@ -103,3 +103,14 @@ test("malformed linked-server records cannot enter dashboard authorization",()=>
   assert.deepEqual(restored.accounts.accounts[0].guilds,[{id:"123456789012345678",linkedBy:"223456789012345678"}]);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test("dashboard account creation has a hard storage capacity",()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-auth-account-cap-"));
+ try{
+  const auth=new AuthStore(root);
+  auth.accounts.accounts=Array.from({length:10000},(_,index)=>({id:String(index),email:"account"+index+"@example.com",passwordSalt:"0".repeat(32),passwordHash:"0".repeat(128)}));
+  const result=auth.createAccount({email:"new@example.com",password:"long enough password"});
+  assert.match(result.error,/capacity/i);
+  assert.equal(auth.accounts.accounts.length,10000);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
