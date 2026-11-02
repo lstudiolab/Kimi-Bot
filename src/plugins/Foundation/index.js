@@ -16,14 +16,14 @@ export function createFoundationLibrary({client,store,logger,services,app="core"
       if(i.isChatInputCommand()){
         if(is("roles")&&i.commandName==="roles")return rolePicker.handle(i);
         if(is("welcome")&&["setup","welcome"].includes(i.commandName))return greet.command(i);
-        if(is("roles")&&i.commandName==="autorole")return greet.command(i);
+        if(is("autorole")&&i.commandName==="autorole")return greet.command(i);
         if(is("embeds")&&["embed-new","embed-edit","embed-post"].includes(i.commandName))return embeds.handle(i);
       }
       const id=i.customId||"";
       if(is("roles")&&id.startsWith("rolepicker:"))return rolePicker.handle(i);
       if(is("embeds")&&id.startsWith("embed:"))return embeds.handle(i);
     },
-    async guildMemberAdd(member){if(app==="welcome")await greet.memberAdd(member,{welcome:true,autorole:false});if(app==="roles")await greet.memberAdd(member,{welcome:false,autorole:true});},
+    async guildMemberAdd(member){if(app==="welcome")await greet.memberAdd(member,{welcome:true,autorole:false});if(app==="autorole")await greet.memberAdd(member,{welcome:false,autorole:true});},
     async guildMemberRemove(member){if(app==="welcome")await greet.memberRemove(member);},
     async ensureSetup(guild){return greet.ensureSetup(guild);},
     async refreshRolePickers(guild){if(is("roles"))await rolePicker.refresh(guild);},
@@ -34,4 +34,5 @@ export function createFoundationLibrary({client,store,logger,services,app="core"
 export const createFoundationCore=(options)=>createFoundationLibrary({...options,app:"core"});
 export const createWelcomeLibrary=(options)=>createFoundationLibrary({...options,app:"welcome"});
 export const createRolesLibrary=(options)=>createFoundationLibrary({...options,app:"roles"});
+export const createAutoRoleLibrary=(options)=>createFoundationLibrary({...options,app:"autorole"});
 export const createEmbedsLibrary=(options)=>createFoundationLibrary({...options,app:"embeds"});
