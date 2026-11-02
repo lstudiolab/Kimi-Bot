@@ -84,7 +84,7 @@ function migrateLegacy(data,dir){
 
 export class Store{
   constructor(dataDir,logger){
-    this.dataDir=dataDir;this.file=path.join(dataDir,"timi.json");this.backup=path.join(dataDir,"timi.json.bak");
+    this.dataDir=dataDir;fs.mkdirSync(dataDir,{recursive:true,mode:0o700});try{fs.chmodSync(dataDir,0o700);}catch{}this.file=path.join(dataDir,"timi.json");this.backup=path.join(dataDir,"timi.json.bak");
     this.logger=logger;this.data=defaults();
     const hasMain=fs.existsSync(this.file),hasBackup=fs.existsSync(this.backup);
     if(hasMain){
@@ -138,9 +138,9 @@ export class Store{
       }
     }
     const temp=this.file+".tmp";
-    if(previous&&fs.existsSync(this.file))fs.copyFileSync(this.file,this.backup);
+    if(previous&&fs.existsSync(this.file)){fs.copyFileSync(this.file,this.backup);try{fs.chmodSync(this.backup,0o600);}catch{}}
     fs.writeFileSync(temp,JSON.stringify(this.data,null,2),{mode:0o600});
-    fs.renameSync(temp,this.file);
+    fs.renameSync(temp,this.file);try{fs.chmodSync(this.file,0o600);}catch{}
     this.persistedData=structuredClone(this.data);
     if(rejected.length){
       for(const item of rejected)this.logger.warn("Storage quota rejected a guild data increase:",item.guildId,item.currentBytes,"/",item.limit);
