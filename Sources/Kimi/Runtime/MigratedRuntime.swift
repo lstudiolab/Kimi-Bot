@@ -38,6 +38,7 @@ extension DiscordREST {
 extension KimiRuntime {
  func handleMigratedCommand(_ event:[String:Any]) async -> Bool {
   guard let interactionType=event["type"] as? Int,interactionType==2 || interactionType==3 else { return false }
+  let started=Date()
   guard let id=event["id"] as? String,let token=event["token"] as? String,let app=event["application_id"] as? String else { return false }
   let guild=event["guild_id"] as? String ?? ""
   let memberUser=(event["member"] as? [String:Any])?["user"] as? [String:Any] ?? [:]
@@ -215,6 +216,7 @@ extension KimiRuntime {
   do { try await rest.editKimiInteraction(app,token,reply) }
   catch { await logger.log("ERROR","Interaction response update failed: "+error.localizedDescription) }
   await AnalyticsService(store:store).record(guild:guild,event:"command")
+  await performance.record(name,duration:Date().timeIntervalSince(started),success:!reply.hasPrefix("Kimi could not"))
   return true
  }
  func handleMigratedComponent(_ event:[String:Any],data:[String:Any]) async -> Bool {
