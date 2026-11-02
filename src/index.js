@@ -117,13 +117,14 @@ async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
  const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
-  status:"restricted",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false};
+  status:"review_required",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false};
  try{if(editable.length){await member.roles.remove(editable,reason);incident.removed_roles=editable;}}catch(error){logger.warn("Kimi Guard could not remove every role from bot "+member.id+":",error.message);}
  try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
+ incident.status=incident.removed_roles.length||incident.timeout_applied?"restricted":"review_required";
  store.queueSave();
- logger.warn("Kimi Guard restricted bot "+member.id+" in server "+guild.id+" after its activity bucket was exhausted.");
+ logger.warn("Kimi Guard "+incident.status+" for bot "+member.id+" in server "+guild.id+" after its activity bucket was exhausted.");
  const owner=await client.users.fetch(guild.ownerId).catch(()=>null);
- if(owner)await owner.send("Kimi Guard restricted the bot **"+member.user.username+"** in **"+guild.name+"** after its activity limit was exhausted. Kimi removed "+incident.removed_roles.length+" manageable role(s) and "+(incident.timeout_applied?"applied a timeout.":"could not apply a timeout; role restriction was used where possible.")+" Review it with `/guard-review` by selecting this bot and choosing Restore or Keep restricted.").catch(error=>logger.info("Could not notify the server owner about bot restriction:",error.message));
+ if(owner)await owner.send("Kimi Guard detected the bot **"+member.user.username+"** exhausting its activity limit in **"+guild.name+"**. "+(incident.status==="restricted"?"Kimi removed "+incident.removed_roles.length+" manageable role(s)"+(incident.timeout_applied?" and applied a timeout.":"."):"Kimi could not apply any automatic containment. Remove the bot or revoke its access manually immediately.")+" Review this incident with `/guard-review` by selecting the bot and choosing Restore or Keep restricted.").catch(error=>logger.info("Could not notify the server owner about bot restriction:",error.message));
  return incident;
 }
 async function coreCommand(i){
@@ -142,7 +143,7 @@ async function coreCommand(i){
   const target=i.options.getUser("bot"),decision=i.options.getString("decision");
   if(!target.bot||target.id===client.user.id)return respond(i,"Choose another bot account. Kimi cannot review or restrict itself.");
   const incident=store.data.guard_state?.[i.guildId]?.incidents?.[target.id];
-  if(!incident||!["restricted","kept"].includes(incident.status))return respond(i,"There is no active Kimi Guard restriction for that bot.");
+  if(!incident||!["restricted","kept","review_required"].includes(incident.status))return respond(i,"There is no active Kimi Guard incident for that bot.");
   if(decision==="restore"){
    const member=await i.guild.members.fetch(target.id).catch(()=>null);
    if(!member)return respond(i,"That bot is no longer in this server. The incident record was kept.");
