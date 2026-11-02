@@ -275,7 +275,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"?"Welcome":section==="roles"?"Role Picker":section==="auto-role"?"Auto Role":section==="embeds"?"Embeds":"Welcome";
+      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"?"Welcome":section==="roles"?"Role Picker":section==="auto-role"?"Auto Role":section==="embeds"?"Embeds":"Welcome";
       if(!installed(this.store,i.guildId,plugin))return respond(i,"That app is no longer added. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
