@@ -84,11 +84,11 @@ const openConfiguration=async(i,section)=>{
 const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,plugins,openConfiguration});
 async function showInstallAnimation(interaction,moduleName){
  const frames=[
-  {bar:"░░░░░░░░░░",percent:0,status:"Preparing plugin"},
-  {bar:"█░░░░░░░░░",percent:10,status:"Loading plugin"},
-  {bar:"██░░░░░░░░",percent:20,status:"Checking plugin identity"},
+  {bar:"░░░░░░░░░░",percent:0,status:"Preparing app"},
+  {bar:"█░░░░░░░░░",percent:10,status:"Loading app"},
+  {bar:"██░░░░░░░░",percent:20,status:"Checking app identity"},
   {bar:"███░░░░░░░",percent:30,status:"Checking module structure"},
-  {bar:"████░░░░░░",percent:40,status:"Preparing plugin systems"},
+  {bar:"████░░░░░░",percent:40,status:"Preparing app systems"},
   {bar:"█████░░░░░",percent:50,status:"Listing slash commands"},
   {bar:"██████░░░░",percent:60,status:"Checking slash commands"},
   {bar:"███████░░░",percent:70,status:"Publishing commands"},
@@ -98,7 +98,7 @@ async function showInstallAnimation(interaction,moduleName){
  ];
  for(const frame of frames){
   await interaction.editReply({
-   content:"**Installing "+moduleName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status,
+   content:"**Adding "+moduleName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status,
    components:[],embeds:[],allowedMentions:{parse:[]}
   });
   if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,120));
@@ -118,18 +118,18 @@ async function coreCommand(i){
  if(i.commandName==="automations")return automationEngine.handleInteraction(i);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in plugins can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage plugins and systems in /kimi.");
+  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in apps can be added without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage apps and systems in /kimi.");
  }
- if(i.commandName==="plugins"){
+ if(i.commandName==="apps"||i.commandName==="app-store"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
   });
-  return respond(i,"**Kimi Plugins**\n\n"+lines.join("\n\n")+"\n\nInstall or remove plugins in /kimi.");
+  return respond(i,"**Kimi Apps**\n\n"+lines.join("\n\n")+"\n\nAdd or remove apps in the App Store in /kimi.");
  }
  if(i.commandName==="uninstall"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi plugins.");
-  const result=manager.uninstall(i.guildId,i.options.getString("plugin"));
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi apps.");
+  const result=manager.uninstall(i.guildId,i.options.getString("app"));
   if(!result.ok)return respond(i,result.error);
   const pluginKey=result.plugin.name;
   if(plugins[pluginKey]?.onUninstall)await plugins[pluginKey].onUninstall(i.guild);
@@ -137,9 +137,9 @@ async function coreCommand(i){
   return respond(i,`**${result.plugin.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi plugins.");
-  const name=i.options.getString("plugin")||i.options.getString("plugin");
-  if(!name)return respond(i,"Choose a plugin in the plugin option. Available: Foundation, Kimi Lock, Support. Use /plugins for details.");
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can add Kimi apps.");
+  const name=i.options.getString("app");
+  if(!name)return respond(i,"Choose a plugin in the app option. Available apps: Foundation, Kimi Lock, Support. Use /apps for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
   try {
@@ -174,12 +174,12 @@ async function handleInteraction(i){
  const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","plugins","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
-  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi plugin commands.");
-  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed in this server. Ask the owner to use /install.`);
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi app commands.");
+  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** app is not added in this server. Ask the owner to use /install.`);
   return plugins[required].handleInteraction(i);
  }
  const id=i.customId||"";
