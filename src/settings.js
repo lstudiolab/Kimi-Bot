@@ -76,7 +76,7 @@ export class KimiSettings {
     if(page==="plugin"){
       const plugin=selected;
       if(!["Foundation","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
-      if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
+      if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not added to this server. Add it from the App Store first.`,embeds:[],components:[]});
       const sections=[];
       if(plugin==="Kimi Lock"){
         sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
@@ -197,7 +197,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
       if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can change verification policy.",components:[],embeds:[]});
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock plugin is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock app is no longer added.",components:[],embeds:[]});
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
       const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
@@ -221,7 +221,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.editReply({content:"Verification settings saved. Existing verification panels have been refreshed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
-      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation plugin is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation app is no longer added.",components:[],embeds:[]});
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
       const channelId=key=>read(key).replace(/[<#>]/g,"");
@@ -272,7 +272,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
       const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Foundation";
-      if(!installed(this.store,i.guildId,plugin))return respond(i,"That plugin is no longer installed. Reopen Kimi Settings to refresh the panel.");
+      if(!installed(this.store,i.guildId,plugin))return respond(i,"That app is no longer added. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can change verification policy.");
@@ -329,14 +329,14 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         const plugin=this.hooks.plugins?.[name];
         if(plugin?.ready)await plugin.ready(i.guild);
         if(plugin?.onInstall)await plugin.onInstall(i.guild);
-        return i.editReply({embeds:[embed("App Added",`**${name}** is now added. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
+        return i.editReply({embeds:[embed("App Added",`**${name}** is now added. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Add Another"),button("settings:home","Done"))]});
       }
       const result=this.manager.uninstall(i.guildId,name);
       if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
       const plugin=this.hooks.plugins?.[name];
       if(plugin?.onUninstall)await plugin.onUninstall(i.guild);
       await this.hooks.syncGuildCommands?.(i.guildId);
-      return i.editReply({embeds:[embed("App Removed",`**${name}** has been removed. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
+      return i.editReply({embeds:[embed("App Removed",`**${name}** has been removed. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Remove Another"),button("settings:home","Done"))]});
     }
   }
 }
