@@ -89,7 +89,7 @@ actor VerificationService {
      let bot=try await rest.call("GET","guilds/"+guild+"/members/@me") as? [String:Any] ?? [:]
      let botIDs=Set(bot["roles"] as? [String] ?? [])
      let highest=roles.filter{botIDs.contains($0["id"] as? String ?? "")}.map{$0["position"] as? Int ?? 0}.max() ?? 0
-     let canManage=roles.contains{botIDs.contains($0["id"] as? String ?? "") && ((UInt64($0["permissions"] as? String ?? "") ?? 0) & (1<<28) != 0)}
+     let canManage=roles.contains{botIDs.contains($0["id"] as? String ?? "") && ((UInt64($0["permissions"] as? String ?? "") ?? 0) & 268435464 != 0)}
      guard let target=roles.first(where:{($0["id"] as? String)==role}) else{throw KimiError.configuration("The verified role no longer exists.")}
      let permissions=UInt64(target["permissions"] as? String ?? "") ?? 0
      let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
