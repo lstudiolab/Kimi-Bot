@@ -20,6 +20,11 @@ actor EmbedService {
   let validator=EmbedValidator()
   let errors=validator.validate(.init(title:title,description:description,fields:validationFields,color:color,imageURL:imageURL ?? existing?.imageURL))
   guard errors.isEmpty else{throw KimiError.configuration(errors.joined(separator:" "))}
+  if let author=author ?? existing?.author,author.count>256{throw KimiError.configuration("Embed author exceeds 256 characters.")}
+  if let footer=footer ?? existing?.footer,footer.count>2048{throw KimiError.configuration("Embed footer exceeds 2048 characters.")}
+  for candidate in [thumbnailURL ?? existing?.thumbnailURL,imageURL ?? existing?.imageURL,url ?? existing?.url].compactMap({$0}) {
+   guard let parsed=URL(string:candidate),parsed.scheme=="https",parsed.host != nil else{throw KimiError.configuration("Embed image and title URLs must be valid HTTPS URLs.")}
+  }
   let id=existing?.id ?? UUID().uuidString
   let value=Saved(id:id,name:name,title:title,description:description,color:color,footer:footer ?? existing?.footer,author:author ?? existing?.author,thumbnailURL:thumbnailURL ?? existing?.thumbnailURL,imageURL:imageURL ?? existing?.imageURL,url:url ?? existing?.url,fields:nextFields)
   if let index=list!.firstIndex(where:{$0.id == id}){list![index]=value}else{list!.append(value)}
