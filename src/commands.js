@@ -50,8 +50,8 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["kimi","configure-foundation","configure-welcome","configure-roles","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
-  Welcome:["setup","welcome","autorole"],
-  Roles:["roles"],
+  Welcome:["setup","welcome"],
+  Roles:["autorole","roles"],
   Embeds:["embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
