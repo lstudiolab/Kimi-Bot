@@ -334,6 +334,8 @@ extension KimiRuntime {
    guard installed.contains("Kimi Lock") else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    await recovery.captureMessage(guild,channel,message,user,content)
+   let attachments=data["attachments"] as? [[String:Any]] ?? []
+   await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)
    let owner=(try? await rest.ownerID(guild)) ?? ""
    let member=data["member"] as? [String:Any] ?? [:]
    let memberRoles=Set(member["roles"] as? [String] ?? [])
