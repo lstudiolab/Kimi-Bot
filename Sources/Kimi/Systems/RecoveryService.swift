@@ -38,12 +38,13 @@ actor RecoveryService {
  func restorePendingChannels(_ guild:String)async{
   let all=await store.get("recovery.pending-channels",as:[String:[String]].self) ?? [:]
   let pending=all[guild] ?? []
-  for channel in pending{await restoreChannel(guild,channel)}
-  var updated=all;updated[guild]=[];try? await store.set(updated,key:"recovery.pending-channels")
+  var remaining:[String]=[]
+  for channel in pending{if !(await restoreChannel(guild,channel)){remaining.append(channel)}}
+  var updated=all;updated[guild]=remaining;try? await store.set(updated,key:"recovery.pending-channels")
  }
- func restoreChannel(_ guild:String,_ channelID:String)async{
+ func restoreChannel(_ guild:String,_ channelID:String)async->Bool{
   let all=await store.get("recovery.channels",as:[String:[String:Data]].self) ?? [:]
-  guard let data=all[guild]?[channelID],let source=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else{return}
+  guard let data=all[guild]?[channelID],let source=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else{return false}
   let allowed=["name","type","topic","nsfw","rate_limit_per_user","parent_id","permission_overwrites","bitrate","user_limit"]
   var body:[String:Any]=[:]
   for key in allowed{if let value=source[key]{body[key]=value}}
@@ -52,7 +53,8 @@ actor RecoveryService {
    let created=try await rest.call("POST","guilds/\(guild)/channels",body:body)
    let restored=(created as? [String:Any])?["id"] as? String ?? "unknown"
    await logger.log("WARN","Kimi Lock restored deleted channel "+channelID+" as "+restored+" in guild "+guild)
-  }catch{await logger.log("ERROR","Channel recovery failed for "+channelID+": "+error.localizedDescription)}
+   return true
+  }catch{await logger.log("ERROR","Channel recovery failed for "+channelID+": "+error.localizedDescription);return false}
  }
  func restoreMessage(_ guild:String,_ channel:String,_ message:String)async{
   guard let saved=await deletedMessage(guild,channel,message),!saved.content.isEmpty else{return}
