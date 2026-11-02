@@ -455,13 +455,13 @@ extension KimiRuntime {
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Welcome"){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
+   if installed.contains("Welcome"),await migratedModuleEnabled("welcome",guild:guild){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
    await AnalyticsService(store:store).record(guild:guild,event:"leave")
    await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
   case "GUILD_MEMBER_UPDATE":
    guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("moderation",guild:guild){
     let key="moderation.member-snapshot."+guild+"."+user
     let previous=Set(await store.get(key,as:[String].self) ?? [])
     let roles=data["roles"] as? [String] ?? []
@@ -471,7 +471,7 @@ extension KimiRuntime {
   case "GUILD_BAN_ADD","GUILD_BAN_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await logger.log("INFO",(name=="GUILD_BAN_ADD" ? "Ban recorded for ":"Unban recorded for ")+user+" in guild "+guild)}
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("moderation",guild:guild){await logger.log("INFO",(name=="GUILD_BAN_ADD" ? "Ban recorded for ":"Unban recorded for ")+user+" in guild "+guild)}
   case "MESSAGE_CREATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
    let content=data["content"] as? String ?? ""
@@ -516,7 +516,7 @@ extension KimiRuntime {
   case "MESSAGE_UPDATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("recovery",guild:guild){
     let recovery=RecoveryService(store:store,logger:logger,rest:rest)
     let previous=await recovery.savedMessage(guild,channel,message)
     let updated=data["content"] as? String ?? ""
@@ -527,19 +527,19 @@ extension KimiRuntime {
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
    if await store.get("moderation.deleted."+message,as:Bool.self) == true{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message)}
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("recovery",guild:guild){await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message)}
   case "MESSAGE_DELETE_BULK":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let ids=data["ids"] as? [String] else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){for id in ids{if await store.get("moderation.deleted."+id,as:Bool.self) != true{await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,id)}}}
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("recovery",guild:guild){for id in ids{if await store.get("moderation.deleted."+id,as:Bool.self) != true{await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,id)}}}
   case "CHANNEL_CREATE","CHANNEL_UPDATE":
    guard let guild=data["guild_id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureChannel(guild,data)}
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("recovery",guild:guild){await RecoveryService(store:store,logger:logger,rest:rest).captureChannel(guild,data)}
   case "CHANNEL_DELETE":
    guard let guild=data["guild_id"] as? String,let channel=data["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).queueDeletedChannel(guild,channel)}
+   if installed.contains("Kimi Lock"),await migratedModuleEnabled("recovery",guild:guild){await RecoveryService(store:store,logger:logger,rest:rest).queueDeletedChannel(guild,channel)}
   case "GUILD_AUDIT_LOG_ENTRY_CREATE":
    guard let guild=data["guild_id"] as? String,let actor=data["user_id"] as? String,let action=data["action_type"] as? Int else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
