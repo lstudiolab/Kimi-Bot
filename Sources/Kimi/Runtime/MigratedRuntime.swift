@@ -104,8 +104,18 @@ extension KimiRuntime {
     try await engine.configure(guildID:guild,settings)
     reply=settings.autoRole == nil ? "Automatic role assignment disabled.":"Automatic role saved."
    case "moderation":
-    let policy=await ModerationEngine(store:store).policy(guildID:guild)
-    reply="Kimi Lock · Moderation\nStatus: "+(policy.enabled ? "Enabled":"Disabled")+"\nMessages/minute: "+String(policy.messagesPerMinute)+"\nTimeout: "+String(policy.timeoutMinutes)+" minutes\nBlocked phrases: "+String(policy.blockedPhrases.count)
+    let engine=ModerationEngine(store:store)
+    var policy=await engine.policy(guildID:guild)
+    if let enabled=options.first(where:{($0["name"] as? String)=="enabled"})?["value"] as? Bool { policy.enabled=enabled }
+    if let sanction=value("sanction") { policy.sanction=sanction }
+    if let duration=options.first(where:{($0["name"] as? String)=="timeout-minutes"})?["value"] as? Int { policy.timeoutMinutes=duration }
+    if let limit=options.first(where:{($0["name"] as? String)=="messages-per-minute"})?["value"] as? Int { policy.messagesPerMinute=limit }
+    if let invites=options.first(where:{($0["name"] as? String)=="block-invites"})?["value"] as? Bool { policy.blockInvites=invites }
+    if let mentions=options.first(where:{($0["name"] as? String)=="block-mentions"})?["value"] as? Bool { policy.blockMassMentions=mentions }
+    if let caps=options.first(where:{($0["name"] as? String)=="block-caps"})?["value"] as? Bool { policy.blockExcessiveCaps=caps }
+    if let channel=value("log-channel") { policy.logChannelID=channel }
+    try await engine.configure(policy,guildID:guild)
+    reply="Kimi Lock · AutoMod\nStatus: "+(policy.enabled ? "Enabled":"Disabled")+"\nSanction: "+policy.sanction+"\nMessages/minute: "+String(policy.messagesPerMinute)+"\nTimeout: "+String(policy.timeoutMinutes)+" minutes\nBlocked phrases: "+String(policy.blockedPhrases.count)+"\nInvite blocking: "+(policy.blockInvites ? "On":"Off")+"\nMass mention blocking: "+(policy.blockMassMentions ? "On":"Off")+"\nExcessive caps: "+(policy.blockExcessiveCaps ? "On":"Off")
    case "filter":
     let engine=ModerationEngine(store:store);var policy=await engine.policy(guildID:guild)
     let sub=options.first?["name"] as? String ?? "list",phrase=value("phrase") ?? ""
@@ -321,14 +331,27 @@ extension KimiRuntime {
    guard installed.contains("Kimi Lock") else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    await recovery.captureMessage(guild,channel,message,user,content)
-   if let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:content) {
+   let owner=(try? await rest.ownerID(guild)) ?? ""
+   let member=data["member"] as? [String:Any] ?? [:]
+   let memberRoles=Set(member["roles"] as? [String] ?? [])
+   let guildRoles=try await rest.call("GET","guilds/"+guild+"/roles") as? [[String:Any]] ?? []
+   let protectedMask=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
+   let privileged=guildRoles.contains{role in memberRoles.contains(role["id"] as? String ?? "") && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & protectedMask) != 0}
+   if user != owner && !privileged,let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:content,channelID:channel) {
+    let policy=await ModerationEngine(store:store).policy(guildID:guild)
     try? await store.set(true,key:"moderation.deleted."+message)
     try? await rest.deleteKimiMessage(channel,message)
-    if finding.reason=="Message rate exceeded" {
-     let policy=await ModerationEngine(store:store).policy(guildID:guild)
-     try? await rest.timeoutKimiMember(guild,user,policy.timeoutMinutes,finding.reason)
-    }
-    await logger.log("WARN","Kimi Lock moderation: "+finding.reason)
+    do {
+     switch policy.sanction {
+     case "timeout": try await rest.timeoutKimiMember(guild,user,policy.timeoutMinutes,finding.reason)
+     case "kick": _ = try await rest.call("DELETE","guilds/"+guild+"/members/"+user,body:nil)
+     case "ban": _ = try await rest.call("PUT","guilds/"+guild+"/bans/"+user,body:["delete_message_seconds":policy.actionDurationSeconds,"reason":finding.reason])
+     default: break
+     }
+    } catch { await logger.log("ERROR","AutoMod sanction failed: "+error.localizedDescription) }
+    let logChannel=policy.logChannelID ?? (await store.get("timi_setup."+guild,as:String.self))
+    if let logChannel { _ = try? await rest.call("POST","channels/"+logChannel+"/messages",body:["content":"Kimi Lock removed a message from <@"+user+"> in <#"+channel+">. Reason: "+finding.reason+". Sanction: "+policy.sanction+".","allowed_mentions":["parse":[]]]) }
+    await logger.log("WARN","Kimi Lock moderation: "+finding.reason+"; sanction: "+policy.sanction)
    }
   case "MESSAGE_UPDATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String else{return}
