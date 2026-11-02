@@ -371,6 +371,17 @@ test("Timi storage accounting includes setup channels and AutoMod phrases",()=>{
 
 import { Recovery } from "../src/systems/recovery.js";
 
+test("storage accounting includes Guard incidents and recovery channel snapshots",()=>{
+  const empty=getGuildStorageBytes({},"guard-storage");
+  const populated=getGuildStorageBytes({
+    guard_state:{"guard-storage":{users:{u:{tokens:0}},bots:{b:{tokens:0}},incidents:{b:{status:"restricted",reason:"activity limit"}}}},
+    channels:{"guard-storage:123456789012345678":{name:"general",permission_overwrites:[{id:"role",allow:"0",deny:"1024"}]}},
+    messages:{"guard-storage":[{id:"message",content:"recovery archive"}]}
+  },"guard-storage");
+  assert.ok(populated>empty);
+  assert.equal(getGuildStorageBytes({guard_state:{"other-guild":{incidents:{b:{reason:"x".repeat(1000)}}}}},"guard-storage"),empty);
+});
+
 test("recovery message archives stay below four megabytes per server",()=>{
   const store={data:{messages:{}},queueSave(){}};
   const recovery=new Recovery({user:{id:"bot"}},store,quiet);
