@@ -26,37 +26,54 @@ actor SupportService {
   let existing=await SupportTickets(store:store).all()
   guard !existing.contains(where:{$0.guildID==guild && $0.userID==user && $0.isOpen}) else{throw TicketError.alreadyOpen}
   let category=try await ensureCategory(guild),value=await settings(guild)
-  var overwrites:[[String:Any]]=[
-   ["id":guild,"type":0,"deny":"1024"],
-   ["id":user,"type":1,"allow":"68608"],
-   ["id":bot,"type":1,"allow":"68608"]
-  ]
+  var overwrites:[[String:Any]]=[["id":guild,"type":0,"deny":"1024"],["id":user,"type":1,"allow":"68608"],["id":bot,"type":1,"allow":"68608"]]
   if let role=value.supportRoleID{overwrites.append(["id":role,"type":0,"allow":"68608"])}
   let name=SecurityPolicy.channelName("ticket-"+username)
   let created=try await rest.call("POST","guilds/\(guild)/channels",body:["name":name,"type":0,"parent_id":category,"permission_overwrites":overwrites])
   guard let channel=(created as? [String:Any])?["id"] as? String else{throw KimiError.invalidResponse}
   let ticket=try await SupportTickets(store:store).open(guildID:guild,userID:user,channelID:channel)
-  let controls=[["type":1,"components":[["type":2,"style":4,"label":"Close Ticket","custom_id":"ticket:close:"+ticket.id]]]] as [[String:Any]]
-  _=try await rest.call("POST","channels/\(channel)/messages",body:["content":"Support ticket opened for <@\(user)>. A staff member will respond here.","components":controls,"allowed_mentions":["users":[user],"parse":[]]])
+  let controls=[["type":1,"components":[
+   ["type":2,"style":2,"label":"Low","custom_id":"ticket:priority:"+ticket.id+":low"],
+   ["type":2,"style":2,"label":"Normal","custom_id":"ticket:priority:"+ticket.id+":normal"],
+   ["type":2,"style":1,"label":"High","custom_id":"ticket:priority:"+ticket.id+":high"],
+   ["type":2,"style":4,"label":"Urgent","custom_id":"ticket:priority:"+ticket.id+":urgent"],
+   ["type":2,"style":4,"label":"Close","custom_id":"ticket:close:"+ticket.id]
+  ]]] as [[String:Any]]
+  _=try await rest.call("POST","channels/\(channel)/messages",body:["content":"Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal","components":controls,"allowed_mentions":["users":[user],"parse":[]]])
   await logger.log("INFO","Support ticket opened: "+ticket.id+" in guild "+guild)
+  return ticket
+ }
+ func setPriority(guild:String,ticketID:String,priority:String)async throws->SupportTickets.Ticket{
+  let ticket=try await SupportTickets(store:store).setPriority(id:ticketID,guildID:guild,priority:priority)
+  _ = try await rest.call("PATCH","channels/\(ticket.channelID)",body:["name":SecurityPolicy.channelName(priority+"-ticket-"+String(ticket.id.prefix(8)))])
   return ticket
  }
  func close(guild:String,ticketID:String)async throws->SupportTickets.Ticket{
   let ticket=try await SupportTickets(store:store).close(id:ticketID,guildID:guild)
-  _=try await rest.call("PATCH","channels/\(ticket.channelID)",body:["name":SecurityPolicy.channelName("closed-"+ticket.channelID.suffix(8))])
-  let history=try await rest.call("GET","channels/\(ticket.channelID)/messages?limit=100") as? [[String:Any]] ?? []
-  let transcript=history.reversed().map{item in
+  _ = try await rest.call("PATCH","channels/\(ticket.channelID)",body:["name":SecurityPolicy.channelName("closed-"+String(ticket.id.prefix(8)))])
+  _ = try? await rest.call("PUT","channels/\(ticket.channelID)/permissions/\(ticket.userID)",body:["type":1,"deny":"1024","allow":"0"])
+  var history:[[String:Any]]=[];var before:String?=nil
+  for _ in 0..<10{
+   let suffix=before.map{"&before="+$0} ?? ""
+   let page=try await rest.call("GET","channels/\(ticket.channelID)/messages?limit=100"+suffix) as? [[String:Any]] ?? []
+   if page.isEmpty{break}
+   history.append(contentsOf:page)
+   before=page.last?["id"] as? String
+   if page.count<100{break}
+  }
+  let transcript=history.reversed().map{item->String in
    let author=(item["author"] as? [String:Any])?["username"] as? String ?? "Unknown"
    let body=item["content"] as? String ?? ""
-   return author+": "+body
+   let files=(item["attachments"] as? [[String:Any]] ?? []).compactMap{$0["url"] as? String}.joined(separator:" ")
+   return author+": "+body+(files.isEmpty ? "":" [attachments: "+files+"]")
   }.joined(separator:"\n")
   try await store.set(String(transcript.suffix(100_000)),key:"support.transcript."+ticketID)
   let settings=await self.settings(guild)
   if let destination=settings.transcriptChannelID{
-   let summary="Ticket transcript saved for ticket "+ticketID+". Messages captured: "+String(history.count)+"."
-   _=try? await rest.call("POST","channels/\(destination)/messages",body:["content":summary,"allowed_mentions":["parse":[]]])
+   let summary="Ticket transcript saved for ticket "+ticketID+". Messages captured: "+String(history.count)+". The full text is retained in Kimi's local transcript storage."
+   _ = try? await rest.call("POST","channels/\(destination)/messages",body:["content":summary,"allowed_mentions":["parse":[]]])
   }
-  await logger.log("INFO","Support ticket closed: "+ticketID)
+  await logger.log("INFO","Support ticket closed: "+ticketID+"; archived "+String(history.count)+" messages.")
   return ticket
  }
 }
