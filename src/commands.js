@@ -2,15 +2,15 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-core").setDescription("Configure Kimi Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-shield").setDescription("Configure Kimi Security library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-moderation").setDescription("Configure the Moderation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-studio").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Core",value:"Foundation"},{name:"Shield",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
+  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
   new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's four libraries."),
-  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Core",value:"Foundation"},{name:"Shield",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
+  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
 
   new SlashCommandBuilder().setName("kimi-channel").setDescription("Create Kimi's private server channels and setup references."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
@@ -68,7 +68,7 @@ const allCommandBuilders=[
 ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-core","configure-shield","configure-support","configure-studio","plan","web-token"],
+  Core:["kimi","configure-foundation","configure-moderation","configure-support","configure-studio","plan","web-token"],
   Foundation:["kimi-channel","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   Security:["verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
