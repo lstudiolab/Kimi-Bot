@@ -7,9 +7,18 @@ enum KimiError: Error, LocalizedError {
  case configuration(String), invalidResponse, http(Int,String)
  var errorDescription:String? { switch self {case .configuration(let s):return s;case .invalidResponse:return "Invalid Discord response";case .http(let c,let s):return "Discord HTTP \(c): \(s)"} }
 }
+struct LogEntry:Sendable {let date:Date;let level:String;let message:String}
 actor Logger {
- func log(_ level:String,_ message:String) { let line="[\(ISO8601DateFormatter().string(from:Date()))] [\(level)] \(message)\n"; FileHandle.standardOutput.write(Data(line.utf8)) }
+ private var entries:[LogEntry]=[]
+ func log(_ level:String,_ message:String) {
+  let now=Date();entries.append(LogEntry(date:now,level:level,message:message))
+  if entries.count>1000{entries.removeFirst(entries.count-1000)}
+  let line="[\\(ISO8601DateFormatter().string(from:now))] [\\(level)] \\(message)\\n"
+  FileHandle.standardOutput.write(Data(line.utf8))
+ }
+ func recent(limit:Int=100)->[LogEntry]{Array(entries.suffix(max(0,limit)))}
 }
+
 struct Configuration {
  let token:String;let clientID:String;let dataDirectory:URL;let dashboardPort:Int;let dashboardHost:String;let oauthSecret:String;let oauthRedirectURI:String
  static func load() throws -> Configuration {
