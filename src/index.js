@@ -145,7 +145,7 @@ async function coreCommand(i){
   return i.showModal(modal);
  }
  if(i.commandName==="kimi")return settings.show(i,"home");
- const configurePlugin={"configure-foundation":"Foundation","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
+ const configurePlugin={"configure-foundation":"Welcome","configure-welcome":"Welcome","configure-roles":"Roles","configure-embeds":"Embeds","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
  if(configurePlugin)return settings.show(i,"plugin",configurePlugin);
  if(i.commandName==="guard-review"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can review Kimi Guard incidents.");
@@ -246,7 +246,7 @@ async function handleInteraction(i){
   return respond(i,result.error||"This server is now connected to the Kimi account that generated the token. Return to the dashboard.");
  }
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
- const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
+ const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-welcome","configure-roles","configure-embeds","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
   if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
@@ -387,6 +387,7 @@ client.on(Events.GuildMemberAdd,m=>{
   if(modules.protection||modules.verification)plugins["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
  if(allowAutomation&&manager.installed(m.guild.id,"Welcome")&&moduleEnabled(m.guild.id,"welcome"))plugins.Welcome.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
+  if(allowAutomation&&manager.installed(m.guild.id,"Roles")&&moduleEnabled(m.guild.id,"roles"))plugins.Roles.guildMemberAdd(m).catch(e=>logger.error("Automatic role assignment failed:",e));
 });
 client.on(Events.GuildMemberRemove,m=>{
  const allowAutomation=allowSystemTrigger(m.guild.id);
