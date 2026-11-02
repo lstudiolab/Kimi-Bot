@@ -1,7 +1,6 @@
 import { PermissionFlagsBits, ButtonStyle, TextInputStyle, ChannelType, ChannelSelectMenuBuilder } from "discord.js";
 import { normalizeMessage, jaccard, mentionChannel, matchesBlockedPhrase, isPrivateTextChannel } from "../utils.js";
 import { button,row,textInput,modal,respond,deny,requireManager } from "../ui.js";
-import { applyPanelTbScript } from "../tbscript.js";
 
 const P=PermissionFlagsBits;
 export class Moderation {
@@ -94,7 +93,7 @@ export class Moderation {
   ];}
   panelPayload(guild,x,channel,user=null,member=null){
     const base={content:this.text(x),components:this.rows(x),allowedMentions:{parse:[]}};
-    return applyPanelTbScript(this.store,guild.id,"moderation",base,{guild,channel,user,member,client:this.client});
+    return base;
   }
   async refresh(guild,x){
     if(!x.panel_channel_id||!x.panel_message_id)return;
