@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.swift text eol=lf working-tree-encoding=UTF-8
+*.md text eol=lf working-tree-encoding=UTF-8
+*.json text eol=lf working-tree-encoding=UTF-8
