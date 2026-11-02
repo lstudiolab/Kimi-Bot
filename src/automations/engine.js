@@ -182,7 +182,7 @@ export class AutomationEngine{
       const member=await i.guild.members.fetch(i.user.id).catch(()=>null);
       if(!member)return i.editReply({content:"Kimi could not load your server member profile.",components:[],embeds:[]});
       const results=await this.run(i.guild,"manual",{guild:i.guild,member,accountAgeDays:Math.floor((Date.now()-i.user.createdTimestamp)/86400000)},"manual:"+randomUUID());
-      const failed=results.filter(result=>result.status==="rejected").length;
+      const failed=results.reduce((total,result)=>total+(result.status==="rejected"?1:Number(result.value?.failedSteps||0)),0);
       return i.editReply({embeds:[embed(failed?"Automation finished with errors":"Automation completed",failed?failed+" background step(s) could not be queued. Check Kimi's logs.":"**"+automation.name+"** finished running.")],components:[row(button("automation:home","Done"))]});
     }
     if(id.startsWith("automation:toggle:")){
@@ -200,6 +200,7 @@ export class AutomationEngine{
     for(const automation of jobs){
       const runKey=automation.id+":"+eventId;if(this.running.has(runKey))continue;this.running.add(runKey);
       const task=async()=>{
+        let failedSteps=0;
         try{
           for(const action of automation.actions){
             try{
@@ -219,9 +220,10 @@ export class AutomationEngine{
                 const bot=await guild.members.fetchMe();if(!bot.permissions.has(PermissionFlagsBits.ManageMessages))throw new Error("Missing Manage Messages permission.");
                 await context.message.delete();
               }
-            }catch(error){this.logger.error("Automation step failed ("+automation.id+", "+action.type+"):",error);}
+            }catch(error){failedSteps++;this.logger.error("Automation step failed ("+automation.id+", "+action.type+"):",error);}
           }
         }finally{this.running.delete(runKey);}
+        return {failedSteps};
       };
       if(this.services?.background)queued.push(this.services.background.enqueue("automation:"+runKey,task));
       else queued.push(task());
