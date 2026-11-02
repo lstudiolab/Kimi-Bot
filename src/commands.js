@@ -2,14 +2,16 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Foundation library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure the Kimi Lock library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Foundation plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure the Kimi Lock plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
-  new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's available bundles."),
-  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi plugin.").addStringOption(o=>o.setName("plugin").setDescription("Plugin to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("plugins").setDescription("Show available plugins."),
+  new SlashCommandBuilder().setName("libraries").setDescription("Legacy alias for plugins."),
+  new SlashCommandBuilder().setName("automations").setDescription("Build and manage server automations."),
+  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi plugin (server owner only).").addStringOption(o=>o.setName("plugin").setDescription("Plugin to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
   new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
   new SlashCommandBuilder().setName("foundation").setDescription("Open Foundation setup and server essentials."),
@@ -46,7 +48,7 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token"],
+  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","plugins","libraries","automations"],
   Foundation:["setup","foundation","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation","lock"],
   Support:["tickets","support","ticket-panel","ticket-config"],
@@ -56,18 +58,22 @@ for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))c
 const commandByName=new Map(allCommandBuilders.map(command=>[command.name,command]));
 export const commandData=allCommandBuilders.map(command=>command.toJSON());
 export const coreCommandData=commandGroups.Core.map(name=>commandByName.get(name).toJSON());
-export function commandsForLibraries(installedLibraries=[]){
+export function commandsForPlugins(installedPlugins=[]){
   const names=new Set(commandGroups.Core);
-  for(const library of installedLibraries)for(const name of commandGroups[library]||[])names.add(name);
+  for(const plugin of installedPlugins)for(const name of commandGroups[plugin]||[])names.add(name);
   return [...names].map(name=>commandByName.get(name)?.toJSON()).filter(Boolean);
 }
-export function libraryCommandsForLibraries(installedLibraries=[]){
+export function pluginCommandsForPlugins(installedPlugins=[]){
   const names=new Set();
-  for(const library of installedLibraries)for(const name of commandGroups[library]||[])names.add(name);
+  for(const plugin of installedPlugins)for(const name of commandGroups[plugin]||[])names.add(name);
   return [...names].map(name=>commandByName.get(name)?.toJSON()).filter(Boolean);
 }
 
-export function libraryForCommand(name){
-  for(const [library,names] of Object.entries(commandGroups))if(library!=="Core"&&names.includes(name))return library;
+export function pluginForCommand(name){
+  for(const [plugin,names] of Object.entries(commandGroups))if(plugin!=="Core"&&names.includes(name))return plugin;
   return null;
 }
+
+export const commandsForLibraries=commandsForPlugins;
+export const libraryCommandsForLibraries=pluginCommandsForPlugins;
+export const libraryForCommand=pluginForCommand;
