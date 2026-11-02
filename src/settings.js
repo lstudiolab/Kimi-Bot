@@ -291,7 +291,8 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         );
         return i.showModal(modal);
       }
-      if(section==="roles")return respond(i,"**Roles**\nUse `/autorole` to assign a role automatically when a member joins, or `/roles` to publish a self-service role menu.");
+      if(section==="roles")return respond(i,"**Role Picker**\nUse `/roles` to publish a self-service role menu.");
+      if(section==="auto-role")return respond(i,"**Auto Role**\nUse `/autorole` to choose the role assigned automatically when a member joins.");
       if(section==="embeds")return respond(i,"**Embeds**\nUse `/embed-new` to create an embed, `/embed-edit` to update it, and `/embed-post` to publish it.");
       if(section==="welcome"){
         const value=this.store.data.welcome[i.guildId]||{};
