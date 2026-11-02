@@ -36,7 +36,7 @@ const commandModule={
  "script":"scratch","script-edit":"scratch","scripts":"scratch","script-run":"scratch","script-stop":"scratch","script-delete":"scratch",
  "script-export":"scratch","script-import":"scratch","script-history":"scratch","script-check":"scratch","script-undo":"scratch","script-redo":"scratch","script-kit":"scratch","script-help":"scratch","script-template":"scratch"
 };
-const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":(id.startsWith("tbs:")||id.startsWith("tbm:")||id.startsWith("developer:"))?"scratch":null;
+const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":(id.startsWith("tbs:")||id.startsWith("tbm:"))?"scratch":null;
 const foundation=LIBRARIES.Foundation.create(context);context.foundation=foundation;
 const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
 context.libraries=libraries;
@@ -57,7 +57,7 @@ function opensModal(i){
  if(i.isChatInputCommand()){
   const file=i.commandName==="script"||i.commandName==="script-edit" ? i.options.getAttachment("file") : null;
   if(file)return false;
-  return ["embed-new","script","script-edit","web-token"].includes(i.commandName);
+  return ["embed-new","web-token"].includes(i.commandName);
  }
  if(!i.isButton())return false;
  const id=i.customId;
@@ -66,7 +66,7 @@ function opensModal(i){
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
   const commandName=names[section];
-  const library=section==="moderation"?"Security":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
+  const library=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
   if(!commandName||!libraries[library])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
@@ -112,11 +112,11 @@ async function coreCommand(i){
   return i.showModal(modal);
  }
  if(i.commandName==="kimi")return settings.show(i,"home");
- const configureLibrary={"configure-core":"Foundation","configure-shield":"Security","configure-support":"Support","configure-studio":"Scratch"}[i.commandName];
+ const configureLibrary={"configure-foundation":"Foundation","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
  if(configureLibrary)return settings.show(i,"library",configureLibrary);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries, including Studio, can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
+  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
  }
  if(i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
@@ -129,7 +129,7 @@ async function coreCommand(i){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
   const result=manager.uninstall(i.guildId,i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
-  const libraryKey=({Core:"Foundation",Shield:"Security",Support:"Support",Studio:"Scratch"})[result.library.name]||result.library.name;
+  const libraryKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.library.name]||result.library.name;
   if(libraries[libraryKey]?.onUninstall)await libraries[libraryKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
   return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
@@ -146,7 +146,7 @@ async function coreCommand(i){
    logger.error(`Could not publish ${result.library.name} commands for guild ${i.guildId}:`,error);
    return respond(i,`**${result.library.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
-  const libraryKey=({Core:"Foundation",Shield:"Security",Support:"Support",Studio:"Scratch"})[result.library.name]||result.library.name;
+  const libraryKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.library.name]||result.library.name;
   if(libraries[libraryKey]?.ready)await libraries[libraryKey].ready(i.guild);
   if(libraries[libraryKey]?.onInstall)await libraries[libraryKey].onInstall(i.guild);
   return respond(i,`**${result.library.name}** is installed and active in this server. Its slash commands have been published.\n${result.library.description}`);
@@ -169,10 +169,10 @@ async function handleInteraction(i){
   return respond(i,result.error||"This server is now connected to the Kimi account that generated the token. Return to the dashboard.");
  }
  if(i.isChatInputCommand()&&i.guildId&&store.data.command_settings?.[i.guildId]?.[i.commandName]===false)return respond(i,"This slash command is disabled for this server. Re-enable it in the Kimi dashboard.");
- const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-core","configure-shield","configure-support","configure-studio"].includes(i.commandName);
+ const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-core","configure-shield","configure-support","configure-studio","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=libraryForCommand(i.commandName);if(!required)return;
@@ -257,8 +257,7 @@ client.on(Events.MessageCreate,async m=>{
    return m.reply("Kimi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
   }
  }
- if(manager.installed(m.guildId,"Scratch")&&moduleEnabled(m.guildId,"scratch"))libraries.Scratch.onMessageCreate(m).catch(e=>logger.error("TBScript message event failed:",e));
- if(manager.installed(m.guildId,"Security"))libraries.Security.messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
+  if(manager.installed(m.guildId,"Kimi Lock"))libraries["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
 client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Security")&&moduleEnabled(m.guild.id,"moderation"))libraries.Security.messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
 client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Security")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries.Security.messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
