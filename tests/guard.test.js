@@ -5,7 +5,9 @@ function setup(){return new GuardRateLimiter({data:{guard_state:{}},queueSave(){
 test("user buckets start at ten and refill one token every two seconds",()=>{
  const g=setup();for(let n=0;n<TOKEN_CAPACITY;n++)assert.equal(g.consume("g","u","user",1000+n).allowed,true);
  assert.equal(g.consume("g","u","user",1011).allowed,false);
- assert.equal(g.consume("g","u","user",3000).allowed,true);
+ assert.equal(g.consume("g","u","user",3000).allowed,false,"a partial refill must not unlock the member");
+ assert.equal(g.consume("g","u","user",20999).allowed,false);
+ assert.equal(g.consume("g","u","user",21000).allowed,true,"the member unlocks only after all ten tokens return");
 });
 test("bot buckets only regenerate after two seconds without activity",()=>{
  const g=setup();for(let n=0;n<TOKEN_CAPACITY;n++)assert.equal(g.consume("g","b","bot",1000+n*100).allowed,true);
