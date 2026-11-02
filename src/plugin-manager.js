@@ -6,7 +6,7 @@ export class PluginManager{
   installed(guildId,name){const canonical=normalizePluginName(name);return Boolean(canonical&&(this.store.data.installed_plugins[guildId]||[]).includes(canonical));}
   install(guildId,name){
     const plugin=this.get(name);
-    if(!plugin)return {ok:false,error:"Plugin not found. Use /plugins to see available plugins."};
+    if(!plugin)return {ok:false,error:"App not found. Use /apps to see available apps."};
     const canonical=normalizePluginName(name),installed=this.store.data.installed_plugins[guildId]||=[];
     if(installed.includes(canonical))return {ok:false,error:`${plugin.name} is already installed in this server.`};
     installed.push(canonical);this.store.save();
