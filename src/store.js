@@ -104,8 +104,8 @@ export class Store{
     for(const [guild,installed] of Object.entries(this.data.installed_libraries||{})){
       const migrated=[...new Set((installed||[]).map(name=>["Moderation","Security","Shield"].includes(name)?"Kimi Lock":name).filter(name=>["Foundation","Kimi Lock","Support"].includes(name)))];
       if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_libraries[guild]=migrated;changed=true;}
-    for(const key of ["developer_projects","developer_history","developer_redo","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
     }
+    for(const key of ["developer_projects","developer_history","developer_redo","developer_active","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
     if(normalizeData(this.data))changed=true;
     this.persistedData=null;
     if(changed){this.save();this.logger.info("Imported or normalized legacy Timi settings and recovery data.");}
@@ -114,7 +114,7 @@ export class Store{
   save(){
     const previous=this.persistedData,baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
-    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
+    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots"];
     for(const collection of collections){
       for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
       for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);
