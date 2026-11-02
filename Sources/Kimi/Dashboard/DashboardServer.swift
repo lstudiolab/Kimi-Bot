@@ -1,0 +1,215 @@
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Darwin)
+import Darwin
+#endif
+
+final class DashboardServer:@unchecked Sendable {
+ private struct OAuthGuild:Decodable,Sendable {let id:String;let name:String;let owner:Bool?;let permissions:String?;let permissions_new:String?}
+ private struct OAuthUser:Decodable,Sendable {let id:String;let username:String;let global_name:String?}
+ private struct Session:Sendable {let user:OAuthUser;let accessToken:String;let expiresAt:Date;let csrf:String;let guilds:[OAuthGuild]}
+ private struct Request {let method:String;let path:String;let headers:[String:String];let body:String}
+ private let config:Configuration;private let rest:DiscordREST;private let store:PersistentStore;private let logger:Logger
+ private let lock=NSLock();private var sessions:[String:Session]=[:];private var states:[String:Date]=[:]
+ private var listener:Int32 = -1
+ init(config:Configuration,rest:DiscordREST,store:PersistentStore,logger:Logger){self.config=config;self.rest=rest;self.store=store;self.logger=logger}
+ func start(){
+  guard !config.oauthSecret.isEmpty,!config.oauthRedirectURI.isEmpty else{
+   Task{await logger.log("INFO","Dashboard disabled: configure DISCORD_OAUTH_CLIENT_SECRET and DISCORD_OAUTH_REDIRECT_URI.")}
+   return
+  }
+  #if canImport(Glibc)
+  listener=Glibc.socket(AF_INET,Int32(SOCK_STREAM.rawValue),0)
+  #else
+  listener=Darwin.socket(AF_INET,SOCK_STREAM,0)
+  #endif
+  guard listener>=0 else{Task{await logger.log("ERROR","Dashboard socket could not be created.")};return}
+  var reuse:Int32=1
+  _ = withUnsafePointer(to:&reuse){setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,$0,socklen_t(MemoryLayout<Int32>.size))}
+  var address=sockaddr_in()
+  address.sin_family=sa_family_t(AF_INET);address.sin_port=htons(UInt16(config.dashboardPort))
+  address.sin_addr=in_addr(s_addr:inet_addr(config.dashboardHost=="0.0.0.0" ? "0.0.0.0":"127.0.0.1"))
+  let bound=withUnsafePointer(to:&address){ptr in ptr.withMemoryRebound(to:sockaddr.self,capacity:1){bind(listener,$0,socklen_t(MemoryLayout<sockaddr_in>.size))}}
+  guard bound==0,listen(listener,64)==0 else{Task{await logger.log("ERROR","Dashboard could not bind to \(config.dashboardHost):\(config.dashboardPort).")};return}
+  Task{await logger.log("INFO","Swift dashboard listening on \(config.dashboardHost):\(config.dashboardPort).")}
+  DispatchQueue.global(qos:.utility).async { [weak self] in self?.acceptLoop() }
+ }
+ private func acceptLoop(){
+  while listener>=0 {
+   #if canImport(Glibc)
+   let fd=Glibc.accept(listener,nil,nil)
+   #else
+   let fd=Darwin.accept(listener,nil,nil)
+   #endif
+   if fd<0{continue}
+   Task.detached{await self.handle(fd)}
+  }
+ }
+ private func handle(_ fd:Int32)async{
+  defer{closeSocket(fd)}
+  guard let request=readRequest(fd) else{write(fd,400,"Bad Request","text/plain");return}
+  let host=request.headers["host"] ?? "localhost"
+  let components=URLComponents(string:"http://"+host+request.path)
+  let path=components?.path ?? "/"
+  let query=Dictionary((components?.queryItems ?? []).map{($0.name,$0.value ?? "")},uniquingKeysWith:{$1})
+  let cookie=request.headers["cookie"] ?? ""
+  let token=cookie.split(separator:";").map{$0.trimmingCharacters(in:.whitespaces)}.first(where:{$0.hasPrefix("kimi_session=")}).map{String($0.dropFirst("kimi_session=".count))}
+  let session=token.flatMap{getSession($0)}
+  if request.method=="GET" && path=="/health"{write(fd,200,"{\"ok\":true,\"service\":\"kimi-swift-dashboard\"}","application/json");return}
+  if request.method=="GET" && path=="/login"{beginOAuth(fd:fd);return}
+  if request.method=="GET" && path=="/oauth/callback"{
+   await completeOAuth(fd:fd,query:query);return
+  }
+  if request.method=="POST" && path=="/logout"{
+   if let token{removeSession(token)}
+   write(fd,303,"","text/plain",["Location":"/login","Set-Cookie":"kimi_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"]);return
+  }
+  if request.method=="GET" && path=="/"{
+   guard let session else{redirect(fd,"/login");return}
+   let page=await renderHome(session)
+   write(fd,200,page,"text/html; charset=utf-8",["Cache-Control":"no-store"]);return
+  }
+  if request.method=="GET" && path=="/guild"{
+   guard let session else{redirect(fd,"/login");return}
+   let guild=query["id"] ?? ""
+   guard let selected=session.guilds.first(where:{$0.id==guild}),await canManage(selected),await botIsPresent(guild) else{write(fd,403,page("Access denied","You need Manage Server permission and Kimi must be installed."),"text/html");return}
+   let page=await renderGuild(session,guild:guild,name:selected.name,owner:selected.owner==true)
+   write(fd,200,page,"text/html; charset=utf-8",["Cache-Control":"no-store"]);return
+  }
+  if request.method=="POST" && path=="/app"{
+   guard let session else{redirect(fd,"/login");return}
+   guard sameOrigin(request,host:host) else{write(fd,403,"Cross-origin request blocked.","text/plain");return}
+   let form=parseForm(request.body),guild=form["guild"] ?? "",app=form["app"] ?? "",action=form["action"] ?? ""
+   guard form["csrf"]==session.csrf,let selected=session.guilds.first(where:{$0.id==guild}),selected.owner==true,await botIsPresent(guild) else{write(fd,403,"Only the server owner can manage installed apps.","text/plain");return}
+   do{
+    let manager=AppManager(store:store)
+    let result=action=="install" ? try await manager.install(app,guildID:guild):try await manager.uninstall(app,guildID:guild)
+    guard result.ok else{throw KimiError.configuration(result.message)}
+    let installed=await manager.installed(guildID:guild)
+    try await rest.registerGuildCommands(config.clientID,guildID:guild,installed:installed)
+    write(fd,303,"","text/plain",["Location":"/guild?id="+guild])
+   }catch{write(fd,400,page("Could not update app",error.localizedDescription),"text/html")}
+   return
+  }
+  if request.method=="GET" && path=="/logout"{if let token{removeSession(token)};redirect(fd,"/login");return}
+  redirect(fd,"/login")
+ }
+ private func readRequest(_ fd:Int32)->Request?{
+  var bytes=[UInt8](repeating:0,count:65536)
+  let count=bytes.withUnsafeMutableBytes{recv(fd,$0.baseAddress,bytes.count,0)}
+  guard count>0 else{return nil}
+  let raw=String(decoding:bytes.prefix(count),as:UTF8.self)
+  let parts=raw.components(separatedBy:"\r\n\r\n")
+  let head=parts.first ?? "",body=parts.count>1 ? parts.dropFirst().joined(separator:"\r\n\r\n"):""
+  let lines=head.components(separatedBy:"\r\n")
+  guard let first=lines.first else{return nil}
+  let firstParts=first.split(separator:" ")
+  guard firstParts.count>=2 else{return nil}
+  var headers:[String:String]=[:]
+  for line in lines.dropFirst(){let pair=line.split(separator:":",maxSplits:1).map(String.init);if pair.count==2{headers[pair[0].trimmingCharacters(in:.whitespaces).lowercased()]=pair[1].trimmingCharacters(in:.whitespaces)}}
+  return Request(method:String(firstParts[0]),path:String(firstParts[1]),headers:headers,body:body)
+ }
+ private func beginOAuth(fd:Int32){
+  let state=UUID().uuidString.replacingOccurrences(of:"-",with:"")
+  lock.lock();states[state]=Date().addingTimeInterval(600);lock.unlock()
+  var c=URLComponents(string:"https://discord.com/oauth2/authorize")!
+  c.queryItems=[URLQueryItem(name:"client_id",value:config.clientID),URLQueryItem(name:"redirect_uri",value:config.oauthRedirectURI),URLQueryItem(name:"response_type",value:"code"),URLQueryItem(name:"scope",value:"identify guilds"),URLQueryItem(name:"state",value:state),URLQueryItem(name:"prompt",value:"none")]
+  redirect(fd,c.url?.absoluteString ?? "/login")
+ }
+ private func completeOAuth(fd:Int32,query:[String:String])async{
+  guard let code=query["code"],let state=query["state"] else{redirect(fd,"/login");return}
+  lock.lock();let expiry=states.removeValue(forKey:state);lock.unlock()
+  guard let expiry,expiry>Date() else{write(fd,400,page("Sign-in expired","Return to Kimi and try again."),"text/html");return}
+  do{
+   var request=URLRequest(url:URL(string:"https://discord.com/api/v10/oauth2/token")!)
+   request.httpMethod="POST";request.setValue("application/x-www-form-urlencoded",forHTTPHeaderField:"Content-Type")
+   let form=["client_id":config.clientID,"client_secret":config.oauthSecret,"grant_type":"authorization_code","code":code,"redirect_uri":config.oauthRedirectURI]
+   request.httpBody=form.map{urlEncode($0.key)+"="+urlEncode($0.value)}.joined(separator:"&").data(using:.utf8)
+   let (tokenData,_)=try await URLSession.shared.data(for:request)
+   guard let tokenObject=try JSONSerialization.jsonObject(with:tokenData) as? [String:Any],let access=tokenObject["access_token"] as? String else{throw KimiError.invalidResponse}
+   let user=try await oauthGET("/users/@me",access:access,as:OAuthUser.self)
+   let guilds=try await oauthGET("/users/@me/guilds",access:access,as:[OAuthGuild].self)
+   let sessionToken=UUID().uuidString.replacingOccurrences(of:"-",with:"")+UUID().uuidString.replacingOccurrences(of:"-",with:"")
+   let csrf=UUID().uuidString
+   let expires=Date().addingTimeInterval(7*86400)
+   lock.lock();sessions[sessionToken]=Session(user:user,accessToken:access,expiresAt:expires,csrf:csrf,guilds:guilds);lock.unlock()
+   let secure=config.oauthRedirectURI.hasPrefix("https://") ? "; Secure":""
+   write(fd,303,"","text/plain",["Location":"/","Set-Cookie":"kimi_session="+sessionToken+"; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"+secure])
+  }catch{write(fd,400,page("Discord sign-in failed",error.localizedDescription),"text/html")}
+ }
+ private func oauthGET<T:Decodable>(_ path:String,access:String,as type:T.Type)async throws->T{
+  var request=URLRequest(url:URL(string:"https://discord.com/api/v10"+path)!)
+  request.setValue("Bearer "+access,forHTTPHeaderField:"Authorization")
+  let (data,response)=try await URLSession.shared.data(for:request)
+  guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else{throw KimiError.invalidResponse}
+  return try JSONDecoder().decode(type,from:data)
+ }
+ private func renderHome(_ session:Session)async->String{
+  var rows=""
+  for guild in session.guilds where await canManage(guild) && await botIsPresent(guild.id){
+   rows += "<a class='server' href='/guild?id="+escape(guild.id)+"'><span class='server-icon'>"+escape(String(guild.name.prefix(1)).uppercased())+"</span><span><b>"+escape(guild.name)+"</b><small>"+(guild.owner==true ? "Server owner":"Manage Server")+"</small></span><span class='arrow'>›</span></a>"
+  }
+  if rows.isEmpty{rows="<p class='muted'>No servers found where you have Manage Server permission and Kimi is installed.</p>"}
+  return shell("Your servers","Signed in as "+(session.user.global_name ?? session.user.username),"<section class='panel'><h2>Server workspace</h2><p>Select a server to manage its installed Kimi apps.</p>"+rows+"</section><form method='post' action='/logout'><button class='secondary'>Sign out</button></form>")
+ }
+ private func renderGuild(_ session:Session,guild:String,name:String,owner:Bool)async->String{
+  let installed=await AppManager(store:store).installed(guildID:guild)
+  let cards=CommandCatalog.appNames().map{app in
+   let active=installed.contains(app)
+   let button=owner ? "<form method='post' action='/app'><input type='hidden' name='csrf' value='"+escape(session.csrf)+"'><input type='hidden' name='guild' value='"+escape(guild)+"'><input type='hidden' name='app' value='"+escape(app)+"'><input type='hidden' name='action' value='"+(active ? "uninstall":"install")+"'><button class='"+(active ? "secondary":"primary")+"'>"+(active ? "Remove":"Install")+"</button></form>":""
+   return "<article class='app'><div><b>"+escape(app)+"</b><small>"+(active ? "Installed":"Available")+"</small></div>"+button+"</article>"
+  }.joined()
+  return shell(name,"Kimi app management","<a class='back' href='/'>← All servers</a><section class='panel'><h2>App Store</h2><p>"+(owner ? "As server owner, you can install or remove apps.":"Only the server owner can change installed apps.")+"</p>"+cards+"</section>")
+ }
+ private func canManage(_ guild:OAuthGuild)async->Bool{
+  if guild.owner==true{return true}
+  let raw=guild.permissions_new ?? guild.permissions ?? "0"
+  let bits=UInt64(raw) ?? 0
+  return bits & (1<<5) != 0 || bits & (1<<3) != 0
+ }
+ private func botIsPresent(_ guild:String)async->Bool{
+  do{_ = try await rest.call("GET","guilds/"+guild);return true}catch{return false}
+ }
+ private func getSession(_ token:String)->Session?{
+  lock.lock();defer{lock.unlock()}
+  guard let value=sessions[token],value.expiresAt>Date() else{sessions.removeValue(forKey:token);return nil}
+  return value
+ }
+ private func removeSession(_ token:String){lock.lock();sessions.removeValue(forKey:token);lock.unlock()}
+ private func sameOrigin(_ request:Request,host:String)->Bool{
+  guard let origin=request.headers["origin"],let url=URL(string:origin) else{return false}
+  return url.host?.lowercased()==host.split(separator:":").first.map(String.init)?.lowercased()
+ }
+ private func parseForm(_ text:String)->[String:String]{
+  var values:[String:String]=[:]
+  for pair in text.split(separator:"&"){let p=pair.split(separator:"=",maxSplits:1).map(String.init);if p.count==2{values[urlDecode(p[0])]=urlDecode(p[1])}}
+  return values
+ }
+ private func urlEncode(_ value:String)->String{value.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed) ?? value}
+ private func urlDecode(_ value:String)->String{value.replacingOccurrences(of:"+",with:" ").removingPercentEncoding ?? value}
+ private func escape(_ value:String)->String{value.replacingOccurrences(of:"&",with:"&amp;").replacingOccurrences(of:"<",with:"&lt;").replacingOccurrences(of:">",with:"&gt;").replacingOccurrences(of:"\"",with:"&quot;").replacingOccurrences(of:"'",with:"&#39;")}
+ private func page(_ title:String,_ description:String)->String{shell(title,description,"<section class='panel'><p>"+escape(description)+"</p><a class='button' href='/login'>Continue</a></section>")}
+ private func shell(_ title:String,_ subtitle:String,_ body:String)->String{
+  "<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta name='theme-color' content='#101112'><title>"+escape(title)+" · Kimi</title><style>*{box-sizing:border-box}body{margin:0;background:#101112;color:#f3f4f5;font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}main{width:min(760px,calc(100% - 32px));margin:8vh auto}.brand{font-size:22px;font-weight:650;letter-spacing:-1px;margin-bottom:48px}.brand i{display:inline-grid;place-items:center;width:34px;height:34px;background:#eee;color:#111;border-radius:11px;margin-right:9px;font-style:normal}.eyebrow{font-size:11px;letter-spacing:1.5px;color:#8b9095;margin:0 0 10px}h1{font-size:38px;letter-spacing:-1.5px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}p{color:#a4a9ae;line-height:1.6}.panel{background:#191b1e;border:1px solid #303337;border-radius:18px;padding:24px;margin-top:28px}.server,.app{display:flex;align-items:center;gap:14px;padding:15px 0;border-top:1px solid #303337;color:#f3f4f5;text-decoration:none}.server-icon{width:38px;height:38px;display:grid;place-items:center;background:#303337;border-radius:12px}.server small,.app small{display:block;color:#8b9095;margin-top:4px}.arrow{margin-left:auto;color:#aaa}.app form{margin-left:auto}.button,button{border:0;border-radius:10px;padding:11px 16px;background:#e6e8ea;color:#151617;text-decoration:none;font-weight:600;cursor:pointer}.secondary{background:#292c30;color:#e6e8ea}.back{color:#c4c8cc;text-decoration:none}.muted{color:#999}</style><main><div class='brand'><i>K</i>kimi</div><div class='eyebrow'>KIMI CONTROL CENTER</div><h1>"+escape(title)+"</h1><p>"+escape(subtitle)+"</p>"+body+"<p class='muted'>Kimi Swift · Discord OAuth · Server-side rendering</p></main></html>"
+ }
+ private func redirect(_ fd:Int32,_ location:String){write(fd,303,"","text/plain",["Location":location])}
+ private func write(_ fd:Int32,_ status:Int,_ body:String,_ type:String,_ headers:[String:String]=[:]){
+  let reason=status==200 ? "OK":(status==303 ? "See Other":(status==400 ? "Bad Request":(status==403 ? "Forbidden":"Error")))
+  var head="HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(type)\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n"
+  for (key,value) in headers{head += key+": "+value+"\r\n"}
+  head += "\r\n"
+  let data=Data((head+body).utf8)
+  data.withUnsafeBytes{buffer in if let base=buffer.baseAddress{_ = send(fd,base,buffer.count,0)}}
+ }
+ private func closeSocket(_ fd:Int32){
+  #if canImport(Glibc)
+  _ = Glibc.close(fd)
+  #else
+  _ = Darwin.close(fd)
+  #endif
+ }
+}
