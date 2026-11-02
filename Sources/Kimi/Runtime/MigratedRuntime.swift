@@ -34,7 +34,7 @@ extension DiscordREST {
  }
  func timeoutKimiMember(_ guild:String,_ user:String,_ minutes:Int,_ reason:String) async throws {
   let until=ISO8601DateFormatter().string(from:Date().addingTimeInterval(Double(max(1,minutes))*60))
-  _ = try await call("PATCH","guilds/\(guild)/members/\(user)",body:["communication_disabled_until":until,"reason":String(reason.prefix(400))])
+  _ = try await call("PATCH","guilds/\(guild)/members/\(user)",body:["communication_disabled_until":until],auditReason:String(reason.prefix(400)))
  }
 }
 
