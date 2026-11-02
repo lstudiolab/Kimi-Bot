@@ -294,18 +294,31 @@ client.on(Events.InteractionCreate,async i=>{
 client.on(Events.MessageCreate,async m=>{
  if(!m.guild)return;
  if(m.author.id===client.user.id)return;
- const kind=m.author.bot?"bot":"user";
- const limit=guard.consume(m.guild.id,m.author.id,kind);
+ const automatedActor=Boolean(m.author.bot||m.webhookId);
+ const actorId=m.webhookId||m.author.id;
+ const kind=automatedActor?"bot":"user";
+ const limit=guard.consume(m.guild.id,actorId,kind);
  if(!limit.allowed){
-  if(m.author.bot){
+  if(automatedActor&&!m.webhookId){
    const member=m.member||await m.guild.members.fetch(m.author.id).catch(()=>null);
    if(member)await restrictBot(member).catch(error=>logger.error("Kimi Guard bot restriction failed:",error));
+  }else if(m.webhookId){
+   await m.delete().catch(()=>{});
+   const guildState=store.data.guard_state[m.guild.id]||(store.data.guard_state[m.guild.id]={users:{},bots:{},incidents:{}});
+   guildState.incidents||={};
+   const incidentKey="webhook:"+m.webhookId;
+   if(!guildState.incidents[incidentKey]){
+    guildState.incidents[incidentKey]={source:"webhook",webhook_id:m.webhookId,channel_id:m.channelId,owner_id:m.guild.ownerId,status:"restricted",reason:"Webhook activity bucket exhausted",created_at:Date.now()};
+    store.queueSave();
+    const owner=await client.users.fetch(m.guild.ownerId).catch(()=>null);
+    if(owner)await owner.send("Kimi Guard detected a webhook exceeding its activity limit in "+m.guild.name+". New messages from it are being deleted. Webhook ID: "+m.webhookId+"; channel: "+m.channelId+". Review or remove this webhook in Server Settings → Integrations.").catch(()=>{});
+   }
   }else{
    await m.delete().catch(()=>{});
   }
   return;
  }
- if(m.author.bot)return;
+ if(automatedActor)return;
  if(allowSystemTrigger(m.guild.id))automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
