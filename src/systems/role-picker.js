@@ -16,7 +16,7 @@ export class RolePicker {
   async button(i){
     if(i.customId.startsWith("rolepicker:footer-link:")){
       const id=i.customId.slice("rolepicker:footer-link:".length),menu=this.store.data.role_picker_menus[id];
-      if(!menu||menu.guild_id!==i.guildId||!menu.footer_channel_id)return deny(i,"This link is no longer available.");
+      if(!menu||menu.guild_id!==i.guildId||!menu.footer_channel_id||i.message?.author?.id!==this.client.user.id||i.message.id!==menu.message_id||i.channelId!==menu.channel_id)return deny(i,"This link is no longer available.");
       return respond(i,"Open the channel: https://discord.com/channels/"+menu.guild_id+"/"+menu.footer_channel_id);
     }
     if(i.customId==="rolepicker:start"){
@@ -100,7 +100,7 @@ export class RolePicker {
   }
   async menu(i){
     const id=i.customId.slice("rolepicker:menu:".length),menu=this.store.data.role_picker_menus[id];
-    if(!menu||menu.guild_id!==i.guildId)return deny(i,"This role picker is no longer available.");
+    if(!menu||menu.guild_id!==i.guildId||i.message?.author?.id!==this.client.user.id||i.message.id!==menu.message_id||i.channelId!==menu.channel_id)return deny(i,"This role picker is no longer available.");
     const allowed=new Set((menu.roles||[]).map(role=>role.id));
     if(i.values.some(roleId=>!allowed.has(roleId)))return deny(i,"This menu contains an invalid role selection.");
     const guild=i.guild;
@@ -129,7 +129,7 @@ export class RolePicker {
       this.logger.warn("Role picker role update failed:",error.message);
       return deny(i,"Timi could not update your roles. Check Manage Roles and role hierarchy.");
     }
-    menu.selections[i.user.id]=[...selected];this.store.save();
+    menu.selections||={};menu.selections[i.user.id]=[...selected];this.store.save();
     return respond(i,selected.size?"Your role selections have been updated.":"Your role selections have been cleared.");
   }
   async handle(i){
