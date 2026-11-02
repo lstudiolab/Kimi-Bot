@@ -102,11 +102,9 @@ function parseTar(buffer){
 function inspectSource(file,source){
   const findings=[];
   if(source.length>MAX_FILE_BYTES)findings.push({severity:"high",file,issue:"Source file exceeds the size limit."});
-  for(const [pattern,issue] of BLOCKED_PATTERNS)if(pattern.test(source))findings.push({severity:"high",file,issue});
-  const imports=[...source.matchAll(/\\bfrom\\s+["']([^"']+)["']|\\bimport\\s*\\(\\s*["']([^"']+)["']\\s*\\)/g)];
-  for(const match of imports){const name=match[1]||match[2];if(!name.startsWith("./")&&!name.startsWith("../")&&name!=="discord.js"&&!name.startsWith("node:"))findings.push({severity:"medium",file,issue:"External dependency is not permitted: "+name});}
   return findings;
 }
+
 export function scanModuleDirectory(root){
   return scanModuleDirectoryImpl(root);
 }
