@@ -2,9 +2,9 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Foundation plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure the Kimi Lock plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure Foundation.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure Kimi Lock.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-support").setDescription("Configure Support.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("install").setDescription("Add a Kimi app to this server.").addStringOption(o=>o.setName("app").setDescription("App to add").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
