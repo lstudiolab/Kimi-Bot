@@ -202,7 +202,7 @@ async function coreCommand(i){
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can add Kimi apps.");
   const name=i.options.getString("app");
-  if(!name)return respond(i,"Choose an app. Available apps: Foundation, Kimi Lock, Support. Use /apps for details.");
+  if(!name)return respond(i,"Choose an app. Available apps: Welcome, Roles, Embeds, Kimi Lock, Support. Use /apps for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
   try {
@@ -357,7 +357,7 @@ client.on(Events.MessageCreate,async m=>{
  if(allowSystemTrigger(m.guild.id))automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
-  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation app is not added to this server.").catch(()=>{});
+  if(!manager.installed(m.guild.id,"Welcome"))return m.reply("The Welcome app is not added to this server.").catch(()=>{});
   try{
    const sent=await foundation.testGreet(m.member);
    if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Kimi can view and send messages there.").catch(()=>{});
