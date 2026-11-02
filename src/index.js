@@ -81,7 +81,7 @@ const openConfiguration=async(i,section)=>{
   }});
   return plugins[plugin].handleInteraction(proxy);
  };
-const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,plugins,plugins:plugins,openConfiguration});
+const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,plugins,openConfiguration});
 async function showInstallAnimation(interaction,moduleName){
  const frames=[
   {bar:"░░░░░░░░░░",percent:0,status:"Preparing plugin"},
@@ -120,7 +120,7 @@ async function coreCommand(i){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Kimi Free**\nKimi is free to use. All built-in plugins can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage plugins and systems in /kimi.");
  }
- if(i.commandName==="plugins"||i.commandName==="plugins"){
+ if(i.commandName==="plugins"||i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
@@ -129,7 +129,7 @@ async function coreCommand(i){
  }
  if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi plugins.");
-  const result=manager.uninstall(i.guildId,i.options.getString("plugin")||i.options.getString("plugin"));
+  const result=manager.uninstall(i.guildId,i.options.getString("plugin"));
   if(!result.ok)return respond(i,result.error);
   const pluginKey=result.plugin.name;
   if(plugins[pluginKey]?.onUninstall)await plugins[pluginKey].onUninstall(i.guild);
@@ -174,7 +174,7 @@ async function handleInteraction(i){
  const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","plugins","plugins","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","plugins","libraries","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
