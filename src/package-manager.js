@@ -29,7 +29,7 @@ function readManifest(root){
   if(!Array.isArray(manifest.files)||manifest.files.length>MAX_FILES)throw new Error("Manifest file index is invalid.");
   return manifest;
 }
-function scanModuleDirectory(root){
+export function scanModuleDirectory(root){
   const manifest=readManifest(root),entries=[],findings=[],files=[];
   function walk(dir){
     for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -94,30 +94,6 @@ function inspectSource(file,source){
   return findings;
 }
 
-export function scanModuleDirectory(root){
-  return scanModuleDirectoryImpl(root);
-}
-function scanModuleDirectoryImpl(root){return scanModuleDirectoryInternal(root);}
-function scanModuleDirectoryInternal(root){
-  const manifest=readManifest(root),entries=[],findings=[],files=[];
-  function walk(dir){
-    for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
-      const absolute=path.join(dir,entry.name),relative=path.relative(root,absolute).split(path.sep).join("/");
-      if(entry.isSymbolicLink())throw new Error("Symbolic links are not allowed in module packages.");
-      if(entry.isDirectory()){walk(absolute);continue;}
-      if(!entry.isFile()||!safeRelative(relative))throw new Error("Unsafe module package path: "+relative);
-      const data=fs.readFileSync(absolute);if(data.length>MAX_FILE_BYTES)throw new Error("Module file exceeds the 2 MB limit: "+relative);
-      entries.push([relative,data]);files.push({path:relative,size:data.length,sha256:digest(data)});
-      if(relative.endsWith(".js"))findings.push(...inspectSource(relative,data.toString("utf8")));
-    }
-  }
-  walk(root);
-  if(entries.length>MAX_FILES)throw new Error("Module package contains too many files.");
-  if(entries.reduce((sum,item)=>sum+item[1].length,0)>MAX_UNPACKED_BYTES)throw new Error("Module package exceeds the unpacked size limit.");
-  if(!entries.some(([name])=>name==="index.js"))throw new Error("Module package must include index.js.");
-  manifest.files=files.filter(file=>file.path!=="manifest.json");
-  return {manifest,entries,findings};
-}
 export function createModuleArchive(root,output){
   const scanned=scanModuleDirectory(root);
   const manifest=Buffer.from(JSON.stringify(scanned.manifest,null,2)+"\\n");
