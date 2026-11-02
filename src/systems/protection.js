@@ -33,7 +33,7 @@ export class Protection {
   async restrictBot(guild,botId,privateId){
     const fetched=await guild.channels.fetch(),result={total:0,restricted:0,failed:0};
     for(const channel of fetched.values()){
-      if(!channel.permissionOverwrites||channel.id===privateId||["kimi-channel","kimi-confirmations","kimi-settings","timi-log","timi-confirmations","timi-settings","timi"].includes(channel.name))continue;
+      if(!channel.permissionOverwrites||channel.id===privateId)continue;
       result.total++;
       try{
         await channel.permissionOverwrites.edit(botId,{ViewChannel:false,SendMessages:false,ReadMessageHistory:false,Connect:false,Speak:false},
