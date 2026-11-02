@@ -321,6 +321,9 @@ extension KimiRuntime {
    }
    if installed.contains("Kimi Lock") {
     await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
+    let snowflake=Int64(id) ?? 0
+    let createdAt=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
+    await RaidProtectionService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,createdAt:createdAt,isBot:user["bot"] as? Bool ?? false)
     if user["bot"] as? Bool == true {
      do {
       let owner=try await rest.ownerID(guild)
