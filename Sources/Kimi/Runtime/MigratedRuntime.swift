@@ -206,6 +206,9 @@ extension KimiRuntime {
     guard owner==user else{throw KimiError.configuration("Only the server owner can open the dashboard link.")}
     guard let dashboardURL else{throw KimiError.configuration("Configure DISCORD_OAUTH_REDIRECT_URI to enable the dashboard.")}
     reply="Open the Kimi dashboard and sign in with Discord: "+dashboardURL+"/login. No email verification is used."
+   case "analytics":
+    let report=await AnalyticsService(store:store).report(guild:guild)
+    reply="Activity report\nMessages: "+String(report.messages)+"\nCommands: "+String(report.commands)+"\nJoins: "+String(report.joins)+"\nLeaves: "+String(report.leaves)+"\nModeration: "+String(report.moderation)+"\nTickets opened: "+String(report.ticketsOpened)+"\nTickets closed: "+String(report.ticketsClosed)+"\nActive days: "+String(report.activeDays)
    default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
    }
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
