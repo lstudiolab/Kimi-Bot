@@ -235,7 +235,51 @@ extension KimiRuntime {
   let custom=data["custom_id"] as? String ?? ""
   do {
    try await rest.deferKimiInteraction(id,token)
-   if custom=="ticket:open" {
+   if let appName=ComponentRouter.app(for:custom) {
+    let installed=await AppManager(store:store).installed(guildID:guild)
+    guard installed.contains(appName.rawValue) else{throw KimiError.configuration(appName.rawValue+" is not installed in this server.")}
+   }
+   if custom=="settings:apps" {
+    let installed=await AppManager(store:store).installed(guildID:guild)
+    let rows=CommandCatalog.appNames().map{appName in KimiUI.row([KimiUI.button(id:"settings:app:"+appName,label:appName+" · "+(installed.contains(appName) ? "Remove":"Install"),style:installed.contains(appName) ? 2:1)])}
+    try await rest.editKimiInteraction(app,token,"App Store · Manage Kimi apps for this server.",rows)
+   } else if custom.hasPrefix("settings:app:") {
+    let appName=String(custom.dropFirst("settings:app:".count))
+    let owner=try await rest.ownerID(guild)
+    guard owner==actorID else{throw KimiError.configuration("Only the server owner can install or remove apps.")}
+    let manager=AppManager(store:store),installed=await manager.installed(guildID:guild)
+    let result=installed.contains(appName) ? try await manager.uninstall(appName,guildID:guild):try await manager.install(appName,guildID:guild)
+    guard result.ok else{throw KimiError.configuration(result.message)}
+    let updated=await manager.installed(guildID:guild)
+    try await rest.registerGuildCommands(app,guildID:guild,installed:updated)
+    let rows=CommandCatalog.appNames().map{value in KimiUI.row([KimiUI.button(id:"settings:app:"+value,label:value+" · "+(updated.contains(value) ? "Remove":"Install"),style:updated.contains(value) ? 2:1)])}
+    try await rest.editKimiInteraction(app,token,appName+" updated.",rows)
+   } else if custom=="settings:status" {
+    let installed=await AppManager(store:store).installed(guildID:guild)
+    let policy=await ModerationEngine(store:store).policy(guildID:guild)
+    let open=await SupportTickets(store:store).all().filter{$0.guildID==guild && $0.isOpen}.count
+    let report=await AnalyticsService(store:store).report(guild:guild)
+    let message="Kimi system status\nApps: "+(installed.isEmpty ? "None":installed.joined(separator:", "))+"\nKimi Lock: "+(installed.contains("Kimi Lock") ? (policy.enabled ? "Active":"Installed · disabled"):"Not installed")+"\nOpen Support tickets: "+String(open)+"\nMessages recorded: "+String(report.messages)
+    let rows=[KimiUI.row([KimiUI.button(id:"settings:apps",label:"Manage apps"),KimiUI.button(id:"settings:home",label:"Home")])]
+    try await rest.editKimiInteraction(app,token,message,rows)
+   } else if custom=="settings:preferences" {
+    let options=KimiLocalization.locales.prefix(25).map{["label":String((KimiLocalization.names[$0] ?? $0).prefix(100)),"value":$0]}
+    let rows=[KimiUI.row([KimiUI.stringSelect(id:"settings:language",placeholder:"Select language",options:options)])]
+    try await rest.editKimiInteraction(app,token,"Choose the server language.",rows)
+   } else if custom=="settings:language" {
+    guard let locale=(data["values"] as? [String])?.first,KimiLocalization.names[locale] != nil else{throw KimiError.configuration("Choose a supported language.")}
+    var languages=await store.get("languages",as:[String:String].self) ?? [:]
+    languages[guild]=locale;try await store.set(languages,key:"languages")
+    try await rest.editKimiInteraction(app,token,"Server language set to "+(KimiLocalization.names[locale] ?? locale)+".")
+   } else if custom=="settings:activity" {
+    let entries=await logger.recent(limit:100)
+    let rows=entries.filter{$0.message.contains(guild)}.suffix(12)
+    let body=rows.map{ISO8601DateFormatter().string(from:$0.date)+" · "+$0.level+" · "+$0.message}.joined(separator:"\n")
+    try await rest.editKimiInteraction(app,token,body.isEmpty ? "No recent activity recorded.":String(body.prefix(1800)))
+   } else if custom=="settings:home" {
+    let rows=[KimiUI.row([KimiUI.button(id:"settings:apps",label:"App Store"),KimiUI.button(id:"settings:status",label:"System Status")]),KimiUI.row([KimiUI.button(id:"settings:preferences",label:"Preferences"),KimiUI.button(id:"settings:activity",label:"Activity")])]
+    try await rest.editKimiInteraction(app,token,"Kimi server control centre.",rows)
+   } else if custom=="ticket:open" {
     let settings=await SupportService(store:store,rest:rest,logger:logger).settings(guild)
     guard settings.panelChannelID==channel else{throw KimiError.configuration("This ticket panel is no longer active.")}
     let me=try await rest.call("GET","users/@me")
