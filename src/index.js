@@ -14,7 +14,8 @@ import { translatePayload } from "./i18n.js";
 import { PerformanceMonitor } from "./performance.js";
 import { createRuntimeServices } from "./services/runtime.js";
 import { AutomationEngine } from "./automations/engine.js";
-const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger);
+import { GuardRateLimiter } from "./systems/guard.js";
+const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger),guard=new GuardRateLimiter(store);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const services=createRuntimeServices({logger});
 const automationEngine=new AutomationEngine({client,store,logger,services});
@@ -104,6 +105,20 @@ async function showInstallAnimation(interaction,moduleName){
   if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,120));
  }
 }
+async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded"){
+ const guild=member.guild,record=guard.bucket(guild.id,member.id,"bot");
+ const incidents=store.data.guard_state[guild.id].incidents||(store.data.guard_state[guild.id].incidents={});
+ if(incidents[member.id]?.status==="restricted")return incidents[member.id];
+ const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
+ const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
+ const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
+  status:"restricted",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false};
+ try{if(editable.length){await member.roles.remove(editable,reason);incident.removed_roles=editable;}}catch(error){logger.warn("Kimi Guard could not remove every role from bot "+member.id+":",error.message);}
+ try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
+ store.queueSave();
+ logger.warn("Kimi Guard restricted bot "+member.id+" in server "+guild.id+" after its activity bucket was exhausted.");
+ return incident;
+}
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
  if(i.commandName==="web-token"){
@@ -115,6 +130,24 @@ async function coreCommand(i){
  if(i.commandName==="kimi")return settings.show(i,"home");
  const configurePlugin={"configure-foundation":"Foundation","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
  if(configurePlugin)return settings.show(i,"plugin",configurePlugin);
+ if(i.commandName==="guard-review"){
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can review Kimi Guard incidents.");
+  const target=i.options.getUser("bot"),decision=i.options.getString("decision");
+  if(!target.bot||target.id===client.user.id)return respond(i,"Choose another bot account. Kimi cannot review or restrict itself.");
+  const incident=store.data.guard_state?.[i.guildId]?.incidents?.[target.id];
+  if(!incident||incident.status!=="restricted")return respond(i,"There is no active Kimi Guard restriction for that bot.");
+  if(decision==="restore"){
+   const member=await i.guild.members.fetch(target.id).catch(()=>null);
+   if(!member)return respond(i,"That bot is no longer in this server. The incident record was kept.");
+   const roles=(incident.removed_roles||incident.original_roles||[]).map(id=>i.guild.roles.cache.get(id)).filter(role=>role&&role.editable);
+   if(incident.timeout_applied)await member.timeout(null,"Released by the server owner after Kimi Guard review").catch(error=>logger.warn("Could not clear bot timeout:",error.message));
+   if(roles.length)await member.roles.add(roles,"Released by the server owner after Kimi Guard review");
+   incident.status="released";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
+   return respond(i,"The bot restriction was released. Restorable roles have been returned.");
+  }
+  incident.status="kept";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
+  return respond(i,"The bot remains restricted. Only you can release it with /guard-review.");
+ }
  if(i.commandName==="automations")return automationEngine.handleInteraction(i);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
@@ -164,6 +197,10 @@ function localizeInteraction(i){
 }
 async function handleInteraction(i){
  localizeInteraction(i);
+ if(i.isChatInputCommand()&&i.commandName!=="guard-review"&&i.guildId){
+  const limit=guard.consume(i.guildId,i.user.id,"user");
+  if(!limit.allowed)return i.reply({content:"Kimi is pausing your interactions because your action limit is exhausted. Wait about "+Math.ceil(limit.retryAfterMs/1000)+" second(s) for tokens to return.",ephemeral:true,allowedMentions:{parse:[]}});
+ }
  if(i.isModalSubmit()&&i.customId==="web-token:submit"){
   if(!i.inGuild())return respond(i,"Use this form inside a Discord server.");
   if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to connect this server to a Kimi account.");
@@ -174,7 +211,7 @@ async function handleInteraction(i){
  const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
@@ -247,7 +284,20 @@ client.on(Events.InteractionCreate,async i=>{
  }
 });
 client.on(Events.MessageCreate,async m=>{
- if(m.author.bot||!m.guild)return;
+ if(!m.guild)return;
+ if(m.author.id===client.user.id)return;
+ const kind=m.author.bot?"bot":"user";
+ const limit=guard.consume(m.guild.id,m.author.id,kind);
+ if(!limit.allowed){
+  if(m.author.bot){
+   const member=m.member||await m.guild.members.fetch(m.author.id).catch(()=>null);
+   if(member)await restrictBot(member).catch(error=>logger.error("Kimi Guard bot restriction failed:",error));
+  }else{
+   await m.delete().catch(()=>{});
+  }
+  return;
+ }
+ if(m.author.bot)return;
  automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
