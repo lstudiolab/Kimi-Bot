@@ -38,6 +38,7 @@ const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.l
 export class KimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
+    if(i.isChatInputCommand?.()&&!i.deferred&&!i.replied)await i.deferReply({ephemeral:false});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const guild=i.guild, id=guild.id;
     const language=this.store.data.languages?.[id]||"en-US";
@@ -131,7 +132,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
   }
   async handle(i){
-    if(!i.inGuild())return i.editReply({content:"Use Timi Settings inside a server.",embeds:[],components:[]});
+    if(!i.inGuild())return i.editReply({content:"Use Kimi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
@@ -168,9 +169,9 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       for(const id of [roleId,requiredRoleId]){
         const role=id?i.guild.roles.cache.get(id):null;
         if(role&&!isSafeAssignableRole(role,i.guildId))return i.editReply({content:"Choose normal verification roles without elevated permissions.",components:[],embeds:[]});
-        if(id===roleId&&role.position>=bot.roles.highest.position)return i.editReply({content:"Timi must have a higher role than the configured verification roles.",components:[],embeds:[]});
+        if(id===roleId&&role.position>=bot.roles.highest.position)return i.editReply({content:"Kimi must have a higher role than the configured verification roles.",components:[],embeds:[]});
       }
-      if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Timi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
+      if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Kimi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
       this.store.data.verification[i.guildId]=value;this.store.save();
       await this.hooks.libraries?.Foundation?.refreshVerification?.(i.guild);
@@ -188,7 +189,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(roleId&&!i.guild.roles.cache.has(roleId))return i.editReply({content:"That role does not belong to this server or is unavailable.",components:[],embeds:[]});
       if(roleId){
         const role=i.guild.roles.cache.get(roleId),bot=await i.guild.members.fetchMe();
-        if(!isSafeAssignableRole(role,i.guildId)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Choose a normal role below Timi's highest role. Timi also needs Manage Roles permission.",components:[],embeds:[]});
+        if(!isSafeAssignableRole(role,i.guildId)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Choose a normal role below Kimi's highest role. Kimi also needs Manage Roles permission.",components:[],embeds:[]});
       }
       this.store.data.welcome[i.guildId]={...current,welcome_channel_id:welcomeChannel,welcome_message:read("welcome-message")||current.welcome_message,goodbye_channel_id:goodbyeChannel,goodbye_message:read("goodbye-message")||current.goodbye_message,auto_role_id:roleId};
       this.store.save();
@@ -215,7 +216,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
       const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Scratch";
-      if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Timi Settings to refresh the panel.");
+      if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can change verification policy.");
@@ -271,7 +272,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         const library=this.hooks.libraries?.[name];
         if(library?.ready)await library.ready(i.guild);
         if(library?.onInstall)await library.onInstall(i.guild);
-        return i.editReply({embeds:[embed("Library Installed",`**${name}** is now installed. Its commands will be registered when Timi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
+        return i.editReply({embeds:[embed("Library Installed",`**${name}** is now installed. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
       }
       const result=this.manager.uninstall(i.guildId,name);
       if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
