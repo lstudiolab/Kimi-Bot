@@ -332,7 +332,7 @@ test("published role pickers revalidate role safety before assigning",async()=>{
   const picker=new RolePicker({},store,quiet,{validateRole:async()=>[false,"role has privileged permissions"]});
   const interaction={
     customId:"rolepicker:menu:menu",guildId:"guild",values:["role-safe"],user:{id:"member"},
-    guild:{roles:{fetch:async()=>({id:"role-safe"})}},
+    guild:{roles:{fetch:async()=>({id:"role-safe"})},members:{fetch:async()=>({user:{bot:false},roles:{add:async()=>{added=true;},remove:async()=>{}}})}},
     member:{roles:{add:async()=>{added=true;},remove:async()=>{}}},
     deferred:true,replied:false,editReply:async payload=>{response=payload;}
   };
