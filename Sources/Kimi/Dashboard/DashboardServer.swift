@@ -150,8 +150,10 @@ final class DashboardServer:@unchecked Sendable {
  }
  private func renderHome(_ session:Session)async->String{
   var rows=""
-  for guild in session.guilds where await canManage(guild) && await botIsPresent(guild.id){
-   rows += "<a class='server' href='/guild?id="+escape(guild.id)+"'><span class='server-icon'>"+escape(String(guild.name.prefix(1)).uppercased())+"</span><span><b>"+escape(guild.name)+"</b><small>"+(guild.owner==true ? "Server owner":"Manage Server")+"</small></span><span class='arrow'>›</span></a>"
+  for guild in session.guilds {
+   if await canManage(guild) && await botIsPresent(guild.id) {
+    rows += "<a class='server' href='/guild?id="+escape(guild.id)+"'><span class='server-icon'>"+escape(String(guild.name.prefix(1)).uppercased())+"</span><span><b>"+escape(guild.name)+"</b><small>"+(guild.owner==true ? "Server owner":"Manage Server")+"</small></span><span class='arrow'>›</span></a>"
+   }
   }
   if rows.isEmpty{rows="<p class='muted'>No servers found where you have Manage Server permission and Kimi is installed.</p>"}
   return shell("Your servers","Signed in as "+(session.user.global_name ?? session.user.username),"<section class='panel'><h2>Server workspace</h2><p>Select a server to manage its installed Kimi apps.</p>"+rows+"</section><form method='post' action='/logout'><button class='secondary'>Sign out</button></form>")
