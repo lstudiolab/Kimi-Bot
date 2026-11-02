@@ -37,7 +37,7 @@ extension DiscordREST {
 
 extension KimiRuntime {
  func handleMigratedCommand(_ event:[String:Any]) async -> Bool {
-  guard (event["type"] as? Int)==2 else { return false }
+  guard let interactionType=event["type"] as? Int,interactionType==2 || interactionType==3 else { return false }
   guard let id=event["id"] as? String,let token=event["token"] as? String,let app=event["application_id"] as? String else { return false }
   let guild=event["guild_id"] as? String ?? ""
   let user=(event["user"] as? [String:Any])?["id"] as? String ?? (event["member"] as? [String:Any])?["user"] as? [String:Any] as? String ?? ""
@@ -51,6 +51,7 @@ extension KimiRuntime {
    }
    return nil
   }
+  if interactionType==3 { return await handleMigratedComponent(event,data:data) }
   do { try await rest.deferKimiInteraction(id,token) }
   catch { await logger.log("WARN","Interaction acknowledgement failed: "+error.localizedDescription);return true }
   var reply="Command completed."
@@ -121,23 +122,33 @@ extension KimiRuntime {
     let findings=ServerAudit().evaluate(roles:roles,everyonePermissions:permissions)
     reply=findings.isEmpty ? "Kimi Lock security audit: no obvious elevated-role risks found.":findings.map{$0.severity.uppercased()+" — "+$0.title+": "+$0.detail}.joined(separator:"\n")
    case "tickets","ticket-panel","ticket-config":
-    let channels=try await rest.call("GET","guilds/\(guild)/channels") as? [[String:Any]] ?? []
-    let category=channels.first(where:{($0["type"] as? Int)==4 && ($0["name"] as? String)=="ticket"})
-    if name=="tickets" && category==nil {
-     let created=try await rest.call("POST","guilds/\(guild)/channels",body:["name":"ticket","type":4])
-     reply="Support category created: <#"+((created as? [String:Any])?["id"] as? String ?? "")+">"
+    let service=SupportService(store:store,rest:rest,logger:logger)
+    if name=="tickets" {
+     let category=try await service.ensureCategory(guild)
+     reply="Support category ready: <#"+category+">"
+    } else if name=="ticket-panel" {
+     guard let channel=event["channel_id"] as? String else{throw KimiError.configuration("Run this command in a text channel.")}
+     try await service.publishPanel(guild:guild,channel:channel)
+     reply="Support panel published in <#"+channel+">."
     } else {
-     let all=await SupportTickets(store:store).all()
-     let count=all.filter{$0.guildID==guild && $0.isOpen}.count
-     reply="Support\nTicket category: "+(category?["id"] as? String ?? "not configured")+"\nOpen ticket records: "+String(count)
+     var settings=await service.settings(guild)
+     if let role=value("support-role"){settings.supportRoleID=role}
+     if let channel=value("transcript-channel"){settings.transcriptChannelID=channel}
+     try await service.configure(settings,guild:guild)
+     reply="Support settings saved."
     }
    case "automations":
     let rules=await AutomationEngine(store:store).rules(guildID:guild)
     reply="Automations\nSaved rules: "+String(rules.count)
    case "verify","verify-config":
-    let records=VerificationRecords(store:store)
-    let record=await records.record(guildID:guild,userID:user)
-    reply="Kimi Lock verification\nRecorded attempts: "+String(record.attempts)+"\nConfigure account age and a review channel before publishing a verification panel."
+    let service=VerificationService(store:store,rest:rest,logger:logger)
+    var settings=await service.settings(guild)
+    if let role=value("role"){settings.roleID=role}
+    if let channel=value("channel"){settings.channelID=channel}
+    if let review=value("review-channel"){settings.reviewChannelID=review}
+    if let age=options.first(where:{($0["name"] as? String)=="min-age-days"})?["value"] as? Int{settings.minimumAgeDays=age}
+    try await service.configure(settings,guild:guild)
+    reply="Kimi Lock verification settings saved. Minimum account age: "+String(settings.minimumAgeDays)+" days. Review channel: "+(settings.reviewChannelID ?? "not configured")
    case "roles":reply="Role Picker is installed as a server app. The menu editor is being migrated."
    case "embed-new","embed-edit","embed-post":reply="Embed validation is available. The editor and publishing interactions are being migrated."
    case "guard-review":reply="Kimi Guard incident review is being migrated."
@@ -150,9 +161,43 @@ extension KimiRuntime {
   return true
  }
  func handleMigratedComponent(_ event:[String:Any],data:[String:Any]) async -> Bool {
-  guard let id=event["id"] as? String,let token=event["token"] as? String else{return true}
-  do {try await rest.respond(id,token,"This control is not yet available in the Swift interaction router.")}
-  catch {await logger.log("WARN","Component acknowledgement failed: "+error.localizedDescription)}
+  guard let id=event["id"] as? String,let token=event["token"] as? String,let app=event["application_id"] as? String else{return true}
+  let guild=event["guild_id"] as? String ?? ""
+  let member=event["member"] as? [String:Any] ?? [:]
+  let actor=member["user"] as? [String:Any] ?? [:]
+  let actorID=actor["id"] as? String ?? ""
+  let username=actor["username"] as? String ?? "member"
+  let custom=data["custom_id"] as? String ?? ""
+  do {
+   try await rest.deferKimiInteraction(id,token)
+   if custom=="ticket:open" {
+    let me=try await rest.call("GET","users/@me")
+    guard let bot=(me as? [String:Any])?["id"] as? String else{throw KimiError.invalidResponse}
+    let ticket=try await SupportService(store:store,rest:rest,logger:logger).open(guild:guild,user:actorID,username:username,bot:bot)
+    try await rest.editKimiInteraction(app,token,"Your private ticket is ready: <#"+ticket.channelID+">")
+   } else if custom.hasPrefix("ticket:close:") {
+    let ticketID=String(custom.dropFirst("ticket:close:".count))
+    let controls=[["type":1,"components":[["type":2,"style":4,"label":"Yes, close it","custom_id":"ticket:confirm-close:"+ticketID],["type":2,"style":2,"label":"Cancel","custom_id":"ticket:cancel-close"]]]] as [[String:Any]]
+    _ = try await rest.call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":"Close this support ticket?","components":controls,"allowed_mentions":["parse":[]]])
+   } else if custom.hasPrefix("ticket:confirm-close:") {
+    let ticketID=String(custom.dropFirst("ticket:confirm-close:".count))
+    let ticket=try await SupportService(store:store,rest:rest,logger:logger).close(guild:guild,ticketID:ticketID)
+    try await rest.editKimiInteraction(app,token,"Ticket closed. Transcript retained in Kimi storage. Channel: <#"+ticket.channelID+">")
+   } else if custom=="ticket:cancel-close" {
+    try await rest.editKimiInteraction(app,token,"Ticket remains open.")
+   } else if custom=="verify:start" {
+    await VerificationService(store:store,rest:rest,logger:logger).verify(guild:guild,userID:actorID,username:username,applicationID:app,interactionToken:token)
+   } else if custom.hasPrefix("verify:approve:") || custom.hasPrefix("verify:reject:") {
+    let approve=custom.hasPrefix("verify:approve:")
+    let target=String(custom.dropFirst(approve ? "verify:approve:".count:"verify:reject:".count))
+    await VerificationService(store:store,rest:rest,logger:logger).review(guild:guild,userID:target,decision:approve ? "approve":"reject",reviewer:actorID,applicationID:app,interactionToken:token)
+   } else {
+    try await rest.editKimiInteraction(app,token,"This control is not available in the current Swift runtime.")
+   }
+  } catch {
+   try? await rest.editKimiInteraction(app,token,"Kimi could not complete this action: "+error.localizedDescription)
+   await logger.log("ERROR","Component "+custom+" failed: "+error.localizedDescription)
+  }
   return true
  }
  func dispatchMigratedEvent(_ name:String,_ data:[String:Any]) async {
@@ -168,6 +213,7 @@ extension KimiRuntime {
   case "GUILD_MEMBER_ADD":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0)
+   await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")
