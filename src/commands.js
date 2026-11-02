@@ -50,15 +50,15 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
-  Welcome:["setup","welcome"],
+  Core:["setup","kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
+  Welcome:["welcome"],
   "Auto Role":["autorole"],
   "Role Picker":["roles"],
   Embeds:["embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
 });
-const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
+const adminOnlyCommands=new Set([...Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names),"setup"]);
 for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))command.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 const commandByName=new Map(allCommandBuilders.map(command=>[command.name,command]));
 export const commandData=allCommandBuilders.map(command=>command.toJSON());
