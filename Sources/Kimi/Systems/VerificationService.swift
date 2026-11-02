@@ -25,12 +25,17 @@ actor VerificationService {
  func verify(guild:String,userID:String,username:String,applicationID:String,interactionToken:String)async{
   let record=await VerificationRecords(store:store).record(guildID:guild,userID:userID)
   if record.verifiedAt != nil{try? await rest.editKimiInteraction(applicationID,interactionToken,"You have already been verified.");return}
-  _=try? await VerificationRecords(store:store).attempt(guildID:guild,userID:userID)
+  let records=VerificationRecords(store:store)
+  _=try? await records.attempt(guildID:guild,userID:userID)
+  let record=await records.record(guildID:guild,userID:userID)
   let value=await settings(guild)
   let snowflake=Int64(userID) ?? 0
   let created=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
+  let profile=(try? await rest.call("GET","users/"+userID)) as? [String:Any] ?? [:]
+  let defaultAvatar=(profile["avatar"] as? String)==nil
+  let result=VerificationEngine().evaluate(createdAt:created,defaultAvatar:defaultAvatar,suspiciousBehavior:record.failures>0,attempts:record.attempts,minimumAgeDays:value.minimumAgeDays)
   let age=max(0,Int(Date().timeIntervalSince(created)/86400))
-  if age<value.minimumAgeDays{
+  if result.decision != .approve{
    if let review=value.reviewChannelID{
     let body="Verification review required for <@\(userID)>. Account age: \(age) days; minimum: \(value.minimumAgeDays) days."
     let components=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"verify:approve:"+userID],["type":2,"style":4,"label":"Reject","custom_id":"verify:reject:"+userID]]]] as [[String:Any]]
