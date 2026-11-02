@@ -21,7 +21,7 @@ const MODULES = Object.freeze([
 const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support"]);
 const COMMAND_GROUPS = Object.freeze({
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  "Kimi Lock":["verify","verify-config","filter","security","moderation","lock"],
+  "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
 });
 const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,plugin:bundle}))));
