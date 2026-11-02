@@ -176,7 +176,8 @@ export class Store{
     return value;
   }
   member(guild,user){
-    if(!this.data.members||typeof this.data.members!=="object"||Array.isArray(this.data.members))this.data.members={};
+    if(!this.data.members||typeof this.data.members!=="object"||Array.isArray(this.data.members)){this.data.members={};this.memberCount=0;}
+    if(!Number.isSafeInteger(this.memberCount)||this.memberCount<0)this.memberCount=Object.keys(this.data.members).length;
     const key=guild+":"+user;
     if(!Object.hasOwn(this.data.members,key)){
       if(this.memberCount>=100000){
