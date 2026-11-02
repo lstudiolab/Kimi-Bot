@@ -101,13 +101,13 @@ export class RolePicker {
   async menu(i){
     const id=i.customId.slice("rolepicker:menu:".length),menu=this.store.data.role_picker_menus[id];
     if(!menu||menu.guild_id!==i.guildId||i.message?.author?.id!==this.client.user.id||i.message.id!==menu.message_id||i.channelId!==menu.channel_id)return deny(i,"This role picker is no longer available.");
-    const allowed=new Set((menu.roles||[]).map(role=>role.id));
-    if(i.values.some(roleId=>!allowed.has(roleId)))return deny(i,"This menu contains an invalid role selection.");
+    const allowed=new Set((Array.isArray(menu.roles)?menu.roles:[]).filter(role=>role&&isSnowflake(role.id)).map(role=>role.id));
+    if(!allowed.size||!Array.isArray(i.values)||i.values.some(roleId=>!allowed.has(roleId)))return deny(i,"This menu contains an invalid role selection.");
     const guild=i.guild;
     if(!guild||!i.member)return deny(i,"This role menu is not available in a server.");
     const member=await guild.members.fetch(i.user.id).catch(()=>null);
     if(!member||member.user.bot)return deny(i,"This role menu is only available to server members.");
-    const selected=new Set(i.values),previous=new Set((menu.selections[i.user.id]||[]).filter(id=>allowed.has(id)));
+    const selected=new Set(i.values),previous=new Set((Array.isArray(menu.selections?.[i.user.id])?menu.selections[i.user.id]:[]).filter(id=>allowed.has(id)));
     const add=[...selected].filter(role=>!previous.has(role)),remove=[...previous].filter(role=>!selected.has(role));
     const resolved=new Map();
     for(const roleId of selected){
