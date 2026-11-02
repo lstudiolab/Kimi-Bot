@@ -1,19 +1,48 @@
 name: Swift
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
 concurrency:
   group: swift-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Show Swift toolchain
         run: swift --version
-      - run: swift build -c release
-      - run: swift test
+
+      - name: Format Swift source
+        run: swift-format format --in-place --recursive Sources Tests
+
+      - name: Verify formatting
+        run: swift-format lint --strict --recursive Sources Tests
+
+      - name: Commit formatting changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Sources Tests
+          if ! git diff --cached --quiet; then
+            git commit -m "Format Swift source with swift-format"
+            git push
+          fi
+
+      - name: Build release
+        run: swift build -c release
+
+      - name: Run tests
+        run: swift test
