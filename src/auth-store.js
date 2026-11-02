@@ -32,6 +32,10 @@ export class AuthStore {
     this.webTokens = readJson(this.webTokensFile, {});
     if (!this.accounts || typeof this.accounts !== "object" || !Array.isArray(this.accounts.accounts)) this.accounts = { accounts: [] };
     else this.accounts.accounts = this.accounts.accounts.filter(account => account && typeof account === "object" && typeof account.id === "string" && typeof account.email === "string" && /^[a-f0-9]{32}$/i.test(account.passwordSalt || "") && /^[a-f0-9]{128}$/i.test(account.passwordHash || ""));
+    for (const account of this.accounts.accounts) {
+      account.guilds = Array.isArray(account.guilds) ? account.guilds.filter(link => link && typeof link === "object" && /^\\d{15,22}$/.test(String(link.id || "")) && /^\\d{15,22}$/.test(String(link.linkedBy || ""))) : [];
+      if (account.discord && (typeof account.discord !== "object" || !/^\\d{15,22}$/.test(String(account.discord.id || "")))) account.discord = null;
+    }
     if (!this.sessions || typeof this.sessions !== "object" || Array.isArray(this.sessions)) this.sessions = {};
     if (!this.links || typeof this.links !== "object" || Array.isArray(this.links)) this.links = {};
     if (!this.webTokens || typeof this.webTokens !== "object" || Array.isArray(this.webTokens)) this.webTokens = {};
