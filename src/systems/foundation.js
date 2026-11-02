@@ -19,7 +19,7 @@ export class Foundation {
   async command(i){
     if(!await requireManager(i))return;
     const s=this.settings(i.guildId);
-    if(i.commandName==="setup"||i.commandName==="foundation"||i.commandName==="kimi-channel")return this.setup(i);
+    if(i.commandName==="setup"||i.commandName==="kimi-channel")return this.setup(i);
     if(i.commandName==="autorole"){
       const role=i.options.getRole("role");
       if(role){

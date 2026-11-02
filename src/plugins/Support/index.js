@@ -9,7 +9,7 @@ export function createSupportLibrary({client,store,logger,foundation,services}){
       if(!category)await guild.channels.create({name:"ticket",type:ChannelType.GuildCategory,reason:"Prepare Kimi Support"});
     },
     async handleInteraction(i){
-      if(i.isChatInputCommand()&&["tickets","support","ticket-panel","ticket-config"].includes(i.commandName))return tickets.handle(i);
+      if(i.isChatInputCommand()&&["tickets","ticket-panel","ticket-config"].includes(i.commandName))return tickets.handle(i);
       if((i.customId||"").startsWith("ticket:"))return tickets.handle(i);
     },
     async refreshPanels(guild){await tickets.refresh(store.ticket(guild.id));},
