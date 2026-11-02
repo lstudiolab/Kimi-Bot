@@ -18,7 +18,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("guard-review").setDescription("Review a bot security incident (server owner only).").addUserOption(o=>o.setName("bot").setDescription("Bot account under review").setRequired(true)).addStringOption(o=>o.setName("decision").setDescription("Choose whether to restore the bot").setRequired(true).addChoices({name:"Restore roles and release",value:"restore"},{name:"Keep restricted",value:"keep"})),
   new SlashCommandBuilder().setName("uninstall").setDescription("Remove a Kimi app from this server (server owner only).").addStringOption(o=>o.setName("app").setDescription("App to remove").setRequired(true).addChoices({name:"Welcome",value:"Welcome"},{name:"Auto Role",value:"Auto Role"},{name:"Role Picker",value:"Role Picker"},{name:"Embeds",value:"Embeds"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
-  new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
+  new SlashCommandBuilder().setName("setup").setDescription("Prepare Kimi shared private channels and server infrastructure.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member greetings").addChannelTypes(ChannelType.GuildText))
     .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Channel for member departure messages").addChannelTypes(ChannelType.GuildText))
