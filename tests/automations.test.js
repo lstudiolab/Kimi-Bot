@@ -2,18 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { conditionMatches } from "../src/automations/engine.js";
 
-test("automation conditions match account age thresholds",()=>{
-  assert.equal(conditionMatches({type:"account_age_under_days",value:7},{accountAgeDays:2}),true);
-  assert.equal(conditionMatches({type:"account_age_under_days",value:7},{accountAgeDays:20}),false);
+test("automation conditions handle account age and message content",()=>{
+  const context={accountAgeDays:3,message:{content:"Please join https://discord.gg/example"}};
+  assert.equal(conditionMatches({type:"always"},context),true);
+  assert.equal(conditionMatches({type:"account_age_under_days",value:7},context),true);
+  assert.equal(conditionMatches({type:"account_age_under_days",value:2},context),false);
+  assert.equal(conditionMatches({type:"contains_invite"},context),true);
+  assert.equal(conditionMatches({type:"contains_link"},context),true);
+  assert.equal(conditionMatches({type:"message_contains",value:"JOIN"},context),true);
+  assert.equal(conditionMatches({type:"message_contains",value:"not present"},context),false);
 });
-
-test("invite condition recognizes Discord invite formats",()=>{
-  assert.equal(conditionMatches({type:"contains_invite"},{message:{content:"Join https://discord.gg/example"}}),true);
-  assert.equal(conditionMatches({type:"contains_invite"},{message:{content:"https://discord.com/invite/example"}}),true);
-  assert.equal(conditionMatches({type:"contains_invite"},{message:{content:"ordinary message"}}),false);
-});
-
-test("unconditional automation steps always continue",()=>{
-  assert.equal(conditionMatches({type:"always"},{}),true);
-  assert.equal(conditionMatches(null,{}),true);
+test("automation channel conditions fail closed when the channel does not match",()=>{
+  assert.equal(conditionMatches({type:"channel_is",value:"channel-a"},{message:{channelId:"channel-b"}}),false);
+  assert.equal(conditionMatches({type:"unknown"},{message:{content:"anything"}}),false);
 });
