@@ -4,7 +4,6 @@ import {
 } from "discord.js";
 import { requireOwner, respond, deny, modal, textInput, row, button, greyEmbed } from "../ui.js";
 import { isSnowflake, renderTemplate } from "../utils.js";
-import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
 
 export class RolePicker {
@@ -61,7 +60,7 @@ export class RolePicker {
       components.push(row(applyButtonTheme(button("rolepicker:footer-link:"+menu.id,renderTemplate(menu.footer_text,context).slice(0,80)),this.store,menu.guild_id)));
     }
     const base={embeds:[applyGuildTheme(greyEmbed(renderTemplate(menu.title,context),renderTemplate(menu.description,context)),this.store,menu.guild_id)],components,allowedMentions:{parse:[]}};
-    return applyPanelTbScript(this.store,menu.guild_id,"role-picker",base,context);
+    return base;
   }
   async refresh(guild){
     const owner=await guild.members.fetch(guild.ownerId).catch(()=>null);
