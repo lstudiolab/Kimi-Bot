@@ -30,7 +30,7 @@ export class Recovery {
     while(retained.length&&(retained.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(retained.shift());
     const changed=retained.length!==list.length||retained.some((item,index)=>item!==list[index]);
     if(changed){this.store.data.messages[guildId]=retained;this.store.queueSave();}
-    this.archiveBytes.set(guildId,Math.max(0,bytes));
+    this.cacheArchiveBytes(guildId,bytes);
     return {removed:list.length-retained.length,bytes:Math.max(0,bytes),messages:retained.length};
   }
   backupMessage(message) {
