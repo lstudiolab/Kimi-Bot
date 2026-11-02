@@ -1,14 +1,14 @@
 import Foundation
 
 actor VerificationService {
- struct Settings:Codable,Sendable {var channelID:String?;var roleID:String?;var reviewChannelID:String?;var minimumAgeDays:Int=0}
- private struct LegacySettings:Decodable {var channel_id:String?;var role_id:String?;var review_channel_id:String?;var min_age_days:Int?}
+ struct Settings:Codable,Sendable {var channelID:String?;var roleID:String?;var requiredRoleID:String?;var reviewChannelID:String?;var minimumAgeDays:Int=0}
+ private struct LegacySettings:Decodable {var channel_id:String?;var role_id:String?;var required_role_id:String?;var review_channel_id:String?;var min_age_days:Int?}
  private let store:PersistentStore;private let rest:DiscordREST;private let logger:Logger
  init(store:PersistentStore,rest:DiscordREST,logger:Logger){self.store=store;self.rest=rest;self.logger=logger}
  func settings(_ guild:String)async->Settings{
   if let value=await store.get("verification.settings."+guild,as:Settings.self){return value}
   let old=await store.getLegacy("verification",as:[String:LegacySettings].self)?[guild]
-  return Settings(channelID:old?.channel_id,roleID:old?.role_id,reviewChannelID:old?.review_channel_id,minimumAgeDays:max(0,old?.min_age_days ?? 0))
+  return Settings(channelID:old?.channel_id,roleID:old?.role_id,requiredRoleID:old?.required_role_id,reviewChannelID:old?.review_channel_id,minimumAgeDays:max(0,old?.min_age_days ?? 0))
  }
  func configure(_ value:Settings,guild:String)async throws{
   guard (0...3650).contains(value.minimumAgeDays) else{throw KimiError.configuration("Minimum account age must be between 0 and 3650 days.")}
@@ -29,6 +29,11 @@ actor VerificationService {
   _=try? await records.attempt(guildID:guild,userID:userID)
   let record=await records.record(guildID:guild,userID:userID)
   let value=await settings(guild)
+  if let required=value.requiredRoleID {
+   let member=(try? await rest.call("GET","guilds/"+guild+"/members/"+userID)) as? [String:Any] ?? [:]
+   let memberRoles=Set(member["roles"] as? [String] ?? [])
+   guard memberRoles.contains(required) else{try? await rest.editKimiInteraction(applicationID,interactionToken,"You need the required server role before verification.");return}
+  }
   let snowflake=Int64(userID) ?? 0
   let created=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
   let profile=(try? await rest.call("GET","users/"+userID)) as? [String:Any] ?? [:]
