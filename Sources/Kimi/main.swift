@@ -177,8 +177,8 @@ actor DiscordGateway {
  }
 }
 actor KimiRuntime {
- let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String
- init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID}
+ let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String;let dashboardURL:String?
+ init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String,dashboardURL:String?=nil){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID;self.dashboardURL=dashboardURL}
  func handle(_ event:[String:Any])async{
   if await handleMigratedCommand(event){return}
   guard let id=event["id"] as? String,let token=event["token"] as? String else{return}
@@ -206,7 +206,8 @@ actor KimiRuntime {
    let config=try Configuration.load(),logger=Logger(),store=try PersistentStore(directory:config.dataDirectory),rest=DiscordREST(token:config.token)
    DashboardServer(config:config,rest:rest,store:store,logger:logger).start()
    try await rest.registerCommands(config.clientID);await logger.log("INFO","Kimi Swift started. Global commands synchronized.")
-   let runtime=KimiRuntime(rest:rest,store:store,logger:logger,clientID:config.clientID)
+   let dashboardURL=config.oauthRedirectURI.replacingOccurrences(of:"/oauth/callback",with:"")
+   let runtime=KimiRuntime(rest:rest,store:store,logger:logger,clientID:config.clientID,dashboardURL:dashboardURL.isEmpty ? nil:dashboardURL)
    let gateway=DiscordGateway(token:config.token,logger:logger){event in
     let name=event["name"] as? String ?? "",data=event["data"] as? [String:Any] ?? [:]
     if name=="INTERACTION_CREATE"{await runtime.handle(data)}
