@@ -320,8 +320,8 @@ export function startDashboardServer({ config, client, store, manager, libraries
             const body = await parseBody(req);
             const module = MODULES.find(item => item.id === guildMatch[3]);
             if (!module || typeof body.enabled !== "boolean") return send(res, 400, { error: "Invalid system or enabled value." });
-            if (!(store.data.installed_plugins[guildId] || []).includes(module.library)) {
-              return send(res, 409, { error: "Install the " + module.library + " library before changing this system." });
+            if (!(store.data.installed_plugins[guildId] || []).includes(module.plugin)) {
+              return send(res, 409, { error: "Install the " + module.plugin + " library before changing this system." });
             }
             store.data.modules[guildId] ||= {};
             store.data.modules[guildId][module.id] = body.enabled;
