@@ -194,18 +194,30 @@ client.on(Events.GuildCreate,guild=>{
 });
 client.once(Events.ClientReady,async ready=>{
  logger.info(`Logged in as ${ready.user.tag}`);
- try{await rest.put(Routes.applicationCommands(config.clientId),{body:commandsForLibraries([])});logger.info("Registered core global slash commands.");}catch(error){logger.error("Global command sync failed:",error);}
+ const startupTasks=[
+  rest.put(Routes.applicationCommands(config.clientId),{body:commandsForLibraries([])})
+   .then(()=>logger.info("Registered core global slash commands."))
+   .catch(error=>logger.error("Global command sync failed:",error))
+ ];
  for(const guild of ready.guilds.cache.values()){
-  try{await syncGuildCommands(guild.id);}catch(error){logger.error(`Command sync failed for guild ${guild.id}:`,error);}
-  for(const [name,library] of Object.entries(libraries))if(manager.installed(guild.id,name)&&library.ready)await library.ready(guild);
+  startupTasks.push((async()=>{
+   try{await syncGuildCommands(guild.id);}catch(error){logger.error(`Command sync failed for guild ${guild.id}:`,error);}
+   const readyTasks=[];
+   for(const [name,library] of Object.entries(libraries)){
+    if(manager.installed(guild.id,name)&&library.ready)readyTasks.push(Promise.resolve().then(()=>library.ready(guild)));
+   }
+   const results=await Promise.allSettled(readyTasks);
+   for(let index=0;index<results.length;index++)if(results[index].status==="rejected")logger.error(`Library startup failed in guild ${guild.id}:`,results[index].reason);
+  })());
  }
+ await Promise.allSettled(startupTasks);
 });
 client.on(Events.InteractionCreate,async i=>{
- logger.info(`Interaction received: ${i.type} ${i.commandName||i.customId||"unknown"} (${i.id})`);
+ logger.debug(`Interaction received: ${i.type} ${i.commandName||i.customId||"unknown"} (${i.id})`);
  try{
   await handleInteraction(i);
   await finishWorking(i);
-  logger.info(`Interaction completed: ${i.id}`);
+  logger.debug(`Interaction completed: ${i.id}`);
  }catch(error){
   const details={
    name:error?.name||"Error",
@@ -251,7 +263,7 @@ client.on(Events.GuildMemberAdd,m=>{
  const record=store.member(m.guild.id,m.id);
  record.joins++;
  record.last_join=Date.now();
- store.save();
+ store.queueSave();
  if(manager.installed(m.guild.id,"Scratch")&&moduleEnabled(m.guild.id,"scratch"))libraries.Scratch.onMemberJoin(m).catch(e=>logger.error("TBScript member-join event failed:",e));
  if(manager.installed(m.guild.id,"Security")){
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
@@ -262,7 +274,7 @@ client.on(Events.GuildMemberAdd,m=>{
 client.on(Events.GuildMemberRemove,m=>{
  const record=store.member(m.guild.id,m.id);
  record.leaves++;
- store.save();
+ store.queueSave();
  if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
 client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Security")&&moduleEnabled(c.guild.id,"recovery"))libraries.Security.channelCreate(c);});
