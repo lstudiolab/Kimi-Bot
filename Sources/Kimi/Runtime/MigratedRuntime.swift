@@ -202,7 +202,7 @@ extension KimiRuntime {
      let existing=await service.all(guild:guild).first(where:{$0.name.caseInsensitiveCompare(embedName)==ComparisonResult.orderedSame})
      let title=value("title") ?? existing?.title ?? ""
      let description=value("description") ?? existing?.description ?? ""
-     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:existing?.footer)
+     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:value("footer") ?? existing?.footer,author:value("author"),thumbnailURL:value("thumbnail"),imageURL:value("image"),url:value("url"))
      reply="Embed **"+saved.name+"** saved."
     }
    case "guard-review":
