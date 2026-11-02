@@ -480,8 +480,8 @@ extension KimiRuntime {
    guard installed.contains("Kimi Lock"),recoveryEnabled || moderationEnabled else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    let attachments=data["attachments"] as? [[String:Any]] ?? []
-   let attachmentURLs=attachments.compactMap{$0["url"] as? String}
-   if recoveryEnabled{await recovery.captureMessage(guild,channel,message,user,content,attachments:attachmentURLs)}
+   let attachmentRecords=attachments.compactMap{item->RecoveryService.Attachment? in guard let url=item["url"] as? String else{return nil};return RecoveryService.Attachment(name:item["filename"] as? String ?? "attachment",url:url,contentType:item["content_type"] as? String,size:item["size"] as? Int)}
+   if recoveryEnabled{await recovery.captureMessage(guild,channel,message,user,content,attachments:attachmentRecords,authorName:author["username"] as? String)}
    let mentionedUsers=(data["mentions"] as? [[String:Any]] ?? []).compactMap{$0["id"] as? String}
    let reference=(data["message_reference"] as? [String:Any])?["message_id"] as? String
    if moderationEnabled{await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments,userID:user,mentionedUserIDs:mentionedUsers,referenceMessageID:reference)}
@@ -518,7 +518,9 @@ extension KimiRuntime {
     let previous=await recovery.savedMessage(guild,channel,message)
     let updated=data["content"] as? String ?? ""
     if let previous,previous.content != updated{await logger.log("INFO","Message edit recorded in guild "+guild+", channel "+channel+", message "+message+", author "+user+". Previous length: "+String(previous.content.count)+", new length: "+String(updated.count))}
-    await recovery.captureMessage(guild,channel,message,user,updated)
+    let attachments=data["attachments"] as? [[String:Any]] ?? []
+    let records=attachments.compactMap{item->RecoveryService.Attachment? in guard let url=item["url"] as? String else{return nil};return RecoveryService.Attachment(name:item["filename"] as? String ?? "attachment",url:url,contentType:item["content_type"] as? String,size:item["size"] as? Int)}
+    await recovery.captureMessage(guild,channel,message,user,updated,attachments:records,authorName:author["username"] as? String)
    }
   case "MESSAGE_DELETE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
