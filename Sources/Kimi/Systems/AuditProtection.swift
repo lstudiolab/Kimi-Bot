@@ -4,9 +4,10 @@ actor AuditProtection {
  private let store:PersistentStore;private var activity:[String:[Date]]=[:]
  init(store:PersistentStore){self.store=store}
  func record(guildID:String,actorID:String,action:String,threshold:Int=3,now:Date=Date())async throws->Incident?{
-  let key="\(guildID):\(actorID):\(action)";var events=(activity[key] ?? []).filter{now.timeIntervalSince($0)<20};events.append(now);activity[key]=events
+  let key="\(guildID):\(actorID):\(action)"
+  var events=(activity[key] ?? []).filter{now.timeIntervalSince($0)<20};events.append(now);activity[key]=events
   guard events.count>max(1,threshold) else{return nil}
-  let item=Incident(id:UUID().uuidString,guildID:guildID,actorID:actorID,action:action,count:events.count,reason:"Repeated privileged audit action exceeded its rolling threshold.",createdAt:now)
+  let item=Incident(id:UUID().uuidString,guildID:guildID,actorID:actorID,action:action,count:events.count,reason:"Repeated privileged audit action exceeded the rolling threshold.",createdAt:now)
   var all=await store.get("security.incidents",as:[Incident].self) ?? [];all.append(item);all=Array(all.suffix(1000));try await store.set(all,key:"security.incidents");activity[key]=[];return item
  }
 }
