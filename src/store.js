@@ -108,6 +108,8 @@ export class Store{
     }
     for(const key of ["developer_projects","developer_history","developer_redo","developer_active","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
     if(normalizeData(this.data))changed=true;
+    if(!this.data.members||typeof this.data.members!=="object"||Array.isArray(this.data.members))this.data.members={};
+    this.memberCount=Object.keys(this.data.members).length;
     this.persistedData=null;
     if(changed){this.save();this.logger.info("Imported or normalized legacy Timi settings and recovery data.");}
     else this.persistedData=structuredClone(this.data);
@@ -177,11 +179,11 @@ export class Store{
     if(!this.data.members||typeof this.data.members!=="object"||Array.isArray(this.data.members))this.data.members={};
     const key=guild+":"+user;
     if(!Object.hasOwn(this.data.members,key)){
-      if(Object.keys(this.data.members).length>=100000){
+      if(this.memberCount>=100000){
         const oldest=Object.keys(this.data.members)[0];
-        if(oldest!==undefined)delete this.data.members[oldest];
+        if(oldest!==undefined){delete this.data.members[oldest];this.memberCount--;}
       }
-      this.data.members[key]={};
+      this.data.members[key]={};this.memberCount++;
     }
     if(!this.data.members[key]||typeof this.data.members[key]!=="object"||Array.isArray(this.data.members[key]))this.data.members[key]={};
     return fillDefaults(this.data.members[key],{joins:0,leaves:0,attempts:[],failed:0,suspicious:0,last_join:0,
