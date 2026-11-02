@@ -27,3 +27,12 @@ test("bot restriction review is an owner-only core command",()=>{
  assert.equal(command.options[0].name,"bot");
  assert.equal(command.options[1].name,"decision");
 });
+
+test("malformed persisted rate state is repaired instead of crashing",()=>{
+ const store={data:{guard_state:{g:{users:{broken:null,old:{tokens:999,updated_at:1000}},bots:[]}}},queueSave(){}};
+ const g=new GuardRateLimiter(store);
+ const result=g.consume("g","u","user",2000);
+ assert.equal(result.allowed,true);
+ assert.equal(result.tokens,9);
+ assert.equal(store.data.guard_state.g.users.old.tokens,10);
+});
