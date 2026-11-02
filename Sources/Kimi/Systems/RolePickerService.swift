@@ -13,7 +13,7 @@ actor RolePickerService {
   let botIDs=Set(bot["roles"] as? [String] ?? [])
   let botRoles=roles.filter{botIDs.contains($0["id"] as? String ?? "")}
   let highest=botRoles.map{$0["position"] as? Int ?? 0}.max() ?? 0
-  let canManage=botRoles.contains{(UInt64($0["permissions"] as? String ?? "") ?? 0) & (1<<28) != 0}
+  let canManage=botRoles.contains{(UInt64($0["permissions"] as? String ?? "") ?? 0) & 268435464 != 0}
   guard canManage else{throw KimiError.configuration("Kimi needs Manage Roles permission to publish role menus.")}
   let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
   let safe=roles.filter{item in
