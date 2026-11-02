@@ -118,17 +118,17 @@ async function coreCommand(i){
  if(i.commandName==="automations")return automationEngine.handleInteraction(i);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
-  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
+  return respond(i,"**Kimi Free**\nKimi is free to use. All built-in plugins can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage plugins and systems in /kimi.");
  }
  if(i.commandName==="plugins"||i.commandName==="libraries"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
   });
-  return respond(i,"**Kimi Plugins**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi.");
+  return respond(i,"**Kimi Plugins**\n\n"+lines.join("\n\n")+"\n\nInstall or remove plugins in /kimi.");
  }
  if(i.commandName==="uninstall"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi plugins.");
   const result=manager.uninstall(i.guildId,i.options.getString("plugin")||i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
   const pluginKey=result.plugin.name;
@@ -137,9 +137,9 @@ async function coreCommand(i){
   return respond(i,`**${result.plugin.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
-  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi libraries.");
+  if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi plugins.");
   const name=i.options.getString("plugin")||i.options.getString("library");
-  if(!name)return respond(i,"Choose a plugin in the plugin option. Available: Foundation, Kimi Lock, Support. Use /libraries for details.");
+  if(!name)return respond(i,"Choose a plugin in the plugin option. Available: Foundation, Kimi Lock, Support. Use /plugins for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
   try {
@@ -294,5 +294,5 @@ client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kim
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
-startDashboardServer({config,client,store,manager,libraries,logger,syncGuildCommands,authStore});
+startDashboardServer({config,client,store,manager,libraries,plugins:libraries,logger,syncGuildCommands,authStore,automationEngine});
 try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
