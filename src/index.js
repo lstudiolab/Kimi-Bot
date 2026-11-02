@@ -11,9 +11,12 @@ import { libraryForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
 import { KimiSettings } from "./settings.js";
 import { translatePayload } from "./i18n.js";
+import { PerformanceMonitor } from "./performance.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const manager=new LibraryManager(store,logger),context={client,store,logger};
+const performanceMonitor=new PerformanceMonitor(logger);
+performanceMonitor.start();
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
 function recordAnalytics(guildId,metric,commandName=""){
  if(!guildId)return;
@@ -213,6 +216,7 @@ client.once(Events.ClientReady,async ready=>{
  await Promise.allSettled(startupTasks);
 });
 client.on(Events.InteractionCreate,async i=>{
+ const endPerformance=performanceMonitor.begin(i);
  logger.debug(`Interaction received: ${i.type} ${i.commandName||i.customId||"unknown"} (${i.id})`);
  try{
   await handleInteraction(i);
@@ -234,6 +238,9 @@ client.on(Events.InteractionCreate,async i=>{
   const p={content:"Kimi could not complete that action."+code+" The error was recorded in the Termux log. Send the matching Interaction ID to support: "+i.id,components:[],allowedMentions:{parse:[]}};
   if(i.deferred||i.replied)await i.editReply(p).catch(replyError=>logger.error(`Could not send interaction failure response ${i.id}:`,replyError));
   else await i.reply({...p,ephemeral:true}).catch(replyError=>logger.error(`Could not acknowledge failed interaction ${i.id}:`,replyError));
+ }finally{
+  const duration=endPerformance();
+  logger.debug(`Interaction duration ${i.id}: ${duration.toFixed(1)}ms`);
  }
 });
 client.on(Events.MessageCreate,async m=>{
