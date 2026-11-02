@@ -19,7 +19,7 @@ export class Recovery {
   }
   cacheArchiveBytes(guildId,bytes){
     if(!this.archiveBytes.has(guildId)&&this.archiveBytes.size>=2000)this.archiveBytes.delete(this.archiveBytes.keys().next().value);
-    this.cacheArchiveBytes(guildId,bytes);
+    this.archiveBytes.set(guildId,Math.max(0,bytes));
   }
   prune(guildId){
     const list=this.store.data.messages[guildId]||[];
