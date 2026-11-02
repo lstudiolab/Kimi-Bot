@@ -115,7 +115,7 @@ export class Store{
   save(){
     const previous=this.persistedData,baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
-    const collections=["installed_plugins","automations","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots"];
+    const collections=["installed_plugins","automations","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","guard_state"];
     for(const collection of collections){
       for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
       for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);
