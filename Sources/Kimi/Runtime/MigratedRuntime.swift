@@ -538,31 +538,6 @@ extension KimiRuntime {
 
 extension KimiRuntime {
  func runAutomations(guild:String,trigger:String,userID:String,channelID:String?,messageID:String?,content:String)async {
-  let engine=AutomationEngine(store:store)
-  var rules=await engine.matching(guildID:guild,trigger:trigger,content:content)
-  if trigger=="message_create" && !content.isEmpty{rules += await engine.matching(guildID:guild,trigger:"message_contains",content:content)}
-  for rule in rules {
-   let parts=rule.action.split(separator:":",maxSplits:2).map(String.init)
-   guard let kind=parts.first else{continue}
-   var success=true,detail="Action completed."
-   do {
-    switch kind {
-    case "send_message":
-     guard parts.count==3 else{throw KimiError.configuration("Invalid send_message action.")}
-     _ = try await rest.call("POST","channels/"+parts[1]+"/messages",body:["content":String(parts[2].prefix(1900)),"allowed_mentions":["parse":[]]])
-    case "delete_message":
-     guard let channelID,let messageID else{throw KimiError.configuration("delete_message requires a message event.")}
-     try await rest.deleteKimiMessage(channelID,messageID)
-    case "timeout":
-     guard parts.count>1,let minutes=Int(parts[1]) else{throw KimiError.configuration("Invalid timeout action.")}
-     try await rest.timeoutKimiMember(guild,userID,minutes,"Kimi automation: "+rule.name)
-    case "add_role":
-     guard parts.count>1 else{throw KimiError.configuration("Invalid add_role action.")}
-     _ = try await rest.call("PUT","guilds/"+guild+"/members/"+userID+"/roles/"+parts[1])
-    default:throw KimiError.configuration("Unknown automation action.")
-    }
-   } catch {success=false;detail=error.localizedDescription;await logger.log("ERROR","Automation "+rule.id+" failed: "+detail)}
-   await engine.record(.init(ruleID:rule.id,guildID:guild,trigger:trigger,success:success,detail:detail,createdAt:Date()))
-  }
+  await AutomationEngine(store:store,rest:rest,logger:logger).run(trigger:trigger,guild:guild,user:userID,channel:channelID ?? "",message:content,username:"member",messageID:messageID)
  }
 }
