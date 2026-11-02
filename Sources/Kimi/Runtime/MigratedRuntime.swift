@@ -89,7 +89,7 @@ extension KimiRuntime {
     let stored=await store.get("apps.installed",as:[String:[String]].self) ?? [:]
     let bytes=(try? JSONEncoder().encode(stored).count) ?? 0
     reply="Kimi Free\nAll built-in apps are free.\nConfiguration footprint: "+StorageQuota.format(bytes)+"\nStorage allowance: "+StorageQuota.format(StorageQuota.freeLimit)
-   case "welcome":
+   case "welcome","configure-welcome","configure-foundation":
     let engine=FoundationEngine(store:store,rest:rest,logger:logger)
     var settings=await engine.settings(guildID:guild)
     if let x=value("welcome-channel"){settings.welcomeChannel=x}
@@ -98,12 +98,12 @@ extension KimiRuntime {
     if let x=value("goodbye-message"){settings.goodbyeMessage=String(x.prefix(1800))}
     try await engine.configure(guildID:guild,settings)
     reply="Welcome and goodbye settings saved."
-   case "autorole":
+   case "autorole","configure-auto-role":
     let engine=FoundationEngine(store:store,rest:rest,logger:logger)
     var settings=await engine.settings(guildID:guild);settings.autoRole=value("role")
     try await engine.configure(guildID:guild,settings)
     reply=settings.autoRole == nil ? "Automatic role assignment disabled.":"Automatic role saved."
-   case "moderation":
+   case "moderation","configure-kimi-lock":
     let engine=ModerationEngine(store:store)
     var policy=await engine.policy(guildID:guild)
     if let enabled=options.first(where:{($0["name"] as? String)=="enabled"})?["value"] as? Bool { policy.enabled=enabled }
@@ -132,7 +132,7 @@ extension KimiRuntime {
     let permissions=UInt64(everyone?["permissions"] as? String ?? "") ?? 0
     let findings=ServerAudit().evaluate(roles:roles,everyonePermissions:permissions)
     reply=findings.isEmpty ? "Kimi Lock security audit: no obvious elevated-role risks found.":findings.map{$0.severity.uppercased()+" — "+$0.title+": "+$0.detail}.joined(separator:"\n")
-   case "tickets","ticket-panel","ticket-config":
+   case "tickets","ticket-panel","ticket-config","configure-support":
     let service=SupportService(store:store,rest:rest,logger:logger)
     if name=="tickets" {
      let category=try await service.ensureCategory(guild)
@@ -180,11 +180,11 @@ extension KimiRuntime {
     if let age=options.first(where:{($0["name"] as? String)=="min-age-days"})?["value"] as? Int{settings.minimumAgeDays=age}
     try await service.configure(settings,guild:guild)
     reply="Kimi Lock verification settings saved. Minimum account age: "+String(settings.minimumAgeDays)+" days. Review channel: "+(settings.reviewChannelID ?? "not configured")
-   case "roles":
+   case "roles","configure-roles":
     guard let channel=event["channel_id"] as? String else{throw KimiError.configuration("Run this command in a text channel.")}
     let count=try await RolePickerService(store:store,rest:rest,logger:logger).publish(guild:guild,channel:channel)
     reply="Role Picker published with "+String(count)+" safe roles."
-   case "embed-new","embed-edit","embed-post":
+   case "embed-new","embed-edit","embed-post","configure-embeds":
     let service=EmbedService(store:store,rest:rest)
     guard let embedName=value("name") else{throw KimiError.configuration("Enter an embed name.")}
     if name=="embed-post" {
@@ -201,8 +201,11 @@ extension KimiRuntime {
    case "guard-review":
     guard let target=value("bot"),let decision=value("decision") else{throw KimiError.configuration("Choose an account and decision.")}
     reply=try await KimiGuardService(store:store,rest:rest,logger:logger).review(guild:guild,actor:target,decision:decision,reviewer:user)
-   case "web-token":reply="Dashboard authentication is being migrated to Swift. No email verification is required."
-   default:reply="This command is not available in the current Swift runtime."
+   case "web-token":
+    let host=ProcessInfo.processInfo.environment["KIMI_PUBLIC_URL"] ?? ""
+    guard !host.isEmpty else{throw KimiError.configuration("Set KIMI_PUBLIC_URL to your public HTTPS dashboard address. The dashboard uses Discord OAuth; no email verification or one-time token is required.")}
+    reply="Open the Kimi dashboard and sign in with Discord: "+host.trimmingCharacters(in:CharacterSet(charactersIn:"/"))+"/login"
+   default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
    }
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
   do { try await rest.editKimiInteraction(app,token,reply) }
@@ -270,7 +273,7 @@ extension KimiRuntime {
     let count=try await RolePickerService(store:store,rest:rest,logger:logger).select(guild:guild,user:actorID,selected:selected)
     try await rest.editKimiInteraction(app,token,"Your role selection was updated. Active roles: "+String(count)+".")
    } else {
-    try await rest.editKimiInteraction(app,token,"This control is not available in the current Swift runtime.")
+    try await rest.editKimiInteraction(app,token,"This Kimi control is unknown or expired. Reopen the panel to get a current control.")
    }
   } catch {
    try? await rest.editKimiInteraction(app,token,"Kimi could not complete this action: "+error.localizedDescription)
