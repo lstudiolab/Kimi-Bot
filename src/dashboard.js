@@ -41,6 +41,10 @@ function send(res, status, value, headers = {}) {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     ...headers
   });
   res.end(JSON.stringify(value));
@@ -158,7 +162,11 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
         "Content-Type": MIME[path.extname(file)] || "application/octet-stream",
         "Cache-Control": file.endsWith(".html") ? "no-cache" : "public, max-age=300",
         "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Referrer-Policy": "no-referrer",
+        "X-Frame-Options": "DENY",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
         "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
       });
       res.end(data);
