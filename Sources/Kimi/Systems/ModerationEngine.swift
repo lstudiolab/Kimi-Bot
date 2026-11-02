@@ -60,9 +60,9 @@ actor ModerationEngine {
   guard ["timeout","kick","ban","delete"].contains(value.sanction) else{throw KimiError.configuration("Sanction must be timeout, kick, ban or delete.")}
   policies[guildID]=value;try await store.set(value,key:"moderation."+guildID)
  }
- func evaluate(guildID:String,userID:String,messageID:String,content:String,now:Date=Date())async->Finding? {
+ func evaluate(guildID:String,userID:String,messageID:String,content:String,channelID:String="",now:Date=Date())async->Finding? {
   let value=await policy(guildID:guildID);guard value.enabled else{return nil}
-  let key=guildID+":"+userID
+  let key=guildID+":"+channelID+":"+userID
   var events=(history[key] ?? []).filter{now.timeIntervalSince($0)<60};events.append(now);history[key]=events
   if history.count>20000{history=history.filter{!$0.value.isEmpty && now.timeIntervalSince($0.value.last ?? now)<120}}
   let normalized=content.lowercased()
