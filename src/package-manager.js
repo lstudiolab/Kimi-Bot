@@ -51,7 +51,7 @@ export function scanModuleDirectory(root){
   manifest.files=files.filter(file=>file.path!=="manifest.json");
   return {manifest,entries,findings};
 }
-function tarString(value,size){const b=Buffer.alloc(size);Buffer.from(String(value)).copy(b,0,size);return b;}
+function tarString(value,size){const b=Buffer.alloc(size);Buffer.from(String(value)).copy(b,0,0,size);return b;}
 function octal(value,size){return tarString(Math.max(0,value).toString(8).padStart(size-1,"0")+"\\0",size);}
 function makeTar(entries){
   const blocks=[];
@@ -134,7 +134,7 @@ export function runModuleChecks(root){
   const scanned=scanModuleDirectory(root),syntax=[];
   for(const [file,data] of scanned.entries){
     if(!file.endsWith(".js"))continue;
-    const result=spawnSync(process.execPath,["--check",path.join(root,file)],{encoding:"utf8",timeout:5000});
+    const source=data.toString("utf8").replace(/\\\\n$/,"\\n");\n    const result=spawnSync(process.execPath,["--check"],{input:source,encoding:"utf8",timeout:5000});
     if(result.status!==0)syntax.push({file,error:(result.stderr||result.stdout||"Syntax check failed").trim()});
   }
   const high=scanned.findings.filter(item=>item.severity==="high");
