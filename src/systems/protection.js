@@ -168,6 +168,21 @@ export class Protection {
     }
     return false;
   }
+  async containNukeActor(guild,member){
+    const result={timedOut:false,rolesRemoved:[],failures:[]};
+    if(!member||member.id===guild.ownerId||member.user?.bot)return result;
+    if(member.moderatable){
+      try{await member.timeout(60*60*1000,"Kimi automatic anti-nuke containment");result.timedOut=true;}
+      catch(error){result.failures.push("timeout: "+error.message);this.logger.warn("Anti-nuke timeout failed:",error.message);}
+    }
+    const dangerous=[P.Administrator,P.ManageGuild,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.BanMembers,P.KickMembers,P.ModerateMembers];
+    const removable=member.roles.cache.filter(role=>!role.managed&&role.editable&&dangerous.some(flag=>role.permissions.has(flag)));
+    for(const role of removable.values()){
+      try{await member.roles.remove(role,"Kimi automatic anti-nuke containment");result.rolesRemoved.push(role.name);}
+      catch(error){result.failures.push("role "+role.id+": "+error.message);this.logger.warn("Anti-nuke role containment failed:",role.id,error.message);}
+    }
+    return result;
+  }
   async auditLog(entry,guild){
     const destructive=new Set([12,22,32,50,52,92,13,14,15,25,31,51]);
     if(!entry||!guild||!destructive.has(entry.action))return;
@@ -201,11 +216,13 @@ export class Protection {
     if(triggered>now)return;
     this.nukeEvents.set(key,now+60000);
     const log=await this.privateChannel(guild);
-    let action="actor flagged for immediate owner review";
     const member=await guild.members.fetch(actorId).catch(()=>null);
-    if(member&&member.id!==guild.ownerId&&member.moderatable){
-      await member.timeout(60*60*1000,"Timi anti-nuke: destructive audit actions exceeded the safety threshold").then(()=>{action="actor timed out for 60 minutes";}).catch(error=>this.logger.warn("Anti-nuke timeout failed:",error.message));
-    }
+    const containment=await this.containNukeActor(guild,member);
+    const actions=[];
+    if(containment.timedOut)actions.push("timed out for 60 minutes");
+    if(containment.rolesRemoved.length)actions.push("removed dangerous roles: "+containment.rolesRemoved.join(", "));
+    if(containment.failures.length)actions.push("some containment actions failed");
+    const action=actions.length?actions.join("; "):"actor flagged; Kimi could not safely apply containment";
     const actionNames={12:"channel deletion",22:"member ban",32:"role deletion",50:"webhook creation",52:"webhook deletion",92:"automated integration change",13:"channel permission creation",14:"channel permission change",15:"channel permission deletion",25:"member role change",31:"role permission change",51:"webhook update"};
     const summary=[...new Set(events.map(event=>actionNames[event.action]||"sensitive server change"))].join(", ");
     await log.send({content:"Anti-nuke alert: <@"+actorId+"> performed "+events.length+" sensitive actions within 10 seconds ("+summary+"). "+action+". Timi applied containment where possible. Review the audit log and restore affected resources.",allowedMentions:{users:[actorId]}});
