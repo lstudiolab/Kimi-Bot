@@ -360,6 +360,8 @@ extension KimiRuntime {
    } else if custom.hasPrefix("verify:approve:") || custom.hasPrefix("verify:reject:") {
     let approve=custom.hasPrefix("verify:approve:")
     let target=String(custom.dropFirst(approve ? "verify:approve:".count:"verify:reject:".count))
+    let record=await VerificationRecords(store:store).record(guildID:guild,userID:target)
+    if let expected=record.reviewMessageID { let messageID=(event["message"] as? [String:Any])?["id"] as? String; guard messageID==expected else{throw KimiError.configuration("This review message is no longer active.")} }
     await VerificationService(store:store,rest:rest,logger:logger).review(guild:guild,userID:target,decision:approve ? "approve":"reject",reviewer:actorID,applicationID:app,interactionToken:token)
    } else if custom.hasPrefix("botguard:") {
     let parts=custom.split(separator:":").map(String.init)
