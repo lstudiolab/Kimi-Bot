@@ -27,7 +27,7 @@ function digest(value){return crypto.createHash("sha256").update(value).digest("
 function safeRelative(input){
   if(typeof input!=="string"||!input||input.includes("\\")||input.startsWith("/")||input.includes("\0"))return false;
   const parts=input.split("/");
-  return parts.every(part=>part&&part!=="."&&part!==".."&&!part.startsWith(".")||part===".well-known");
+  return parts.every(part=>part&&part!=="."&&part!==".."&&!part.startsWith("."));
 }
 function readManifest(root){
   const file=path.join(root,"manifest.json");
@@ -168,8 +168,13 @@ export async function downloadModuleArchive(url,destination){
   if(!response.ok)throw new Error("Module download failed with HTTP "+response.status+".");
   const declared=Number(response.headers.get("content-length")||0);
   if(declared>MAX_ARCHIVE_BYTES)throw new Error("Compressed module archive exceeds 8 MB.");
-  const bytes=Buffer.from(await response.arrayBuffer());
-  if(bytes.length>MAX_ARCHIVE_BYTES)throw new Error("Compressed module archive exceeds 8 MB.");
+  const chunks=[];let received=0;
+  for await(const chunk of response.body){
+    received+=chunk.length;
+    if(received>MAX_ARCHIVE_BYTES)throw new Error("Compressed module archive exceeds 8 MB.");
+    chunks.push(Buffer.from(chunk));
+  }
+  const bytes=Buffer.concat(chunks,received);
   fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,bytes,{mode:0o600});
   return {bytes:bytes.length,sha256:digest(bytes),file:destination};
 }
