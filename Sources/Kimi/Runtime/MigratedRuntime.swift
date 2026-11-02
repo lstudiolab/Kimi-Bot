@@ -193,6 +193,7 @@ extension KimiRuntime {
     let service=VerificationService(store:store,rest:rest,logger:logger)
     var settings=await service.settings(guild)
     if let role=value("role"){settings.roleID=role}
+    if let requiredRole=value("required-role"){settings.requiredRoleID=requiredRole}
     if let channel=value("channel"){settings.channelID=channel}
     if let review=value("review-channel"){settings.reviewChannelID=review}
     if let age=options.first(where:{($0["name"] as? String)=="min-age-days"})?["value"] as? Int{settings.minimumAgeDays=age}
