@@ -58,10 +58,13 @@ export class Protection {
     this.store.data.pending_bots[guild.id+":"+member.id]=msg.id;this.store.save();
     try{
       const result=await this.restrictBot(guild,member.id,log.id);
-      const status=result.failed
-        ? "Restrictions applied in "+result.restricted+" of "+result.total+" channels. "+result.failed+" channel(s) could not be restricted; review those channels manually before approving."
-        : "Temporary restrictions applied to "+result.restricted+" channel(s). Review this request before approving the bot.";
-      await msg.edit({embeds:[greyEmbed(result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\n${status}`)]});
+      const administratorBypass=member.permissions.has(P.Administrator);
+      const status=administratorBypass
+        ? "CRITICAL: This bot has Administrator permission. Discord Administrator bypasses channel restrictions, so this bot is NOT contained. Remove its Administrator role or remove the bot immediately before reviewing it."
+        : result.failed
+          ? "Restrictions applied in "+result.restricted+" of "+result.total+" channels. "+result.failed+" channel(s) could not be restricted; review those channels manually before approving."
+          : "Temporary restrictions applied to "+result.restricted+" channel(s). Review this request before approving the bot.";
+      await msg.edit({embeds:[greyEmbed(administratorBypass?"Administrator access bypass detected":result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\n${status}`)]});
     }catch(error){
       this.logger.error("Could not apply temporary bot restrictions:",error);
       await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply the channel restrictions. Review its access manually.`)]}).catch(()=>{});
