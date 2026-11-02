@@ -645,7 +645,7 @@ import { pluginForComponent } from "../src/component-routing.js";
 test("all persistent component prefixes route to their installed plugin",()=>{
   for(const [id,plugin] of [
     ["ticket:close","Support"],["modpanel:enable","Kimi Lock"],["botguard:yes:123","Kimi Lock"],
-    ["verify:start","Kimi Lock"],["rolepicker:start","Roles"],["embed:save","Embeds"],
+    ["verify:start","Kimi Lock"],["rolepicker:start","Role Picker"],["embed:save","Embeds"],
     
   ])assert.equal(pluginForComponent(id),plugin,id);
   assert.equal(pluginForComponent("unknown:component"),null);
@@ -656,7 +656,7 @@ test("legacy installed library data migrates to plugin storage without losing en
   try{
     fs.writeFileSync(path.join(dir,"timi.json"),JSON.stringify({installed_libraries:{"guild-a":["Foundation","Security","Moderation","Support"]}}));
     const store=new Store(dir,quiet);
-    assert.deepEqual(store.data.installed_plugins["guild-a"],["Welcome","Roles","Embeds","Kimi Lock","Support"]);
+    assert.deepEqual(store.data.installed_plugins["guild-a"],["Welcome","Auto Role","Role Picker","Embeds","Kimi Lock","Support"]);
     assert.equal(store.data.installed_libraries,undefined);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
