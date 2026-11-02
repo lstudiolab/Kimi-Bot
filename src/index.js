@@ -114,8 +114,14 @@ async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded
  const guild=member.guild;
  member=await guild.members.fetch({user:member.id,force:true}).catch(()=>null);
  if(!member||!member.user.bot)return null;
- const incidents=store.data.guard_state[guild.id].incidents||(store.data.guard_state[guild.id].incidents={});
+ const guardState=store.data.guard_state[guild.id];
+ if(!guardState.incidents||typeof guardState.incidents!=="object"||Array.isArray(guardState.incidents))guardState.incidents={};
+ const incidents=guardState.incidents;
+ for(const [id,value] of Object.entries(incidents))if(!value||typeof value!=="object"||!/^\d{15,22}$/.test(String(value.bot_id||id)))delete incidents[id];
  if(["restricted","kept","review_required"].includes(incidents[member.id]?.status))return incidents[member.id];
+ const terminal=Object.entries(incidents).filter(([,value])=>!["restricted","kept","review_required"].includes(value.status)).sort((a,b)=>(a[1].reviewed_at||a[1].created_at||0)-(b[1].reviewed_at||b[1].created_at||0));
+ while(Object.keys(incidents).length>=100&&terminal.length){const [oldestId]=terminal.shift();delete incidents[oldestId];}
+ if(Object.keys(incidents).length>=100){logger.error("Kimi Guard incident history is full in server "+guild.id+"; review existing incidents before new bot containment.");return null;}
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
  const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
