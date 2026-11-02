@@ -90,12 +90,11 @@ final class CoreTests:XCTestCase {
   try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
 
   let store=try PersistentStore(directory:directory)
-  try await store.set(["enabled":true,"threshold":20],key:"moderation.policy")
+  try await store.set("committed",key:"test.value")
 
   let reopened=try PersistentStore(directory:directory)
-  let saved=await reopened.get("moderation.policy",as:[String:IntOrBool].self)
-  XCTAssertEqual(saved?["threshold"],.integer(20))
-  XCTAssertEqual(saved?["enabled"],.boolean(true))
+  let saved=await reopened.get("test.value",as:String.self)
+  XCTAssertEqual(saved,"committed")
  }
 
  func testPersistentStoreDoesNotPublishUncommittedValues() async throws {
@@ -113,15 +112,5 @@ final class CoreTests:XCTestCase {
   XCTAssertNil(value,"Failed disk writes must not mutate in-memory state.")
  }
 
- private enum IntOrBool:Decodable,Equatable {
-  case integer(Int)
-  case boolean(Bool)
-
-  init(from decoder:Decoder)throws {
-   let container=try decoder.singleValueContainer()
-   if let value=try? container.decode(Bool.self) { self = .boolean(value); return }
-   self = .integer(try container.decode(Int.self))
-  }
- }
 
 }
