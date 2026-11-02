@@ -119,7 +119,7 @@ async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
   status:"review_required",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false};
  try{if(editable.length){await member.roles.remove(editable,reason);incident.removed_roles=editable;}}catch(error){logger.warn("Kimi Guard could not remove every role from bot "+member.id+":",error.message);}
- try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
+ try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;incident.timeout_until=Date.now()+28*24*60*60*1000;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
  incident.status=incident.removed_roles.length||incident.timeout_applied?"restricted":"review_required";
  store.queueSave();
  logger.warn("Kimi Guard "+incident.status+" for bot "+member.id+" in server "+guild.id+" after its activity bucket was exhausted.");
@@ -147,12 +147,21 @@ async function coreCommand(i){
   if(decision==="restore"){
    const member=await i.guild.members.fetch(target.id).catch(()=>null);
    if(!member)return respond(i,"That bot is no longer in this server. The incident record was kept.");
-   const roles=(incident.removed_roles||incident.original_roles||[]).map(id=>i.guild.roles.cache.get(id)).filter(role=>role&&role.editable);
-   if(incident.timeout_applied)await member.timeout(null,"Released by the server owner after Kimi Guard review").catch(error=>logger.warn("Could not clear bot timeout:",error.message));
+   if(!member.user.bot)return respond(i,"That account is no longer a bot. No roles or restrictions were changed.");
+   const protectedPermissions=[PermissionFlagsBits.Administrator,PermissionFlagsBits.ManageGuild,PermissionFlagsBits.ManageRoles,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ManageWebhooks,PermissionFlagsBits.BanMembers,PermissionFlagsBits.KickMembers,PermissionFlagsBits.ModerateMembers,PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ViewAuditLog,PermissionFlagsBits.MentionEveryone];
+   const roleIds=Array.isArray(incident.removed_roles)?incident.removed_roles.filter(id=>/^\d{15,22}$/.test(String(id))):[];
+   const roles=roleIds.map(id=>i.guild.roles.cache.get(id)).filter(role=>role&&role.id!==i.guild.id&&!role.managed&&role.editable&&!protectedPermissions.some(permission=>role.permissions.has(permission)));
+   const skippedRoles=Math.max(0,roleIds.length-roles.length);
+   let timeoutCleared=false;
+   const currentTimeout=member.communicationDisabledUntilTimestamp||0;
+   if(incident.timeout_applied&&Number.isFinite(incident.timeout_until)&&currentTimeout&&Math.abs(currentTimeout-incident.timeout_until)<60000){
+    await member.timeout(null,"Released by the server owner after Kimi Guard review");
+    timeoutCleared=true;
+   }
    if(roles.length)await member.roles.add(roles,"Released by the server owner after Kimi Guard review");
    const wasContained=Boolean(incident.removed_roles?.length||incident.timeout_applied);
-   incident.status="released";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
-   return respond(i,wasContained?"The bot restriction was released. Restorable roles have been returned.":"The incident was closed, but Kimi had not been able to restrict this bot. Its access is unchanged.");
+   incident.status="released";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;incident.restored_roles=roles.map(role=>role.id);incident.skipped_restore_roles=skippedRoles;incident.timeout_cleared=timeoutCleared;store.queueSave();
+   return respond(i,wasContained?"The incident was reviewed. "+roles.length+" safe role(s) were restored"+(skippedRoles?", "+skippedRoles+" unsafe or unavailable role(s) were skipped":"")+(incident.timeout_applied?(timeoutCleared?"; Kimi's timeout was cleared.":"; the current timeout was left unchanged because it could have been set or modified separately."):""):"The incident was closed, but Kimi had not been able to restrict this bot. Its access is unchanged.");
   }
   const wasContained=Boolean(incident.removed_roles?.length||incident.timeout_applied);
   incident.status="kept";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
