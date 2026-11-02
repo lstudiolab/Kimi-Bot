@@ -8,9 +8,9 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("configure-studio").setDescription("Configure Kimi Scratch library.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
-  new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's four libraries."),
-  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},{name:"Studio",value:"Scratch"})),
+  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi library.").addStringOption(o=>o.setName("library").setDescription("Library to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's available bundles."),
+  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},)),
 
   new SlashCommandBuilder().setName("kimi-channel").setDescription("Create Kimi's private server channels and setup references."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
