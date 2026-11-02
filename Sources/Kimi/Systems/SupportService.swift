@@ -56,6 +56,7 @@ actor SupportService {
  func close(guild:String,ticketID:String)async throws->SupportTickets.Ticket{
   let ticket=try await SupportTickets(store:store).close(id:ticketID,guildID:guild)
   _ = try await rest.call("PATCH","channels/\(ticket.channelID)",body:["name":SecurityPolicy.channelName("closed-"+String(ticket.id.prefix(8)))])
+  if let thread=ticket.staffThreadID { _ = try? await rest.call("PATCH","channels/"+thread,body:["archived":true,"locked":true]) }
   _ = try? await rest.call("PUT","channels/\(ticket.channelID)/permissions/\(ticket.userID)",body:["type":1,"deny":"1024","allow":"0"])
   var history:[[String:Any]]=[];var before:String?=nil
   for _ in 0..<10{
