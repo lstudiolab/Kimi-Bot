@@ -134,12 +134,12 @@ async function coreCommand(i){
   const pluginKey=result.plugin.name;
   if(plugins[pluginKey]?.onUninstall)await plugins[pluginKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
-  return respond(i,`**${result.plugin.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
+  return respond(i,`**${result.plugin.name}** has been removed from this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can add Kimi apps.");
   const name=i.options.getString("app");
-  if(!name)return respond(i,"Choose a plugin in the app option. Available apps: Foundation, Kimi Lock, Support. Use /apps for details.");
+  if(!name)return respond(i,"Choose an app. Available apps: Foundation, Kimi Lock, Support. Use /apps for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
   try {
@@ -151,7 +151,7 @@ async function coreCommand(i){
   const pluginKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.plugin.name]||result.plugin.name;
   if(plugins[pluginKey]?.ready)await plugins[pluginKey].ready(i.guild);
   if(plugins[pluginKey]?.onInstall)await plugins[pluginKey].onInstall(i.guild);
-  return respond(i,`**${result.plugin.name}** is installed and active in this server. Its slash commands have been published.\n${result.plugin.description}`);
+  return respond(i,`**${result.plugin.name}** has been added and is active in this server. Its slash commands have been published.\n${result.plugin.description}`);
  }
 }
 function localizeInteraction(i){
