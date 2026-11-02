@@ -9,9 +9,9 @@ const MODULES = Object.freeze([
   { id:"moderation", label:"Moderation", plugin:"Kimi Lock", description:"Anti-spam, filters, warnings and sanctions." },
   { id:"protection", label:"Server Protection", plugin:"Kimi Lock", description:"Raid detection, anti-nuke and bot approval." },
   { id:"recovery", label:"Recovery", plugin:"Kimi Lock", description:"Channel snapshots and message recovery." },
-  { id:"welcome", label:"Welcome", plugin:"Foundation", description:"Welcome, goodbye and automatic role systems." },
-  { id:"roles", label:"Role Picker", plugin:"Foundation", description:"Self-service role selection panels." },
-  { id:"embeds", label:"Embeds", plugin:"Foundation", description:"Reusable server embeds and placements." },
+  { id:"welcome", label:"Welcome", plugin:"Welcome", description:"Welcome and departure messages." },
+  { id:"roles", label:"Roles", plugin:"Roles", description:"Automatic role assignment and self-service role menus." },
+  { id:"embeds", label:"Embeds", plugin:"Embeds", description:"Reusable server embeds and placements." },
   { id:"tickets", label:"Tickets", plugin:"Support", description:"Private support tickets and transcripts." },
 ]);
 
@@ -75,7 +75,7 @@ export class KimiSettings {
     }
     if(page==="plugin"){
       const plugin=selected;
-      if(!["Foundation","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
+      if(!["Welcome","Roles","Embeds","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
       if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not added to this server. Add it from the App Store first.`,embeds:[],components:[]});
       const sections=[];
       if(plugin==="Kimi Lock"){
@@ -83,8 +83,12 @@ export class KimiSettings {
         sections.push(row(button("settings:config:filter","Blocked Phrases")));
       }else if(plugin==="Support"){
         sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
-      }else if(plugin==="Foundation"){
+      }else if(plugin==="Welcome"){
         sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+      }else if(plugin==="Roles"){
+        sections.push(row(button("settings:config:roles","Role Menus")));
+      }else if(plugin==="Embeds"){
+        sections.push(row(button("settings:config:embeds","Embed Tools")));
       }else{
         sections.push(row(button("settings:home","Back to Kimi Settings")));
       }
@@ -94,7 +98,9 @@ export class KimiSettings {
       const sections=[];
       if(installed(this.store,id,"Kimi Lock")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
-      if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+      if(installed(this.store,id,"Welcome"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
+      if(installed(this.store,id,"Roles"))sections.push(row(button("settings:config:roles","Role Menus")));
+      if(installed(this.store,id,"Embeds"))sections.push(row(button("settings:config:embeds","Embed Tools")));
       sections.push(row(button("settings:home",tr("back"))));
       return edit({embeds:[embed("Configuration","Choose a system to configure. Only apps added to this server are shown here.")],components:sections});
     }
@@ -217,11 +223,11 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Kimi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
       this.store.data.verification[i.guildId]=value;this.store.save();
-      await this.hooks.plugins?.Foundation?.refreshVerification?.(i.guild);
+      await this.hooks.plugins?.["Kimi Lock"]?.refreshVerification?.(i.guild);
       return i.editReply({content:"Verification settings saved. Existing verification panels have been refreshed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
-      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation app is no longer added.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Welcome"))return i.editReply({content:"The Welcome app is no longer added.",components:[],embeds:[]});
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
       const channelId=key=>read(key).replace(/[<#>]/g,"");
@@ -271,7 +277,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Foundation";
+      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"?"Welcome":section==="roles"?"Roles":section==="embeds"?"Embeds":"Welcome";
       if(!installed(this.store,i.guildId,plugin))return respond(i,"That app is no longer added. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
