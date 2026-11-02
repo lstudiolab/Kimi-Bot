@@ -241,6 +241,15 @@ extension KimiRuntime {
     let report=await AnalyticsService(store:store).report(guild:guild)
     reply="Activity report\nMessages: "+String(report.messages)+"\nCommands: "+String(report.commands)+"\nJoins: "+String(report.joins)+"\nLeaves: "+String(report.leaves)+"\nModeration: "+String(report.moderation)+"\nTickets opened: "+String(report.ticketsOpened)+"\nTickets closed: "+String(report.ticketsClosed)+"\nActive days: "+String(report.activeDays)
    case "performance":
+    let samples=await performance.recent(limit:2000)
+    let commandSamples=samples.filter{$0.subsystem != "gateway" && !$0.subsystem.isEmpty}
+    let count=commandSamples.count
+    let ordered=commandSamples.map{$0.milliseconds}.sorted()
+    let average=count==0 ? 0:ordered.reduce(0,+)/Double(count)
+    let p95=count==0 ? 0:ordered[min(count-1,Int(Double(count-1)*0.95))]
+    let failures=commandSamples.filter{!$0.success}.count
+    reply="Kimi runtime performance\\nSamples: "+String(count)+"\\nAverage command latency: "+String(format:"%.1f",average)+" ms\\nP95 latency: "+String(format:"%.1f",p95)+" ms\\nFailed commands: "+String(failures)+"\\nGateway and command processing continue independently."
+   case "performance":
     let metrics=await performance.summary("command")
     reply="Kimi Runtime Performance\nCommands measured: "+String(metrics.count)+"\nAverage latency: "+String(format:"%.1f",metrics.averageMilliseconds)+" ms\nP95 latency: "+String(format:"%.1f",metrics.p95Milliseconds)+" ms\nFailures: "+String(metrics.failures)
    default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
