@@ -134,7 +134,8 @@ export function runModuleChecks(root){
   const scanned=scanModuleDirectory(root),syntax=[];
   for(const [file,data] of scanned.entries){
     if(!file.endsWith(".js"))continue;
-    const source=data.toString("utf8").replace(/\\\\n$/,"\\n");\n    const result=spawnSync(process.execPath,["--check"],{input:source,encoding:"utf8",timeout:5000});
+    const source=data.toString("utf8").replace(/\\n$/,"\n");
+    const result=spawnSync(process.execPath,["--check"],{input:source,encoding:"utf8",timeout:5000});
     if(result.status!==0)syntax.push({file,error:(result.stderr||result.stdout||"Syntax check failed").trim()});
   }
   const high=scanned.findings.filter(item=>item.severity==="high");
