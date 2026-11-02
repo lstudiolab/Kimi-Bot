@@ -35,6 +35,7 @@ actor ImageAnalysisService {
    if host.contains("discord-gift") || host.contains("discordnitro") || host.contains("discord-support"){flags.append("Link resembles a Discord impersonation domain: "+host)}
   }
   var imageCount=0
+  var extractedText=""
   for item in attachments.prefix(3){
    guard let raw=item["url"] as? String,let url=URL(string:raw),let host=url.host?.lowercased(),trustedHosts.contains(host) else{continue}
    let declared=Int(item["size"] as? Int ?? 0)
@@ -49,7 +50,21 @@ actor ImageAnalysisService {
     guard let metadata=metadata(data) else{flags.append("Attachment did not contain a recognized image signature.");continue}
     imageCount += 1
     if metadata.width==nil || metadata.height==nil{flags.append("Image dimensions could not be verified.")}
+    let ext=metadata.type=="jpeg" ? "jpg":metadata.type
+    let temp=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString+"."+ext)
+    do{
+     try data.write(to:temp,options:.atomic)
+     extractedText += "\n"+(await runOptionalTool(["/data/data/com.termux/files/usr/bin/tesseract","/usr/bin/tesseract","/usr/local/bin/tesseract"],[temp.path,"stdout","-l","eng"]) ?? "")
+     extractedText += "\n"+(await runOptionalTool(["/data/data/com.termux/files/usr/bin/zbarimg","/usr/bin/zbarimg","/usr/local/bin/zbarimg"],["--quiet","--raw",temp.path]) ?? "")
+     try? FileManager.default.removeItem(at:temp)
+    }catch{await logger.log("WARN","Image OCR preparation failed: "+error.localizedDescription)}
    }catch{await logger.log("WARN","Image inspection failed for message "+messageID+": "+error.localizedDescription)}
+  }
+  for term in suspicious where extractedText.localizedCaseInsensitiveContains(term){flags.append("Image OCR or QR data contains suspicious wording: "+term)}
+  for link in urls(in:extractedText){
+   guard let url=URL(string:link),let host=url.host?.lowercased() else{continue}
+   if shorteners.contains(host){flags.append("Image QR/OCR link uses a URL shortener: "+host)}
+   if url.scheme != "https"{flags.append("Image QR/OCR link is not HTTPS: "+host)}
   }
   let unique=Array(Set(flags)).sorted()
   guard !unique.isEmpty else{return}
@@ -60,6 +75,19 @@ actor ImageAnalysisService {
    _ = try? await rest.call("POST","channels/"+log+"/messages",body:["content":String(report.prefix(1900)),"allowed_mentions":["parse":[]]])
   }
  }
+ private func runOptionalTool(_ paths:[String],_ arguments:[String])async->String?{
+  await Task.detached(priority:.utility){
+   for path in paths where FileManager.default.isExecutableFile(atPath:path){
+    let process=Process(),pipe=Pipe()
+    process.executableURL=URL(fileURLWithPath:path);process.arguments=arguments;process.standardOutput=pipe;process.standardError=FileHandle.nullDevice
+    do{try process.run()}catch{continue}
+    let data=pipe.fileHandleForReading.readDataToEndOfFile();process.waitUntilExit()
+    if process.terminationStatus==0{return String(data:data.prefix(16000),encoding:.utf8)}
+   }
+   return nil
+  }.value
+ }
+
  private func metadata(_ data:Data)->Metadata?{
   let b=[UInt8](data);guard b.count>=12 else{return nil}
   if b.count>=24 && Array(b[0..<8])==[137,80,78,71,13,10,26,10]{
