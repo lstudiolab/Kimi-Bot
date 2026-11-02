@@ -264,9 +264,9 @@ test("compact commands are unique and route to their canonical libraries",()=>{
   const names=commandData.map(command=>command.name);
   assert.equal(new Set(names).size,names.length);
   for(const [name,library] of [
-    ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
-    ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
-    ["tickets","Support"],["ticket-panel","Support"],["ticket-config","Support"],
+    ["welcome","Foundation"],["autorole","Foundation"],["foundation","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
+    ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["lock","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
+    ["tickets","Support"],["support","Support"],["ticket-panel","Support"],["ticket-config","Support"],
   ])assert.equal(libraryForCommand(name),library);
   for(const name of ["plan","libraries","install","uninstall"])assert.equal(libraryForCommand(name),null);
 });
