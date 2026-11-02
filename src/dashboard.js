@@ -50,7 +50,7 @@ function send(res, status, value, headers = {}) {
   res.end(JSON.stringify(value));
 }
 function redirect(res, location, headers = {}) {
-  res.writeHead(302, { Location: location, "Cache-Control": "no-store", ...headers });
+  res.writeHead(302, { Location: location, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Resource-Policy": "same-origin", "Permissions-Policy": "camera=(), microphone=(), geolocation=()", ...headers });
   res.end();
 }
 function cookieValue(req, name) {
