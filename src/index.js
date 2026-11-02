@@ -78,21 +78,26 @@ const openConfiguration=async(i,section)=>{
   return libraries[library].handleInteraction(proxy);
  };
 const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
-async function showInstallAnimation(interaction,libraryName){
+async function showInstallAnimation(interaction,moduleName){
  const frames=[
-  {bar:"░░░░░░░░░░",percent:0,status:"Preparing library"},
-  {bar:"██░░░░░░░░",percent:20,status:"Loading system files"},
-  {bar:"████░░░░░░",percent:40,status:"Checking package structure"},
-  {bar:"██████░░░░",percent:60,status:"Registering commands"},
-  {bar:"████████░░",percent:80,status:"Activating library"},
-  {bar:"██████████",percent:100,status:"Finishing installation"}
+  {bar:"░░░░░░░░░░",percent:0,status:"Preparing https://kimimodules.com"},
+  {bar:"█░░░░░░░░░",percent:10,status:"Loading module's"},
+  {bar:"██░░░░░░░░",percent:20,status:"Finding module's name"},
+  {bar:"███░░░░░░░",percent:30,status:"Checking module structure"},
+  {bar:"████░░░░░░",percent:40,status:"Decompressing module"},
+  {bar:"█████░░░░░",percent:50,status:"Listing slash commands"},
+  {bar:"██████░░░░",percent:60,status:"Checking slash commands"},
+  {bar:"███████░░░",percent:70,status:"Registering slash command"},
+  {bar:"████████░░",percent:80,status:"Activating module"},
+  {bar:"█████████░",percent:90,status:"Checking module status"},
+  {bar:"██████████",percent:100,status:"Installation completed"}
  ];
  for(const frame of frames){
   await interaction.editReply({
-   content:"**Installing "+libraryName+"**\n`"+frame.bar+"` "+frame.percent+"%\n"+frame.status+"…\n\n*Visual installation animation.*",
+   content:"**Installing "+moduleName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status,
    components:[],embeds:[],allowedMentions:{parse:[]}
   });
-  if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,420));
+  if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,500));
  }
 }
 async function coreCommand(i){
