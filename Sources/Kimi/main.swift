@@ -34,7 +34,7 @@ actor PersistentStore {
  func set<T:Encodable>(_ value:T,key:String)throws{values[key]=try JSONEncoder().encode(value);try JSONEncoder().encode(values).write(to:url,options:.atomic)}
 }
 actor DiscordREST {
- private let token:String;private let session:URLSession;private let base=URL(string:"https://discord.com/api/v10")!
+ let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10")!
  init(token:String){self.token=token;session=URLSession(configuration:.ephemeral)}
  func call(_ method:String,_ path:String,body:Any?=nil)async throws->Any{
   var r=URLRequest(url:base.appendingPathComponent(path));r.httpMethod=method;r.setValue("Bot \(token)",forHTTPHeaderField:"Authorization");r.setValue("application/json",forHTTPHeaderField:"Content-Type")
@@ -90,9 +90,10 @@ actor DiscordGateway {
  private func send(_ object:[String:Any])async throws{guard let socket else{return};try await socket.send(.data(JSONSerialization.data(withJSONObject:object,options:[.fragmentsAllowed])))}
 }
 actor KimiRuntime {
- private let rest:DiscordREST;private let store:PersistentStore;private let logger:Logger
+ let rest:DiscordREST;let store:PersistentStore;let logger:Logger
  init(rest:DiscordREST,store:PersistentStore,logger:Logger){self.rest=rest;self.store=store;self.logger=logger}
  func handle(_ event:[String:Any])async{
+  if await handleMigratedCommand(event){return}
   guard let id=event["id"] as? String,let token=event["token"] as? String else{return}
   let data=event["data"] as? [String:Any] ?? [:];let name=data["name"] as? String ?? "";let guild=event["guild_id"] as? String ?? ""
   do{
@@ -116,14 +117,12 @@ actor KimiRuntime {
  static func main()async{
   do{
    let config=try Configuration.load(),logger=Logger(),store=try PersistentStore(directory:config.dataDirectory),rest=DiscordREST(token:config.token)
-   try await rest.registerCommands(config.clientID);await logger.log("INFO","Kimi Swift started. Global slash commands synchronized.")
+   try await rest.registerCommands(config.clientID);await logger.log("INFO","Kimi Swift started. Global commands synchronized.")
    let runtime=KimiRuntime(rest:rest,store:store,logger:logger)
    let gateway=DiscordGateway(token:config.token,logger:logger){event in
-    switch event["name"] as? String{
-    case "INTERACTION_CREATE":await runtime.handle(event["data"] as? [String:Any] ?? [:])
-    case "READY":await logger.log("INFO","Discord READY.")
-    default:break
-    }
+    let name=event["name"] as? String ?? "",data=event["data"] as? [String:Any] ?? [:]
+    if name=="INTERACTION_CREATE"{await runtime.handle(data)}
+    else{await runtime.dispatchMigratedEvent(name,data);if name=="READY"{await logger.log("INFO","Discord READY.")}}
    }
    await gateway.run()
   }catch{FileHandle.standardError.write(Data("Kimi startup failed: \(error.localizedDescription)\n".utf8));exit(1)}
