@@ -7,10 +7,11 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Kimi Support plugin.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Install a Kimi plugin.").addStringOption(o=>o.setName("plugin").setDescription("Plugin to install").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
-  new SlashCommandBuilder().setName("plugins").setDescription("Show available plugins."),
+  new SlashCommandBuilder().setName("install").setDescription("Add a Kimi app to this server.").addStringOption(o=>o.setName("app").setDescription("App to add").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("apps").setDescription("See the apps available for your server."),
+  new SlashCommandBuilder().setName("app-store").setDescription("Browse and manage Kimi apps."),
   new SlashCommandBuilder().setName("automations").setDescription("Build and manage server automations."),
-  new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi plugin (server owner only).").addStringOption(o=>o.setName("plugin").setDescription("Plugin to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("uninstall").setDescription("Remove a Kimi app from this server (server owner only).").addStringOption(o=>o.setName("app").setDescription("App to remove").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
   new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
@@ -44,7 +45,7 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","plugins","automations"],
+  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","automations"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
