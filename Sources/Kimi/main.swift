@@ -44,9 +44,7 @@ actor DiscordREST {
   return (try? JSONSerialization.jsonObject(with:d,options:[.fragmentsAllowed])) ?? NSNull()
  }
  func registerCommands(_ client:String)async throws{
-  let definitions:[(String,String)]=[("kimi","Open Kimi control centre"),("setup","Set up Kimi in this server"),("apps","Browse Kimi apps"),("install","Install a Kimi app"),("uninstall","Uninstall a Kimi app"),("plan","View server storage usage"),("moderation","Open Kimi Lock"),("ticketpanel","Create Support category"),("verifypanel","Open verification setup"),("automations","View automation status")]
-  let body=definitions.map{["name":$0.0,"description":$0.1,"type":1] as [String:Any]}
-  _=try await call("PUT","applications/\(client)/commands",body:body)
+  _=try await call("PUT","applications/\(client)/commands",body:CommandCatalog.globalCommands())
  }
  func respond(_ id:String,_ token:String,_ text:String)async throws{
   _=try await call("POST","interactions/\(id)/\(token)/callback",body:["type":4,"data":["content":String(text.prefix(1900)),"flags":64,"allowed_mentions":["parse":[]]]])
