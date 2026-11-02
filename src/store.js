@@ -136,7 +136,7 @@ export class Store{
       }
     }
     const temp=this.file+".tmp";
-    if(previous)fs.copyFileSync(this.file,this.backup);
+    if(previous&&fs.existsSync(this.file))fs.copyFileSync(this.file,this.backup);
     fs.writeFileSync(temp,JSON.stringify(this.data,null,2),{mode:0o600});
     fs.renameSync(temp,this.file);
     this.persistedData=structuredClone(this.data);
