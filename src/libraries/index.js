@@ -1,4 +1,4 @@
-import { createSecurityLibrary } from "./KimiLock/index.js";
+import { createKimiLockLibrary } from "./KimiLock/index.js";
 import { createSupportLibrary } from "./Support/index.js";
 import { createFoundationLibrary } from "./Foundation/index.js";
 
