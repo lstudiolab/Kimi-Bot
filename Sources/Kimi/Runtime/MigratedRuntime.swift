@@ -420,7 +420,7 @@ extension KimiRuntime {
       guard let botID=me["id"] as? String else { throw KimiError.invalidResponse }
       let key="guard.confirmation."+guild
       var confirmation=await store.get(key,as:String.self)
-      if let current=confirmation { _ = try? await rest.call("GET","channels/"+current) }
+      if let current=confirmation { do { _ = try await rest.call("GET","channels/"+current) } catch { confirmation=nil } }
       if confirmation == nil { confirmation=try await rest.createPrivateTextChannel(guild,"kimi-confirmations",owner,botID); if let confirmation { try await store.set(confirmation,key:key) } }
       guard let confirmation else { throw KimiError.configuration("Could not create the private bot approval channel.") }
       let containment=try await KimiGuardService(store:store,rest:rest,logger:logger).contain(guild:guild,actor:id,action:"new bot joined; awaiting owner approval")
