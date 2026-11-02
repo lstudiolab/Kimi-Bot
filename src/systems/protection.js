@@ -190,7 +190,9 @@ export class Protection {
         if(fresh.length)this.nukeEvents.set(storedKey,fresh);else this.nukeEvents.delete(storedKey);
       }
     }
-    const baseKey=guild.id+":"+actorId,events=(this.nukeEvents.get(baseKey)||[]).filter(v=>now-v.at<=10000);
+    const baseKey=guild.id+":"+actorId;
+    if(!this.nukeEvents.has(baseKey)&&this.nukeEvents.size>=4000)this.nukeEvents.delete(this.nukeEvents.keys().next().value);
+    const events=(this.nukeEvents.get(baseKey)||[]).filter(v=>now-v.at<=10000);
     const criticalAction=[13,14,15,51].includes(entry.action)||privilegeEscalation;
     events.push({at:now,action:entry.action,critical:criticalAction});this.nukeEvents.set(baseKey,events);
     const threshold=events.some(v=>v.critical)?3:4;
