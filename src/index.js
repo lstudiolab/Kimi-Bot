@@ -249,7 +249,7 @@ async function handleInteraction(i){
  const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-welcome","configure-roles","configure-embeds","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","install","uninstall","apps","app-store","automations","guard-review","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
