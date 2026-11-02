@@ -286,7 +286,7 @@ test("transcript chunking preserves every character of oversized lines",()=>{
 });
 test("every plugin factory can be instantiated with the shared runtime context",()=>{
   const context={client:{},store:{data:{}},logger:quiet,foundation:{}};
-  const foundation=PLUGINS.Foundation.create(context);
+  const foundation=PLUGINS.Welcome.create(context);
   assert.equal(typeof foundation.ensureSetup,"function","Foundation must expose the shared idempotent setup service");
   const shared={...context,foundation};
   for(const plugin of Object.values(PLUGINS)){
@@ -645,7 +645,7 @@ import { pluginForComponent } from "../src/component-routing.js";
 test("all persistent component prefixes route to their installed plugin",()=>{
   for(const [id,plugin] of [
     ["ticket:close","Support"],["modpanel:enable","Kimi Lock"],["botguard:yes:123","Kimi Lock"],
-    ["verify:start","Kimi Lock"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
+    ["verify:start","Kimi Lock"],["rolepicker:start","Roles"],["embed:save","Embeds"],
     
   ])assert.equal(pluginForComponent(id),plugin,id);
   assert.equal(pluginForComponent("unknown:component"),null);
@@ -656,7 +656,7 @@ test("legacy installed library data migrates to plugin storage without losing en
   try{
     fs.writeFileSync(path.join(dir,"timi.json"),JSON.stringify({installed_libraries:{"guild-a":["Foundation","Security","Moderation","Support"]}}));
     const store=new Store(dir,quiet);
-    assert.deepEqual(store.data.installed_plugins["guild-a"],["Foundation","Kimi Lock","Support"]);
+    assert.deepEqual(store.data.installed_plugins["guild-a"],["Welcome","Roles","Embeds","Kimi Lock","Support"]);
     assert.equal(store.data.installed_libraries,undefined);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
