@@ -3,29 +3,34 @@ import { RolePicker } from "../../systems/role-picker.js";
 import { Embeds } from "../../systems/embeds.js";
 import { Foundation } from "../../systems/foundation.js";
 
-export function createFoundationLibrary({client,store,logger,services}){
+export function createFoundationLibrary({client,store,logger,services,app="core"}){
   const verificationHelper=new Verification(client,store,logger);
   const rolePicker=new RolePicker(client,store,logger,verificationHelper);
   const embeds=new Embeds(client,store,logger);
   const greet=new Foundation(client,store,logger);
   verificationHelper.ensureSetup=guild=>greet.ensureSetup(guild);
+  const is=(name)=>app===name||app==="core";
   return {
-    async ready(guild){await greet.ensureSetup(guild);},
+    async ready(guild){if(app==="core"||app==="welcome")await greet.ensureSetup(guild);},
     async handleInteraction(i){
       if(i.isChatInputCommand()){
-        if(i.commandName==="roles")return rolePicker.handle(i);
-        if(["setup","welcome","autorole"].includes(i.commandName))return greet.command(i);
-        if(["embed-new","embed-edit","embed-post"].includes(i.commandName))return embeds.handle(i);
+        if(is("roles")&&i.commandName==="roles")return rolePicker.handle(i);
+        if(is("welcome")&&["setup","welcome","autorole"].includes(i.commandName))return greet.command(i);
+        if(is("embeds")&&["embed-new","embed-edit","embed-post"].includes(i.commandName))return embeds.handle(i);
       }
       const id=i.customId||"";
-      if(id.startsWith("rolepicker:"))return rolePicker.handle(i);
-      if(id.startsWith("embed:"))return embeds.handle(i);
+      if(is("roles")&&id.startsWith("rolepicker:"))return rolePicker.handle(i);
+      if(is("embeds")&&id.startsWith("embed:"))return embeds.handle(i);
     },
-    async guildMemberAdd(member){await greet.memberAdd(member);},
-    async guildMemberRemove(member){await greet.memberRemove(member);},
+    async guildMemberAdd(member){if(app==="welcome")await greet.memberAdd(member);},
+    async guildMemberRemove(member){if(app==="welcome")await greet.memberRemove(member);},
     async ensureSetup(guild){return greet.ensureSetup(guild);},
-    async refreshRolePickers(guild){await rolePicker.refresh(guild);},
+    async refreshRolePickers(guild){if(is("roles"))await rolePicker.refresh(guild);},
     async refreshVerification(guild){await verificationHelper.refresh(guild);},
     diagnostics(guild){return services?.diagnoseGuild?.(guild,["ViewChannel","SendMessages","ManageRoles"])||{ok:true,missing:[]};}
   };
 }
+export const createFoundationCore=(options)=>createFoundationLibrary({...options,app:"core"});
+export const createWelcomeLibrary=(options)=>createFoundationLibrary({...options,app:"welcome"});
+export const createRolesLibrary=(options)=>createFoundationLibrary({...options,app:"roles"});
+export const createEmbedsLibrary=(options)=>createFoundationLibrary({...options,app:"embeds"});
