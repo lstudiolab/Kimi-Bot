@@ -34,7 +34,7 @@ actor AutomationEngine {
   guard values.count != before else{return false}
   try await store.set(values,key:"automation.rules");return true
  }
- func matching(guildID:String,trigger:String)async->[Rule]{await rules(guildID:guildID).filter{$0.enabled && $0.trigger==trigger}}
+ func matching(guildID:String,trigger:String,content:String="")async->[Rule]{await rules(guildID:guildID).filter{$0.enabled && ($0.trigger==trigger || ($0.trigger=="message_contains" && !content.isEmpty))}}
  func record(_ execution:Execution)async{
   var values=await store.get("automation.executions",as:[Execution].self) ?? []
   values.append(execution);values=Array(values.suffix(1000));try? await store.set(values,key:"automation.executions")
