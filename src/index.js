@@ -89,7 +89,7 @@ async function showInstallAnimation(interaction,libraryName){
  ];
  for(const frame of frames){
   await interaction.editReply({
-   content:"**Installing "+libraryName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status+"…\\n\\n*Visual installation animation.*",
+   content:"**Installing "+libraryName+"**\n`"+frame.bar+"` "+frame.percent+"%\n"+frame.status+"…\n\n*Visual installation animation.*",
    components:[],embeds:[],allowedMentions:{parse:[]}
   });
   if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,420));
