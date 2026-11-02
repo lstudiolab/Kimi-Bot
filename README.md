@@ -20,3 +20,7 @@ swift run -c release
 Kimi listens for Discord Gateway events and serves its optional dashboard on `127.0.0.1:8787`. Keep the dashboard behind an HTTPS tunnel or reverse proxy. See [TERMUX.md](TERMUX.md), [DASHBOARD.md](DASHBOARD.md), and [MIGRATION.md](MIGRATION.md).
 
 The migration is ongoing. Do not replace a working production instance until the remaining feature parity and Termux validation items in MIGRATION.md are complete.
+
+## Engineering standard
+
+See [docs/ENGINEERING.md](docs/ENGINEERING.md) for Kimi's Swift architecture, runtime lifecycle, security requirements, Discord interaction conventions, dashboard experience, and release quality gates.
