@@ -12,7 +12,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("libraries").setDescription("Show Kimi's available bundles."),
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi library (server owner only).").addStringOption(o=>o.setName("library").setDescription("Library to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Moderation",value:"Security"},{name:"Support",value:"Support"},)),
 
-  new SlashCommandBuilder().setName("kimi-channel").setDescription("Create Kimi's private server channels and setup references."),
+  new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member greetings").addChannelTypes(ChannelType.GuildText))
     .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Channel for member departure messages").addChannelTypes(ChannelType.GuildText))
@@ -30,7 +30,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("embed-post").setDescription("Place a saved embed in this channel.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
   new SlashCommandBuilder().setName("embed-edit").setDescription("Edit a saved embed.").addStringOption(o=>o.setName("name").setDescription("Saved embed name").setRequired(true).setMaxLength(24)),
 
-  new SlashCommandBuilder().setName("verify-config").setDescription("Configure button-based member verification.")
+  new SlashCommandBuilder().setName("verify").setDescription("Configure button-based member verification.")
     .addRoleOption(o=>o.setName("role").setDescription("Role assigned after a successful check"))
     .addChannelOption(o=>o.setName("channel").setDescription("Public channel where new members see the Verify button").addChannelTypes(ChannelType.GuildText))
     .addIntegerOption(o=>o.setName("min-age-days").setDescription("Minimum Discord account age in days").setMinValue(0).setMaxValue(3650))
@@ -69,8 +69,8 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["kimi","configure-foundation","configure-moderation","configure-support","configure-studio","plan","web-token"],
-  Foundation:["kimi-channel","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  Security:["verify-config","filter","security","moderation"],
+  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Security:["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
   Scratch:["script","script-edit","scripts","script-run","script-stop","script-delete","script-export","script-import","script-history","script-check","script-undo","script-redo","script-kit","script-help","script-template"]
 });
