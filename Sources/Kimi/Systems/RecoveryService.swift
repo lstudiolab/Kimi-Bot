@@ -1,9 +1,8 @@
 import Foundation
-
 actor RecoveryService {
  struct Message:Codable,Sendable {let id:String;let channelID:String;let authorID:String;let content:String;let createdAt:Date}
- private let store:PersistentStore;private let logger:Logger
- init(store:PersistentStore,logger:Logger){self.store=store;self.logger=logger}
+ private let store:PersistentStore;private let logger:Logger;private let rest:DiscordREST
+ init(store:PersistentStore,logger:Logger,rest:DiscordREST){self.store=store;self.logger=logger;self.rest=rest}
  func captureChannel(_ guild:String,_ channel:[String:Any])async{
   guard let id=channel["id"] as? String,let data=try? JSONSerialization.data(withJSONObject:channel,options:[.fragmentsAllowed]) else{return}
   var all=await store.get("recovery.channels",as:[String:[String:Data]].self) ?? [:]
@@ -14,6 +13,7 @@ actor RecoveryService {
  func captureMessage(_ guild:String,_ channel:String,_ message:String,_ author:String,_ content:String)async{
   var all=await store.get("recovery.messages",as:[String:[Message]].self) ?? [:]
   var rows=(all[guild] ?? []).filter{Date().timeIntervalSince($0.createdAt)<7*86400}
+  rows.removeAll{$0.id==message}
   rows.append(Message(id:message,channelID:channel,authorID:author,content:String(content.prefix(4000)),createdAt:Date()))
   while rows.count>2000 || rows.reduce(0,{$0+$1.content.utf8.count})>4*1024*1024{rows.removeFirst()}
   all[guild]=rows;try? await store.set(all,key:"recovery.messages")
@@ -24,8 +24,24 @@ actor RecoveryService {
   await logger.log("INFO","Recovery retained deleted message "+message+" from guild "+guild)
   return found
  }
- func deletedChannel(_ guild:String,_ channel:String)async->Data?{
+ func restoreChannel(_ guild:String,_ channelID:String)async{
   let all=await store.get("recovery.channels",as:[String:[String:Data]].self) ?? [:]
-  return all[guild]?[channel]
+  guard let data=all[guild]?[channelID],let source=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else{return}
+  let allowed=["name","type","topic","nsfw","rate_limit_per_user","parent_id","permission_overwrites","bitrate","user_limit"]
+  var body:[String:Any]=[:]
+  for key in allowed{if let value=source[key]{body[key]=value}}
+  body["name"]=SecurityPolicy.channelName(source["name"] as? String ?? "restored-channel")
+  do{
+   let created=try await rest.call("POST","guilds/\(guild)/channels",body:body)
+   let restored=(created as? [String:Any])?["id"] as? String ?? "unknown"
+   await logger.log("WARN","Kimi Lock restored deleted channel "+channelID+" as "+restored+" in guild "+guild)
+  }catch{await logger.log("ERROR","Channel recovery failed for "+channelID+": "+error.localizedDescription)}
+ }
+ func restoreMessage(_ guild:String,_ channel:String,_ message:String)async{
+  guard let saved=await deletedMessage(guild,channel,message),!saved.content.isEmpty else{return}
+  let date=ISO8601DateFormatter().string(from:saved.createdAt)
+  let content="**Recovered message** · <@\(saved.authorID)> · \(date)\n"+String(saved.content.prefix(1750))
+  do{_ = try await rest.call("POST","channels/\(channel)/messages",body:["content":content,"allowed_mentions":["parse":[]]])}
+  catch{await logger.log("ERROR","Message recovery failed for "+message+": "+error.localizedDescription)}
  }
 }
