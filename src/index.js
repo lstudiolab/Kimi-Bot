@@ -150,7 +150,8 @@ async function coreCommand(i){
    if(!member.user.bot)return respond(i,"That account is no longer a bot. No roles or restrictions were changed.");
    const protectedPermissions=[PermissionFlagsBits.Administrator,PermissionFlagsBits.ManageGuild,PermissionFlagsBits.ManageRoles,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ManageWebhooks,PermissionFlagsBits.BanMembers,PermissionFlagsBits.KickMembers,PermissionFlagsBits.ModerateMembers,PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ViewAuditLog,PermissionFlagsBits.MentionEveryone];
    const roleIds=Array.isArray(incident.removed_roles)?incident.removed_roles.filter(id=>/^\d{15,22}$/.test(String(id))):[];
-   const roles=roleIds.map(id=>i.guild.roles.cache.get(id)).filter(role=>role&&role.id!==i.guild.id&&!role.managed&&role.editable&&!protectedPermissions.some(permission=>role.permissions.has(permission)));
+   const fetchedRoles=await Promise.all(roleIds.map(id=>i.guild.roles.fetch(id,{force:true}).catch(()=>null)));
+   const roles=fetchedRoles.filter(role=>role&&role.id!==i.guild.id&&!role.managed&&role.editable&&!protectedPermissions.some(permission=>role.permissions.has(permission)));
    const skippedRoles=Math.max(0,roleIds.length-roles.length);
    let timeoutCleared=false;
    const currentTimeout=member.communicationDisabledUntilTimestamp||0;
