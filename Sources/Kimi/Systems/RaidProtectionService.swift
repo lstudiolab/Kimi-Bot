@@ -30,8 +30,9 @@ actor RaidProtectionService {
   var records=await store.get("security.raid-incidents",as:[Incident].self) ?? []
   records.append(incident);records=Array(records.suffix(500));try? await store.set(records,key:"security.raid-incidents")
   await logger.log("WARN","Kimi Lock raid protection: "+String(recent.count)+" members joined within 10 seconds in guild "+guild+". "+action)
-  let setup=await store.getLegacy("timi_setup",as:[String:[String:String]].self)
-  if let channel=setup?[guild]?["log_channel_id"]{
+  let legacy=await store.getLegacy("timi_setup",as:[String:[String:String]].self)
+  let channel=await store.get("foundation.logs."+guild,as:String.self) ?? legacy?[guild]?["log_channel_id"]
+  if let channel{
    let report="**Kimi Lock · Join burst detected**\nMembers joined in 10 seconds: "+String(recent.count)+"\nNewest account age: "+String(age)+" days\nAutomatic action: "+action
    _=try? await rest.call("POST","channels/"+channel+"/messages",body:["content":report,"allowed_mentions":["parse":[]]])
   }
