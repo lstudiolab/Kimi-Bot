@@ -349,7 +349,8 @@ extension KimiRuntime {
      default: break
      }
     } catch { await logger.log("ERROR","AutoMod sanction failed: "+error.localizedDescription) }
-    let logChannel=policy.logChannelID ?? (await store.get("timi_setup."+guild,as:String.self))
+    var logChannel=policy.logChannelID
+    if logChannel == nil { let setup=await store.getLegacy("timi_setup",as:[String:[String:String]].self); logChannel=setup?[guild]?["log_channel_id"] }
     if let logChannel { _ = try? await rest.call("POST","channels/"+logChannel+"/messages",body:["content":"Kimi Lock removed a message from <@"+user+"> in <#"+channel+">. Reason: "+finding.reason+". Sanction: "+policy.sanction+".","allowed_mentions":["parse":[]]]) }
     await logger.log("WARN","Kimi Lock moderation: "+finding.reason+"; sanction: "+policy.sanction)
    }
