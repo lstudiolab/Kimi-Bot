@@ -11,7 +11,7 @@ export function createFoundationLibrary({client,store,logger,services,app="core"
   verificationHelper.ensureSetup=guild=>greet.ensureSetup(guild);
   const is=(name)=>app===name||app==="core";
   return {
-    async ready(guild){if(app==="core"||app==="welcome")await greet.ensureSetup(guild);if(app==="roles")await rolePicker.refresh(guild);},
+    async ready(guild){if(app==="core")await greet.ensureSetup(guild);if(app==="roles")await rolePicker.refresh(guild);},
     async handleInteraction(i){
       if(i.isChatInputCommand()){
         if(app==="core"&&["setup","kimi-channel"].includes(i.commandName))return greet.command(i);
