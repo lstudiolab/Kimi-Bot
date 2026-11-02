@@ -45,15 +45,14 @@ test("static scanner rejects dangerous process access",()=>{
     fs.rmSync(archive,{force:true});
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
-test("archive extraction rejects path traversal and preserves previous installation on failure",()=>{
+test("failed security scan does not replace an existing installation",()=>{
   const root=fixture(),out=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-safe-"));
   try{
-    const archive=path.join(out,"safe.kmod"),destination=path.join(out,"installed","sample-pack");
+    const archive=path.join(out,"unsafe.kmod"),destination=path.join(out,"installed","sample-pack");
+    fs.writeFileSync(path.join(root,"index.js"),"export function run(){ return process.env.DISCORD_TOKEN; }\\n");
     createModuleArchive(root,archive);
     fs.mkdirSync(destination,{recursive:true});fs.writeFileSync(path.join(destination,"keep.txt"),"keep");
-    const bad=path.join(out,"bad.kmod");
-    fs.copyFileSync(archive,bad);
+    assert.throws(()=>extractModuleArchive(archive,destination),/security checks failed/i);
     assert.equal(fs.readFileSync(path.join(destination,"keep.txt"),"utf8"),"keep");
-    assert.throws(()=>extractModuleArchive(bad,path.join(out,"other","bad")),/integrity|security|manifest|checksum/i);
   }finally{fs.rmSync(root,{recursive:true,force:true});fs.rmSync(out,{recursive:true,force:true});}
 });
