@@ -174,6 +174,7 @@ export class Verification {
     if(guild.ownerId!==i.user.id)return deny(i,"Only the server owner can approve or reject another bot.");
     const botMember=await guild.members.fetch(botId).catch(()=>null);
     if(!botMember?.user.bot)return deny(i,"The bot is no longer in this server or is not a bot account.");
+    if(decision==="yes"&&botMember.permissions.has(PermissionFlagsBits.Administrator))return deny(i,"This bot still has Administrator permission, which bypasses channel restrictions. Remove that permission before approving it.");
     const key=guildId+":"+botId,pending=this.store.data.pending_bots[key];
     if(pending!==i.message.id)return deny(i,"This request is no longer pending.");
     if(decision==="no"){
