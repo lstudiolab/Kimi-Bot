@@ -239,7 +239,13 @@ export class Tickets {
   }
   async handleButton(i) {
     const id=i.customId,g=i.guild;
-    if(id==="ticket:open") return this.open(i);
+    if(!g||i.message?.author?.id!==this.client.user.id)return deny(i,"This ticket control is not an authentic Kimi message.");
+    if(id==="ticket:open"){
+      const settings=this.store.ticket(g.id);
+      const published=(settings.published_panels||[]).some(panel=>panel?.channel_id===i.channelId&&panel?.message_id===i.message.id);
+      if(!published)return deny(i,"This ticket panel is no longer active.");
+      return this.open(i);
+    }
     if(id==="ticket:wizard-start") {
       if(!await requireManager(i)) return;
       return i.showModal(modal("ticket:wizard:stage1","Ticket system setup",[
@@ -268,7 +274,7 @@ export class Tickets {
     }
     if(["ticket:close","ticket:confirm-close","ticket:cancel-close"].includes(id)) {
       const ch=i.channel,owner=ch.topic?.match(/^timi-ticket-owner:(\d+)$/)?.[1];
-      if(!owner) return deny(i,"This is not a Timi ticket channel.");
+      if(!owner) return deny(i,"This is not a Kimi ticket channel.");
       if(i.user.id!==owner&&!i.memberPermissions?.has(P.ManageGuild)) return deny(i,"Only the ticket owner or a server manager can close this ticket.");
       if(id==="ticket:close") return respond(i,"Are you sure you want to close this ticket? This will delete the channel.",[row(button("ticket:confirm-close","Yes, delete it",ButtonStyle.Danger),button("ticket:cancel-close","Cancel"))]);
       if(id==="ticket:cancel-close") return respond(i,"Ticket closure cancelled.");
@@ -298,7 +304,8 @@ export class Tickets {
       return;
     }
     if(id==="ticket:priority") {
-      const x=this.store.ticket(g.id),staff=x.support_role_id&&i.member.roles.cache.has(x.support_role_id);
+      if(!i.channel?.topic?.match(/^timi-ticket-owner:\d{15,22}$/))return deny(i,"Priority can only be changed inside an active ticket.");
+      const x=this.store.ticket(g.id),staff=x.support_role_id&&i.member?.roles?.cache?.has(x.support_role_id);
       if(!staff&&!i.memberPermissions?.has(P.ManageGuild)) return deny(i,"Only support staff can change ticket priority.");
       const menu=new StringSelectMenuBuilder().setCustomId("ticket:priority-select:"+i.message.id).setPlaceholder("Select priority").setMinValues(1).setMaxValues(1)
         .addOptions({label:"Low",value:"low",emoji:"🟢"},{label:"Normal",value:"normal",emoji:"🟡",default:true},{label:"High",value:"high",emoji:"🟠"},{label:"Urgent",value:"urgent",emoji:"🔴"});
@@ -307,12 +314,18 @@ export class Tickets {
   }
   async handleSelect(i) {
     if(!i.customId.startsWith("ticket:priority-select:")) return;
-    const x=this.store.ticket(i.guildId),staff=x.support_role_id&&i.member.roles.cache.has(x.support_role_id);
+    if(i.message?.author?.id!==this.client.user.id||!i.channel?.topic?.match(/^timi-ticket-owner:\d{15,22}$/))return deny(i,"This priority control is not valid in this channel.");
+    const originalId=i.customId.slice("ticket:priority-select:".length);
+    if(!/^\d{15,22}$/.test(originalId))return deny(i,"This priority request is invalid.");
+    const original=await i.channel.messages.fetch(originalId).catch(()=>null);
+    const authentic=original?.author?.id===this.client.user.id&&original.components.some(row=>row.components.some(component=>component.customId==="ticket:priority"));
+    if(!authentic)return deny(i,"The original ticket priority control could not be verified.");
+    const x=this.store.ticket(i.guildId),staff=x.support_role_id&&i.member?.roles?.cache?.has(x.support_role_id);
     if(!staff&&!i.memberPermissions?.has(P.ManageGuild)) return deny(i,"Only support staff can change ticket priority.");
     const values={low:["Low","🟢"],normal:["Normal","🟡"],high:["High","🟠"],urgent:["Urgent","🔴"]};
     const chosen=values[i.values[0]]; if(!chosen) return deny(i,"Choose a valid priority.");
     await i.channel.setName((chosen[1]+"-"+i.channel.name.replace(/^(🟢|🟡|🟠|🔴)-/,"")).slice(0,100));
-    const msg=await i.channel.messages.fetch(i.customId.slice("ticket:priority-select:".length)).catch(()=>null);
+    const msg=original;
     if(msg?.embeds[0]) {
       const fields=msg.embeds[0].fields.filter(f=>f.name!=="Priority"); fields.push({name:"Priority",value:chosen[0],inline:true});
       await msg.edit({embeds:[EmbedBuilder.from(msg.embeds[0]).setColor(GREY).setFields(fields)]});
