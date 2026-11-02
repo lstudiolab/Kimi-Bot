@@ -240,6 +240,9 @@ extension KimiRuntime {
    case "analytics":
     let report=await AnalyticsService(store:store).report(guild:guild)
     reply="Activity report\nMessages: "+String(report.messages)+"\nCommands: "+String(report.commands)+"\nJoins: "+String(report.joins)+"\nLeaves: "+String(report.leaves)+"\nModeration: "+String(report.moderation)+"\nTickets opened: "+String(report.ticketsOpened)+"\nTickets closed: "+String(report.ticketsClosed)+"\nActive days: "+String(report.activeDays)
+   case "performance":
+    let metrics=await performance.summary("command")
+    reply="Kimi Runtime Performance\nCommands measured: "+String(metrics.count)+"\nAverage latency: "+String(format:"%.1f",metrics.averageMilliseconds)+" ms\nP95 latency: "+String(format:"%.1f",metrics.p95Milliseconds)+" ms\nFailures: "+String(metrics.failures)
    default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
    }
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
