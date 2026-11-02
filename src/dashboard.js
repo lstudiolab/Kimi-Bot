@@ -9,14 +9,14 @@ const DASHBOARD = path.join(ROOT, "dashboard");
 const COOKIE = "kimi_session";
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const MODULES = Object.freeze([
-  { id: "welcome", name: "Welcome", library: "Foundation" },
-  { id: "roles", name: "Role picker", library: "Foundation" },
+  { id: "welcome", name: "Welcome", plugin: "Foundation" },
+  { id: "roles", name: "Role picker", plugin: "Foundation" },
   { id: "embeds", name: "Embeds", library: "Foundation" },
-  { id: "verification", name: "Verification", library: "Kimi Lock" },
+  { id: "verification", name: "Verification", plugin: "Kimi Lock" },
   { id: "moderation", name: "Moderation", library: "Kimi Lock" },
   { id: "protection", name: "Server protection", library: "Kimi Lock" },
   { id: "recovery", name: "Recovery", library: "Kimi Lock" },
-  { id: "tickets", name: "Tickets", library: "Support" },
+  { id: "tickets", name: "Tickets", plugin: "Support" },
 ]);
 const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support"]);
 const COMMAND_GROUPS = Object.freeze({
@@ -133,7 +133,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
     const installed = store.data.installed_plugins[guild.id] || [];
     const modules = MODULES.map(module => ({
       ...module,
-      installed: installed.includes(module.library),
+      installed: installed.includes(module.plugin),
       enabled: store.data.modules?.[guild.id]?.[module.id] !== false
     }));
     return {
