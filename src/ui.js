@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 export const GREY=0x808080;
 export const greyEmbed=(title,description)=>new EmbedBuilder().setColor(GREY).setTitle(title).setDescription(description);
-// Keep all Timi buttons visually quiet and consistent (Discord Secondary style).
+// Keep all Kimi buttons visually quiet and consistent (Discord Secondary style).
 export const button=(id,label,_style=ButtonStyle.Secondary)=>new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(ButtonStyle.Secondary);
 export const row=(...components)=>new ActionRowBuilder().addComponents(...components);
 export function textInput(id,label,value="",style=TextInputStyle.Short,required=true,maxLength=1000){
@@ -16,9 +16,9 @@ export async function startWorking(interaction){
   await interaction.deferReply({ephemeral:true});
 }
 export async function finishWorking(interaction){
-  if(!interaction.deferred||interaction.replied||interaction.__timiDeletedReply)return false;
+  if(!interaction.deferred||interaction.replied||interaction.__kimiDeletedReply)return false;
   await interaction.editReply({
-    content:"Timi could not complete that action. The handler returned without a response. Please try again.",
+    content:"Kimi could not complete that action. The handler returned without a response. Please try again.",
     components:[],embeds:[],allowedMentions:{parse:[]}
   }).catch(error=>console.error("Could not finish unanswered interaction:",error));
   return true;
