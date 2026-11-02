@@ -72,13 +72,17 @@ actor PersistentStore {
   let used=storageUsage(guildID:guildID),limit=StorageQuota.freeLimit
   return(used,limit,min(100,Int(Double(used)/Double(limit)*100)))
  }
+ /// Writes a complete candidate snapshot before publishing it to the actor's in-memory state.
+ ///
+ /// Keeping the in-memory value unchanged until the atomic file replacement succeeds prevents
+ /// callers from observing data that was never durably committed.
  private func persist(_ candidate:[String:Data])throws{
-  values=candidate
   var root=legacy
-  let runtime=try JSONEncoder().encode(values)
+  let runtime=try JSONEncoder().encode(candidate)
   root["_swift_runtime"]=try JSONSerialization.jsonObject(with:runtime)
   let data=try JSONSerialization.data(withJSONObject:root,options:[.prettyPrinted,.sortedKeys,.fragmentsAllowed])
   try data.write(to:url,options:.atomic)
+  values=candidate
  }
  private func guildUsage(_ guild:String,source:[String:Data])->Int{
   var snapshot:[String:Any]=[:]
@@ -109,7 +113,14 @@ actor PersistentStore {
 }
 actor DiscordREST {
  let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10/")!
- init(token:String){self.token=token;session=URLSession(configuration:.ephemeral)}
+ init(token:String){
+  self.token=token
+  let configuration=URLSessionConfiguration.ephemeral
+  configuration.timeoutIntervalForRequest=30
+  configuration.timeoutIntervalForResource=60
+  configuration.waitsForConnectivity=false
+  session=URLSession(configuration:configuration)
+ }
  func call(_ method:String,_ path:String,body:Any?=nil,auditReason:String?=nil)async throws->Any{
   guard let url=URL(string:path,relativeTo:base)?.absoluteURL else{throw KimiError.invalidResponse}
   var request=URLRequest(url:url);request.httpMethod=method
@@ -127,8 +138,13 @@ actor DiscordREST {
     let delay=object?["retry_after"] as? Double ?? Double(http.value(forHTTPHeaderField:"Retry-After") ?? "1") ?? 1
     try await Task.sleep(nanoseconds:UInt64(max(0.25,min(30,delay))*1_000_000_000));continue
    }
-   if (500...599).contains(http.statusCode) && attempt<3{
-    attempt+=1;try await Task.sleep(nanoseconds:UInt64(pow(2.0,Double(attempt))*500_000_000));continue
+   // A 5xx response to a non-idempotent request may have happened after Discord
+   // applied the mutation. Retrying POST could create duplicate channels or messages.
+   let retryableMethod=["GET","PUT","DELETE"].contains(method.uppercased())
+   if (500...599).contains(http.statusCode) && retryableMethod && attempt<3{
+    attempt+=1
+    try await Task.sleep(nanoseconds:UInt64(pow(2.0,Double(attempt))*500_000_000))
+    continue
    }
    guard (200..<300).contains(http.statusCode) else{throw KimiError.http(http.statusCode,String(data:data.prefix(1000),encoding:.utf8) ?? "")}
    return (try? JSONSerialization.jsonObject(with:data,options:[.fragmentsAllowed])) ?? NSNull()
