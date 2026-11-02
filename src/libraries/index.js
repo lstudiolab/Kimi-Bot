@@ -5,12 +5,12 @@ import { createScratchLibrary } from "./Scratch/index.js";
 
 export const LIBRARIES = Object.freeze({
   Foundation: Object.freeze({name:"Foundation",description:"Essential member experience and presentation systems.",systems:["Greet system","Embed system","Automatic role assignment","Role selection"],create:createFoundationLibrary}),
-  Security: Object.freeze({name:"Moderation",description:"Verification, moderation, automated protection and recovery.",systems:["Verification system","Anti-spam and AutoMod","Anti-nuke detection","Bot detector and approval","Warnings and sanctions","Raid protection","Audit logs and recovery"],create:createSecurityLibrary}),
+  Security: Object.freeze({name:"Security",label:"Moderation",description:"Verification, moderation, automated protection and recovery.",systems:["Verification system","Anti-spam and AutoMod","Anti-nuke detection","Bot detector and approval","Warnings and sanctions","Raid protection","Audit logs and recovery"],create:createSecurityLibrary}),
   Support: Object.freeze({name:"Support",description:"The complete ticket and support system.",systems:["Ticket setup and panels","Private tickets","Staff threads","Transcripts","Permissions and logs"],create:createSupportLibrary}),
-  Scratch: Object.freeze({name:"Studio",description:"The TbScript development environment.",systems:["TbScript projects","Editor and component kit","Panel scripting","Run and stop testing","Validation and documentation","Version history and import/export"],create:createScratchLibrary})
+  Scratch: Object.freeze({name:"Scratch",label:"Studio",description:"The TbScript development environment.",systems:["TbScript projects","Editor and component kit","Panel scripting","Run and stop testing","Validation and documentation","Version history and import/export"],create:createScratchLibrary})
 });
 export function normalizeLibraryName(value){
   const key=String(value||"").trim().toLowerCase().replace(/[\s_-]/g,"");
-  const aliases={moderation:"Security",core:"Foundation",shield:"Security"};
+  const aliases={moderation:"Security",core:"Foundation",shield:"Security",developer:"Scratch",studio:"Scratch"};
   return aliases[key]||Object.keys(LIBRARIES).find(name=>name.toLowerCase()===key)||null;
 }
