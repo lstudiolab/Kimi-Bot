@@ -294,5 +294,5 @@ client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kim
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
-startDashboardServer({config,client,store,manager,plugins,plugins:plugins,logger,syncGuildCommands,authStore,automationEngine});
+startDashboardServer({config,client,store,manager,plugins,logger,syncGuildCommands,authStore});
 try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
