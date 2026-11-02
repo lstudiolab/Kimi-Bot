@@ -190,7 +190,7 @@ export class Verification {
     return respond(i,"Bot approved. Temporary channel restrictions were removed; private Timi channels remain inaccessible.");
   }
   async handle(i){
-    if(i.isChatInputCommand()&&i.commandName==="verify-config")return this.command(i);
+    if(i.isChatInputCommand()&&["verify","verify-config"].includes(i.commandName))return this.command(i);
     if(i.isButton()&&i.customId==="verify:start")return this.startVerification(i);
     if(i.isButton()&&i.customId.startsWith("verify:review:"))return this.reviewDecision(i);
     if(i.isButton()&&i.customId.startsWith("botguard:"))return this.botDecision(i);
