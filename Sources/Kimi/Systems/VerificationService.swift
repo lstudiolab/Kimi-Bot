@@ -23,9 +23,9 @@ actor VerificationService {
   }catch{await logger.log("WARN","Verification prompt could not be posted: "+error.localizedDescription)}
  }
  func verify(guild:String,userID:String,username:String,applicationID:String,interactionToken:String)async{
-  let record=await VerificationRecords(store:store).record(guildID:guild,userID:userID)
-  if record.verifiedAt != nil{try? await rest.editKimiInteraction(applicationID,interactionToken,"You have already been verified.");return}
   let records=VerificationRecords(store:store)
+  let prior=await records.record(guildID:guild,userID:userID)
+  if prior.verifiedAt != nil{try? await rest.editKimiInteraction(applicationID,interactionToken,"You have already been verified.");return}
   _=try? await records.attempt(guildID:guild,userID:userID)
   let record=await records.record(guildID:guild,userID:userID)
   let value=await settings(guild)
