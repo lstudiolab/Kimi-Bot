@@ -182,9 +182,10 @@ extension KimiRuntime {
     try await service.configure(settings,guild:guild)
     reply="Kimi Lock verification settings saved. Minimum account age: "+String(settings.minimumAgeDays)+" days. Review channel: "+(settings.reviewChannelID ?? "not configured")
    case "roles","configure-roles":
-    guard let channel=event["channel_id"] as? String else{throw KimiError.configuration("Run this command in a text channel.")}
-    let count=try await RolePickerService(store:store,rest:rest,logger:logger).publish(guild:guild,channel:channel)
-    reply="Role Picker published with "+String(count)+" safe roles."
+    guard let channel=value("channel") ?? (event["channel_id"] as? String) else{throw KimiError.configuration("Choose a text channel for this role menu.")}
+    let menuName=value("name") ?? "roles"
+    let count=try await RolePickerService(store:store,rest:rest,logger:logger).publish(guild:guild,channel:channel,name:menuName)
+    reply="Role Picker menu "+menuName+" published with "+String(count)+" safe roles in <#"+channel+">."
    case "embed-new","embed-edit","embed-post","configure-embeds":
     let service=EmbedService(store:store,rest:rest)
     guard let embedName=value("name") else{throw KimiError.configuration("Enter an embed name.")}
