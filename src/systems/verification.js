@@ -45,17 +45,20 @@ export class Verification {
       this.logger.warn("Verification prompt was not posted in "+guild.name+": configure a visible verification channel with /verify-config.");
       return;
     }
-    await channel.send({
+    const prompt=await channel.send({
       content:"<@"+user.id+"> Please verify to access this server.",
-      components:[row(button("verify:start","Verify",))],
-      allowedMentions:{users:[user.id]}
-    }).catch(error=>this.logger.warn("Could not post verification prompt:",error.message));
+      components:[row(button("verify:start","Verify"))],
+      allowedMentions:{users:[user.id],parse:[]}
+    }).catch(error=>{this.logger.warn("Could not post verification prompt:",error.message);return null;});
+    if(prompt){record.verification_message_id=prompt.id;record.verification_channel_id=channel.id;this.store.save();}
   }
   async startVerification(i){
     const guild=i.guild,member=i.member,user=i.user;
     if(!guild||!member||user.bot)return deny(i,"This verification button is not available here.");
     const record=this.store.member(guild.id,user.id),settings=this.store.verify(guild.id);
+    if(i.message?.author?.id!==this.client.user.id||record.verification_message_id!==i.message.id||record.verification_channel_id!==i.channelId)return deny(i,"This verification prompt is no longer valid. Ask a server manager for a fresh prompt.");
     if(record.last_verified>0)return respond(i,"You have already been verified.");
+    if(record.pending_review_message_id)return respond(i,"Your verification is already awaiting owner or moderator review.");
     const key=guild.id+":"+user.id;
     if(this.reviewing.has(key))return deny(i,"Your verification is already being processed.");
     this.reviewing.add(key);
