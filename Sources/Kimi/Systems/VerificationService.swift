@@ -108,3 +108,4 @@ actor VerificationService {
    }else{throw KimiError.configuration("Choose approve or reject.")}
   }catch{try? await rest.editKimiInteraction(applicationID,interactionToken,"Verification review failed: "+error.localizedDescription)}
  }
+}
