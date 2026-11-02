@@ -151,7 +151,9 @@ final class DashboardServer:@unchecked Sendable {
  private func renderHome(_ session:Session)async->String{
   var rows=""
   for guild in session.guilds {
-   if await canManage(guild) && await botIsPresent(guild.id) {
+   let canManageGuild = await canManage(guild)
+   let hasKimi = await botIsPresent(guild.id)
+   if canManageGuild && hasKimi {
     rows += "<a class='server' href='/guild?id="+escape(guild.id)+"'><span class='server-icon'>"+escape(String(guild.name.prefix(1)).uppercased())+"</span><span><b>"+escape(guild.name)+"</b><small>"+(guild.owner==true ? "Server owner":"Manage Server")+"</small></span><span class='arrow'>›</span></a>"
    }
   }
