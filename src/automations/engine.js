@@ -124,6 +124,7 @@ export class AutomationEngine{
         modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Phrase to match").setPlaceholder("Enter text to look for").setStyle(TextInputStyle.Short).setMaxLength(100).setRequired(true)));
         return i.showModal(modal);
       }
+      if(i.deferred||i.replied){}else await i.deferUpdate();
       d.condition=value==="age7"?{type:"account_age_under_days",value:7,label:"Account younger than 7 days"}:value==="age30"?{type:"account_age_under_days",value:30,label:"Account younger than 30 days"}:value==="invite"?{type:"contains_invite",label:"Message contains a Discord invite"}:value==="link"?{type:"contains_link",label:"Message contains a web link"}:{type:"always",label:"Every time"};
       return this.actionPicker(i);
     }
