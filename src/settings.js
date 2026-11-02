@@ -35,7 +35,7 @@ const installed = (store,guildId,name) => (store.data.installed_libraries[guildI
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
 const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
 
-export class TimiSettings {
+export class KimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
   async show(i,page="home",selected=""){
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
