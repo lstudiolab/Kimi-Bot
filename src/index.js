@@ -150,11 +150,13 @@ async function coreCommand(i){
    const roles=(incident.removed_roles||incident.original_roles||[]).map(id=>i.guild.roles.cache.get(id)).filter(role=>role&&role.editable);
    if(incident.timeout_applied)await member.timeout(null,"Released by the server owner after Kimi Guard review").catch(error=>logger.warn("Could not clear bot timeout:",error.message));
    if(roles.length)await member.roles.add(roles,"Released by the server owner after Kimi Guard review");
+   const wasContained=Boolean(incident.removed_roles?.length||incident.timeout_applied);
    incident.status="released";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
-   return respond(i,"The bot restriction was released. Restorable roles have been returned.");
+   return respond(i,wasContained?"The bot restriction was released. Restorable roles have been returned.":"The incident was closed, but Kimi had not been able to restrict this bot. Its access is unchanged.");
   }
+  const wasContained=Boolean(incident.removed_roles?.length||incident.timeout_applied);
   incident.status="kept";incident.reviewed_at=Date.now();incident.reviewed_by=i.user.id;store.queueSave();
-  return respond(i,"The bot remains restricted. Only you can release it with /guard-review.");
+  return respond(i,wasContained?"The bot remains restricted. Only you can release it with /guard-review.":"Kimi could not apply an automatic restriction. Remove the bot or revoke its access manually; this incident will remain recorded.");
  }
  if(i.commandName==="automations")return automationEngine.handleInteraction(i);
  if(i.commandName==="plan"){
