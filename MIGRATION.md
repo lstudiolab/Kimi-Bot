@@ -1,25 +1,21 @@
-# Kimi Swift migration
+# JavaScript to Swift migration
 
-The Swift rewrite is being performed on the `migration/swift-rewrite` branch. The existing `main` branch remains unchanged while the replacement is built and validated.
+This branch replaces the Node.js runtime, Node package manifest and JavaScript test suite with a Swift Package Manager project. Application runtime source is now Swift.
 
-## Target
+## Ported
+- Environment configuration, logging and persistent JSON store.
+- Discord REST and Gateway websocket client.
+- Global slash command registration and interaction router.
+- App catalog and per-guild installation state.
+- Foundation setup primitives.
+- Kimi Lock rate detection and persisted policy.
+- Verification scoring.
+- Support ticket persistence and lifecycle.
+- Automation rule persistence.
+- Protection evaluation, embed validation and role-picker policy.
+- Swift test target and CI build workflow.
 
-- Swift is the only application/runtime language.
-- Discord Gateway and REST integration use DiscordBM.
-- Swift Package Manager owns dependencies and builds.
-- Foundation, Kimi Lock, Support, and shared services remain separate modules.
-- Persistent guild data is migrated without changing its JSON schema where possible.
-- Dashboard and operational tooling are included in the migration scope; they are not considered complete merely because the bot process compiles.
+## Not yet feature-equivalent
+This is a language migration baseline, not a verified 1:1 feature port. The original dashboard browser application was removed with its JavaScript source; a Swift-hosted dashboard and its authentication/session endpoints are not implemented yet. Rich Discord modal/button/select-menu flows, full moderation sanctions, anti-nuke containment and rollback, ticket transcripts, automation trigger execution, localization, image-content analysis, subscription logic, and legacy data conversion still need parity work. Rate detections currently produce audit log findings and do not automatically apply sanctions. Do not replace the production runtime until Swift tests pass and every required Discord workflow has been tested in a private server.
 
-## Current migration checkpoint
-
-- Swift package and executable entry point added.
-- Environment configuration and structured logging ported.
-- JSON-compatible storage foundation added.
-- App registry and app install/uninstall state management ported.
-- Component routing, permission policy, storage quota and text utilities ported.
-- Discord Gateway connection scaffold added.
-
-## Not yet migrated
-
-The Discord command catalogue and handlers, all Foundation/Kimi Lock/Support system behavior, automation execution, dashboard API and browser interface, auth/session handling, image analysis, recovery, tests and deployment scripts still require porting and parity tests. The JavaScript implementation must not be removed until those replacements are implemented and verified.
+The previous JSON data is preserved in the existing `data/` directory if copied, but schema conversion is not complete. Back up before migration.
