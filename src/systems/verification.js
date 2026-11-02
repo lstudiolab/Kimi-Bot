@@ -20,8 +20,8 @@ export class Verification {
     const entry={
       timestamp:Date.now(),
       user_id:member.id,
-      username:member.user.username,
-      display_name:member.displayName||member.user.globalName||member.user.username,
+      username:member.user?.username||member.username||"Unknown member",
+      display_name:member.displayName||member.user?.globalName||member.user?.username||member.username||"Unknown member",
       outcome,
       account_age_days:metadata.accountAgeDays??null,
       minimum_age_days:metadata.minimumAgeDays??null,
@@ -31,7 +31,7 @@ export class Verification {
     list.unshift(entry);
     if(list.length>300)list.length=300;
     this.store.save();
-    this.logger.info("Button verification "+outcome+" for "+member.user.username+" ("+member.id+") in "+guild.name+": "+action);
+    this.logger.info("Button verification "+outcome+" for "+(member.user?.username||member.username||member.id)+" ("+member.id+") in "+guild.name+": "+action);
     return entry;
   }
   async memberJoin(member){
