@@ -46,6 +46,7 @@ export function createKimiLockLibrary({client,store,logger,foundation,services})
     channelUpdate(oldChannel,channel){recovery.snapshot(channel);},
     async channelDelete(channel){await recovery.onChannelDelete(channel);},
     async refreshPanel(guild){await moderation.refresh(guild,store.mods(guild.id));},
+    async refreshVerification(guild){await verification.refresh(guild);},
     diagnostics(guild){return services?.diagnoseGuild?.(guild,["ViewChannel","SendMessages","ManageMessages","ModerateMembers","ManageChannels","ViewAuditLog"])||{ok:true,missing:[]};}
   };
 }
