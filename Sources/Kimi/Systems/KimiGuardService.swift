@@ -55,8 +55,7 @@ actor KimiGuardService {
   let safe=incident.removedRoles.filter{id in
    guard let role=roles.first(where:{($0["id"] as? String)==id}) else{return false}
    let permissions=UInt64(role["permissions"] as? String ?? "") ?? 0
-   let dangerous=(1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32)
-   return (role["position"] as? Int ?? 0)<highest && permissions & UInt64(dangerous)==0 && role["managed"] as? Bool != true
+   return (role["position"] as? Int ?? 0)<highest && SecurityPolicy.isSafeRole(roleID:id,guildID:guild,managed:role["managed"] as? Bool ?? false,permissions:permissions)
   }
   for role in safe{_ = try? await rest.call("PUT","guilds/\(guild)/members/\(actor)/roles/\(role)")}
   if incident.timeoutUntil != nil{
