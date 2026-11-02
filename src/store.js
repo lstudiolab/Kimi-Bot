@@ -106,10 +106,12 @@ export class Store{
       if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_libraries[guild]=migrated;changed=true;}
     }
     if(normalizeData(this.data))changed=true;
+    this.persistedData=null;
     if(changed){this.save();this.logger.info("Imported or normalized legacy Timi settings and recovery data.");}
+    else this.persistedData=structuredClone(this.data);
   }
   save(){
-    const previous=readJson(this.file),baseline=previous||defaults();
+    const previous=this.persistedData,baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
     const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
     for(const collection of collections){
@@ -137,6 +139,7 @@ export class Store{
     if(previous)fs.copyFileSync(this.file,this.backup);
     fs.writeFileSync(temp,JSON.stringify(this.data,null,2),{mode:0o600});
     fs.renameSync(temp,this.file);
+    this.persistedData=structuredClone(this.data);
     if(rejected.length){
       for(const item of rejected)this.logger.warn("Storage quota rejected a guild data increase:",item.guildId,item.currentBytes,"/",item.limit);
       throw new Error("Storage quota reached for one or more servers. Changes above the plan limit were discarded; remove saved content.");
