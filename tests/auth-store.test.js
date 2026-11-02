@@ -45,3 +45,20 @@ test("Kimi accounts, sessions and Discord links persist in local JSON files", ()
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("dashboard session and one-time link-code state stays bounded per account",()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-auth-bounds-"));
+  try{
+    const auth=new AuthStore(root);
+    const {account}=auth.createAccount({email:"limits@example.com",password:"a sufficiently long password"});
+    const tokens=Array.from({length:12},()=>auth.createSession(account.id));
+    assert.equal(Object.keys(auth.sessions).length,10);
+    assert.equal(auth.getSession(tokens[0]),null);
+    assert.ok(auth.getSession(tokens[tokens.length-1]));
+    const first=auth.createLinkCode(account.id);
+    const second=auth.createLinkCode(account.id);
+    assert.equal(auth.links[first.code],undefined);
+    assert.ok(auth.links[second.code]);
+    assert.equal(Object.keys(auth.links).filter(code=>auth.links[code].accountId===account.id).length,1);
+  }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
