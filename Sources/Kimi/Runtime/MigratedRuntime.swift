@@ -316,7 +316,10 @@ extension KimiRuntime {
     let tickets=await SupportTickets(store:store).all()
     guard let ticket=tickets.first(where:{$0.id==ticketID && $0.guildID==guild && $0.channelID==channel && $0.isOpen}) else{throw KimiError.configuration("This ticket control is no longer valid.")}
     let owner=try await rest.ownerID(guild)
-    guard ticket.userID==actorID || owner==actorID else{throw KimiError.configuration("Only the ticket opener or server owner can close this ticket.")}
+    let supportSettings=await SupportService(store:store,rest:rest,logger:logger).settings(guild)
+    let staffRoles=Set((member["roles"] as? [String]) ?? [])
+    let isStaff=supportSettings.supportRoleID.map{staffRoles.contains($0)} ?? false
+    guard ticket.userID==actorID || owner==actorID || isStaff else{throw KimiError.configuration("Only the ticket opener, support staff or server owner can close this ticket.")}
     let controls=[["type":1,"components":[["type":2,"style":4,"label":"Yes, close it","custom_id":"ticket:confirm-close:"+ticketID],["type":2,"style":2,"label":"Cancel","custom_id":"ticket:cancel-close"]]]] as [[String:Any]]
     _ = try await rest.call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":"Close this support ticket?","components":controls,"allowed_mentions":["parse":[]]])
    } else if custom.hasPrefix("ticket:confirm-close:") {
@@ -324,7 +327,10 @@ extension KimiRuntime {
     let tickets=await SupportTickets(store:store).all()
     guard let ticket=tickets.first(where:{$0.id==ticketID && $0.guildID==guild && $0.channelID==channel && $0.isOpen}) else{throw KimiError.configuration("This ticket is no longer open.")}
     let owner=try await rest.ownerID(guild)
-    guard ticket.userID==actorID || owner==actorID else{throw KimiError.configuration("Only the ticket opener or server owner can close this ticket.")}
+    let supportSettings=await SupportService(store:store,rest:rest,logger:logger).settings(guild)
+    let staffRoles=Set((member["roles"] as? [String]) ?? [])
+    let isStaff=supportSettings.supportRoleID.map{staffRoles.contains($0)} ?? false
+    guard ticket.userID==actorID || owner==actorID || isStaff else{throw KimiError.configuration("Only the ticket opener, support staff or server owner can close this ticket.")}
     let closed=try await SupportService(store:store,rest:rest,logger:logger).close(guild:guild,ticketID:ticketID)
     await AnalyticsService(store:store).record(guild:guild,event:"ticket_close")
     try await rest.editKimiInteraction(app,token,"Ticket closed. Transcript retained in Kimi storage. Channel: <#"+closed.channelID+">")
