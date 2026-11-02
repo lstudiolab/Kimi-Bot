@@ -82,14 +82,17 @@ extension KimiRuntime {
     reply=appName+(name=="install" ? " installed. Its commands are available in this server.":" removed. Saved settings were preserved.")
    case "setup":
     let owner=try await rest.ownerID(guild)
-    let categoryData=try await rest.call("POST","guilds/\(guild)/channels",body:["name":"kimi","type":4])
-    let category=(categoryData as? [String:Any])?["id"] as? String
     let me=try await rest.call("GET","users/@me")
     guard let bot=(me as? [String:Any])?["id"] as? String else { throw KimiError.invalidResponse }
-    let logs=try await rest.createPrivateTextChannel(guild,"kimi-logs",owner,bot,category)
-    let confirmations=try await rest.createPrivateTextChannel(guild,"kimi-confirmation",owner,bot,category)
-    let ticketData=try await rest.call("POST","guilds/\(guild)/channels",body:["name":"ticket","type":4])
-    let ticket=(ticketData as? [String:Any])?["id"] as? String ?? ""
+    let channels=try await rest.call("GET","guilds/\(guild)/channels") as? [[String:Any]] ?? []
+    func existing(_ name:String,_ type:Int)->String?{channels.first(where:{($0["name"] as? String)==name && ($0["type"] as? Int)==type})?["id"] as? String}
+    let category=existing("kimi",4) ?? (try await rest.createChannel(guild:guild,name:"kimi",type:4))
+    let ticket=existing("ticket",4) ?? (try await rest.createChannel(guild:guild,name:"ticket",type:4))
+    let logs=existing("kimi-logs",0) ?? (try await rest.createPrivateTextChannel(guild,"kimi-logs",owner,bot,category))
+    let confirmations=existing("kimi-confirmation",0) ?? (try await rest.createPrivateTextChannel(guild,"kimi-confirmation",owner,bot,category))
+    try await store.set(logs,key:"foundation.logs."+guild)
+    try await store.set(confirmations,key:"foundation.confirmations."+guild)
+    var policy=await ModerationEngine(store:store).policy(guildID:guild);policy.logChannelID=logs;try await ModerationEngine(store:store).configure(policy,guildID:guild)
     reply="Foundation setup complete.\nPrivate logs: <#"+logs+">\nPrivate confirmations: <#"+confirmations+">\nSupport category: <#"+ticket+">"
    case "plan":
     let stored=await store.get("apps.installed",as:[String:[String]].self) ?? [:]
