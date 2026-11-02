@@ -12,7 +12,7 @@ actor VerificationService {
  }
  func configure(_ value:Settings,guild:String)async throws{
   guard (0...3650).contains(value.minimumAgeDays) else{throw KimiError.configuration("Minimum account age must be between 0 and 3650 days.")}
-  try await store.set(value,key:"verification.settings."+guild)
+  try await store.setGuild(value,key:"verification.settings."+guild,guildID:guild)
  }
  func memberJoined(guild:String,userID:String,username:String)async{
   let value=await settings(guild);guard let channel=value.channelID else{return}
