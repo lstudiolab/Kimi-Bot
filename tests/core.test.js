@@ -98,8 +98,8 @@ test("legacy configuration files are imported without overwriting new data",()=>
 import { PluginManager } from "../src/plugin-manager.js";
 import { PLUGINS, normalizePluginName } from "../src/plugins/index.js";
 
-test("Kimi exposes three focused first-party plugins",()=>{
-  assert.deepEqual(Object.keys(PLUGINS),["Foundation","Kimi Lock","Support"]);
+test("Kimi exposes six focused first-party apps",()=>{
+  assert.deepEqual(Object.keys(PLUGINS),["Welcome","Auto Role","Role Picker","Embeds","Kimi Lock","Support"]);
   for(const plugin of Object.values(PLUGINS)){
     assert.equal(typeof plugin.create,"function");
     assert.ok(plugin.systems.length>0);
@@ -201,7 +201,7 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation publishes only its requested member systems",()=>{const names=pluginCommandsForPlugins(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+test("each Foundation replacement publishes only its own system commands",()=>{const expected={"Welcome":["setup","welcome"],"Auto Role":["autorole"],"Role Picker":["roles"],"Embeds":["embed-new","embed-edit","embed-post"]};for(const [app,commands] of Object.entries(expected)){const names=pluginCommandsForPlugins([app]).map(command=>command.name);assert.deepEqual(names,commands,app+" must publish only its own commands");}});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
@@ -265,7 +265,7 @@ test("compact commands are unique and route to their canonical plugins",()=>{
   const names=commandData.map(command=>command.name);
   assert.equal(new Set(names).size,names.length);
   for(const [name,plugin] of [
-    ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
+    ["welcome","Welcome"],["autorole","Auto Role"],["roles","Role Picker"],["embed-new","Embeds"],
     ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
     ["tickets","Support"],["ticket-panel","Support"],["ticket-config","Support"],
   ])assert.equal(pluginForCommand(name),plugin);
