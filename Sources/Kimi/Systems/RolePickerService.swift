@@ -15,11 +15,10 @@ actor RolePickerService {
   let highest=botRoles.map{$0["position"] as? Int ?? 0}.max() ?? 0
   let canManage=botRoles.contains{(UInt64($0["permissions"] as? String ?? "") ?? 0) & 268435464 != 0}
   guard canManage else{throw KimiError.configuration("Kimi needs Manage Roles permission to publish role menus.")}
-  let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
   let safe=roles.filter{item in
-   guard let id=item["id"] as? String,id != guild else{return false}
+   guard let id=item["id"] as? String else{return false}
    let permissions=UInt64(item["permissions"] as? String ?? "") ?? 0
-   return permissions & dangerous == 0 && item["managed"] as? Bool != true && (item["position"] as? Int ?? 0)<highest
+   return SecurityPolicy.isSafeRole(roleID:id,guildID:guild,managed:item["managed"] as? Bool ?? false,permissions:permissions) && (item["position"] as? Int ?? 0)<highest
   }.sorted{($0["position"] as? Int ?? 0)<($1["position"] as? Int ?? 0)}.suffix(25)
   let values=safe.compactMap{item->Role? in guard let id=item["id"] as? String else{return nil};return Role(id:id,name:item["name"] as? String ?? "Role")}
   guard !values.isEmpty else{throw KimiError.configuration("No safe assignable roles were found.")}
@@ -53,8 +52,7 @@ actor RolePickerService {
   for roleID in chosen{
    guard let role=roles.first(where:{($0["id"] as? String)==roleID}) else{throw KimiError.configuration("A selected role no longer exists.")}
    let permissions=UInt64(role["permissions"] as? String ?? "") ?? 0
-   let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
-   guard (role["position"] as? Int ?? 0)<highest,permissions & dangerous == 0,role["managed"] as? Bool != true else{throw KimiError.configuration("A selected role is no longer safe or assignable.")}
+   guard SecurityPolicy.isSafeRole(roleID:roleID,guildID:guild,managed:role["managed"] as? Bool ?? false,permissions:permissions),(role["position"] as? Int ?? 0)<highest else{throw KimiError.configuration("A selected role is no longer safe or assignable.")}
   }
   let key="rolepicker.selection."+guild+"."+user+"."+(menuID ?? "default")
   let previous=Set(await store.get(key,as:[String].self) ?? [])
