@@ -5,6 +5,6 @@ let package = Package(
  products: [.executable(name: "kimi", targets: ["Kimi"])],
  targets: [
   .executableTarget(name: "Kimi", path: "Sources/Kimi"),
-  .testTarget(name: "KimiTests", path: "Tests/KimiTests")
+  .testTarget(name: "KimiTests", dependencies: ["Kimi"], path: "Tests/KimiTests")
  ]
 )
