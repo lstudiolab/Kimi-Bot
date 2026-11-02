@@ -332,7 +332,7 @@ test("compact commands are unique and route to their canonical libraries",()=>{
   assert.equal(new Set(names).size,names.length);
   for(const [name,library] of [
     ["welcome","Foundation"],["autorole","Foundation"],["roles","Foundation"],["embed-new","Foundation"],
-    ["verify","Security"],["verify-config","Security"],["moderation","Security"],["filter","Security"],["security","Security"],
+    ["verify","Kimi Lock"],["verify-config","Kimi Lock"],["moderation","Kimi Lock"],["filter","Kimi Lock"],["security","Kimi Lock"],
     ["tickets","Support"],["ticket-panel","Support"],["ticket-config","Support"],
     ["script","Scratch"],["script-run","Scratch"],["scripts","Scratch"]
   ])assert.equal(libraryForCommand(name),library);
@@ -701,8 +701,8 @@ import { libraryForComponent } from "../src/component-routing.js";
 
 test("all persistent component prefixes route to their installed library",()=>{
   for(const [id,library] of [
-    ["ticket:close","Support"],["modpanel:enable","Security"],["botguard:yes:123","Security"],
-    ["verify:start","Security"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
+    ["ticket:close","Support"],["modpanel:enable","Kimi Lock"],["botguard:yes:123","Kimi Lock"],
+    ["verify:start","Kimi Lock"],["rolepicker:start","Foundation"],["embed:save","Foundation"],
     ["tbs:button:1","Scratch"],["tbm:open:1","Scratch"],["tbm-submit:form","Scratch"],
     ["developer:editor:new:test","Scratch"]
   ])assert.equal(libraryForComponent(id),library,id);

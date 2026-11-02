@@ -3,7 +3,7 @@ import { RolePicker } from "../../systems/role-picker.js";
 import { Embeds } from "../../systems/embeds.js";
 import { Foundation } from "../../systems/foundation.js";
 
-export function createFoundationLibrary({client,store,logger}){
+export function createFoundationLibrary({client,store,logger,services}){
   const verificationHelper=new Verification(client,store,logger);
   const rolePicker=new RolePicker(client,store,logger,verificationHelper);
   const embeds=new Embeds(client,store,logger);
@@ -24,6 +24,7 @@ export function createFoundationLibrary({client,store,logger}){
     async guildMemberRemove(member){await greet.memberRemove(member);},
     async ensureSetup(guild){return greet.ensureSetup(guild);},
     async refreshRolePickers(guild){await rolePicker.refresh(guild);},
-    async refreshVerification(guild){await verificationHelper.refresh(guild);}
+    async refreshVerification(guild){await verificationHelper.refresh(guild);},
+    diagnostics(guild){return services?.diagnoseGuild?.(guild,["ViewChannel","SendMessages","ManageRoles"])||{ok:true,missing:[]};}
   };
 }
