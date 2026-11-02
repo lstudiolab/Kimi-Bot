@@ -18,6 +18,10 @@ actor RecoveryService {
   while rows.count>2000 || rows.reduce(0,{$0+$1.content.utf8.count})>4*1024*1024{rows.removeFirst()}
   all[guild]=rows;try? await store.set(all,key:"recovery.messages")
  }
+ func savedMessage(_ guild:String,_ channel:String,_ message:String)async->Message?{
+  let rows=await store.get("recovery.messages",as:[String:[Message]].self) ?? [:]
+  return rows[guild]?.first(where:{$0.id==message && $0.channelID==channel})
+ }
  func deletedMessage(_ guild:String,_ channel:String,_ message:String)async->Message?{
   let rows=await store.get("recovery.messages",as:[String:[Message]].self) ?? [:]
   guard let found=rows[guild]?.first(where:{$0.id==message && $0.channelID==channel}) else{return nil}
