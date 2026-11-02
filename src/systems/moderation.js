@@ -8,8 +8,8 @@ export class Moderation {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.spam=new Map();this.warningRetention=30*86400000;this.processingJobs=new Set();this.jobTimers=new Map();}
   async resumeJobs(guild){
     const jobs=this.store.data.moderation_jobs[guild.id]||[];
-    for(const job of jobs)if(job.status!=="completed"&&job.status!=="cancelled")await this.processJob(guild,job);
-    if((this.store.data.moderation_jobs[guild.id]||[]).some(job=>job.status!=="completed"&&job.status!=="cancelled")&&!this.jobTimers.has(guild.id))this.scheduleJobs(guild);
+    for(const job of jobs)if(!["completed","cancelled","failed"].includes(job.status))await this.processJob(guild,job);
+    if((this.store.data.moderation_jobs[guild.id]||[]).some(job=>!["completed","cancelled","failed"].includes(job.status))&&!this.jobTimers.has(guild.id))this.scheduleJobs(guild);
   }
   scheduleJobs(guild,delay=30000){
     const existing=this.jobTimers.get(guild.id);if(existing)clearTimeout(existing);
@@ -20,7 +20,7 @@ export class Moderation {
     timer.unref?.();this.jobTimers.set(guild.id,timer);
   }
   async processJob(guild,job){
-    if(this.processingJobs.has(job.id)||job.status==="completed"||job.status==="cancelled")return;
+    if(this.processingJobs.has(job.id)||["completed","cancelled","failed"].includes(job.status))return;
     this.processingJobs.add(job.id);
     job.steps={deleted:false,sanction:false,logged:false,...(job.steps||{})};
     try{
@@ -88,14 +88,27 @@ export class Moderation {
       this.store.data.moderation_jobs[guild.id]=jobs.filter(v=>v.status!=="completed"||keep.has(v.id));
       this.store.save();
     }catch(error){
-      job.status="pending";job.attempts=(job.attempts||0)+1;job.last_error=String(error?.message||error).slice(0,500);job.updated_at=Date.now();
-      this.store.save();this.logger.error(`Moderation job ${job.id} failed; it will be retried:`,error);
-      this.scheduleJobs(guild,Math.min(300000,10000*2**Math.min(job.attempts,5)));
+      job.attempts=(job.attempts||0)+1;job.last_error=String(error?.message||error).slice(0,500);job.updated_at=Date.now();
+      if(job.attempts>=8){job.status="failed";job.failed_at=Date.now();this.logger.error(`Moderation job ${job.id} exhausted its retry budget. Manual review is required:`,error);}
+      else{job.status="pending";this.logger.error(`Moderation job ${job.id} failed; it will be retried:`,error);this.scheduleJobs(guild,Math.min(300000,10000*2**Math.min(job.attempts,5)));}
+      this.store.save();
     }finally{this.processingJobs.delete(job.id);}
   }
   async enqueueJob(guild,job){
-    this.store.data.moderation_jobs[guild.id]||=[];
-    this.store.data.moderation_jobs[guild.id].push(job);this.store.save();
+    const jobs=this.store.data.moderation_jobs[guild.id]||(this.store.data.moderation_jobs[guild.id]=[]);
+    const duplicate=jobs.find(item=>item?.id===job.id);
+    if(duplicate)return this.processJob(guild,duplicate);
+    const active=jobs.filter(item=>item&&!["completed","cancelled","failed"].includes(item.status));
+    if(active.length>=1000){
+      const oldest=active.find(item=>item.status!=="processing");
+      if(oldest){oldest.status="cancelled";oldest.cancel_reason="Replaced at the moderation queue safety limit";oldest.updated_at=Date.now();}
+      else{this.logger.error("Moderation queue is full of active jobs in guild "+guild.id+"; new sanction was not queued.");return;}
+    }
+    jobs.push(job);
+    const completed=jobs.filter(item=>item?.status==="completed").sort((a,b)=>(b.completed_at||0)-(a.completed_at||0));
+    const keep=new Set(completed.slice(0,200).map(item=>item.id));
+    this.store.data.moderation_jobs[guild.id]=jobs.filter(item=>item&&!["completed"].includes(item.status)||keep.has(item.id));
+    this.store.save();
     await this.processJob(guild,job);
   }
   text(x){return ["**Timi Moderation Settings**","",`**AutoMod and anti-spam:** ${x.enabled?"Active":"Inactive"}`,`**Sanction:** ${x.sanction}`,
