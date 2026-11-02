@@ -12,6 +12,8 @@ export function conditionMatches(condition,context){
   if(!condition||condition.type==="always")return true;
   if(condition.type==="account_age_under_days")return Number(context.accountAgeDays)<Number(condition.value);
   if(condition.type==="message_contains")return String(context.message?.content||"").toLowerCase().includes(String(condition.value||"").toLowerCase());
+  if(condition.type==="contains_invite")return /(?:discord\\.gg\\/|discord(?:app)?\\.com\\/invite\\/)/i.test(String(context.message?.content||""));
+  if(condition.type==="contains_invite")return /(?:discord\\.gg\\/|discord(?:app)?\\.com\\/invite\\/)/i.test(String(context.message?.content||""));
   return false;
 }
 
@@ -80,6 +82,7 @@ export class AutomationEngine{
     return i.editReply({embeds:[embed("Review Automation",`**${d.name}**\nWhen: ${d.trigger.replaceAll("_"," ")}\nCondition: ${d.condition.type==="always"?"Every time":d.condition.label}\n\n**Actions**\n${actions}\n\nAdd more actions or finish to activate this automation.`)],components:[row(button("automation:add-action","Add Action",ButtonStyle.Primary),button("automation:finish","Finish"))]});
   }
   async handleInteraction(i){
+    if(!i.guild||i.guild.ownerId!==i.user.id){const payload={content:"Only this server owner can manage automations.",embeds:[],components:[]};if(i.deferred||i.replied)return i.editReply(payload);return i.reply({...payload,ephemeral:true});}
     if(i.isChatInputCommand()&&i.commandName==="automations")return this.dashboard(i);
     const id=i.customId||"";
     if(id==="automation:help")return i.editReply({embeds:[embed("How Automations Work","**Trigger** — an event such as a member joining.\n**Condition** — an optional rule that must match.\n**Action** — something Kimi does, such as sending a message or assigning a role.\n\nAutomations run in order. Kimi checks permissions and validates each action before execution.")],components:[row(button("automation:new","Create Automation"),button("automation:home","Back"))]});
@@ -94,7 +97,7 @@ export class AutomationEngine{
     if(id==="automation:condition"&&i.isStringSelectMenu()){
       const d=this.drafts.get(key(i.guildId,i.user.id));if(!d)return this.dashboard(i);
       const value=i.values[0];
-      d.condition=value==="age7"?{type:"account_age_under_days",value:7,label:"Account younger than 7 days"}:value==="age30"?{type:"account_age_under_days",value:30,label:"Account younger than 30 days"}:value==="invite"?{type:"message_contains",value:"discord.gg/",label:"Message contains a Discord invite"}:{type:"always",label:"Every time"};
+      d.condition=value==="age7"?{type:"account_age_under_days",value:7,label:"Account younger than 7 days"}:value==="age30"?{type:"account_age_under_days",value:30,label:"Account younger than 30 days"}:value==="invite"?{type:"contains_invite",value:"",label:"Message contains a Discord invite"}:{type:"always",label:"Every time"};
       return this.actionPicker(i);
     }
     if(id==="automation:action"&&i.isStringSelectMenu())return this.actionModal(i,i.values[0]);
