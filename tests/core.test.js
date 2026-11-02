@@ -674,3 +674,15 @@ test("member security records remain bounded under join floods",()=>{
     assert.equal(store.member("guild","223456789012345678").joins,0);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test("malformed member counters and verification history are repaired",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-member-sanitize-"));
+  try{
+    const store=new Store(dir,quiet);
+    store.data.members["guild:user"]={joins:"many",leaves:-1,failed:NaN,suspicious:{},last_join:"yesterday",attempts:"invalid",last_reason:42};
+    const record=store.member("guild","user");
+    for(const field of ["joins","leaves","failed","suspicious","last_join"])assert.equal(record[field],0);
+    assert.deepEqual(record.attempts,[]);
+    assert.equal(record.last_reason,"");
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
