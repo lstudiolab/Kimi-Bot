@@ -427,10 +427,11 @@ extension KimiRuntime {
    guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Kimi Lock"){
-    let before=await store.get("moderation.member-snapshot."+guild+"."+user,as:[String:AnyCodable].self)
+    let key="moderation.member-snapshot."+guild+"."+user
+    let previous=Set(await store.get(key,as:[String].self) ?? [])
     let roles=data["roles"] as? [String] ?? []
-    try? await store.set(roles,key:"moderation.member-snapshot."+guild+"."+user)
-    if let before,let previous=before.values as? [String],Set(previous) != Set(roles){await logger.log("INFO","Member role update recorded for "+user+" in guild "+guild)}
+    try? await store.set(roles,key:key)
+    if previous != Set(roles){await logger.log("INFO","Member role update recorded for "+user+" in guild "+guild)}
    }
   case "GUILD_BAN_ADD","GUILD_BAN_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
