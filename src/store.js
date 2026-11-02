@@ -103,7 +103,7 @@ export class Store{
     let changed=migrateLegacy(this.data,dataDir);
     if(this.data.installed_libraries){for(const [guild,plugins] of Object.entries(this.data.installed_libraries)){this.data.installed_plugins[guild]||=plugins;}delete this.data.installed_libraries;changed=true;}
     for(const [guild,installed] of Object.entries(this.data.installed_plugins||{})){
-      const migrated=[...new Set((installed||[]).flatMap(name=>name==="Foundation"?["Welcome","Roles","Embeds"]:["Moderation","Security","Shield"].includes(name)?["Kimi Lock"]:name==="Core"?["Welcome","Roles","Embeds"]:[name]).filter(name=>["Welcome","Roles","Embeds","Kimi Lock","Support"].includes(name)))];
+      const migrated=[...new Set((installed||[]).flatMap(name=>name==="Foundation"?["Welcome","Auto Role","Role Picker","Embeds"]:["Moderation","Security","Shield"].includes(name)?["Kimi Lock"]:name==="Core"?["Welcome","Auto Role","Role Picker","Embeds"]:[name]).filter(name=>["Welcome","Auto Role","Role Picker","Embeds","Kimi Lock","Support"].includes(name)))];
       if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_plugins[guild]=migrated;changed=true;}
     }
     for(const key of ["developer_projects","developer_history","developer_redo","developer_active","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
