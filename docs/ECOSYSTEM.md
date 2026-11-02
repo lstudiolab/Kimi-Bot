@@ -16,7 +16,7 @@ Kimi Guard uses independent per-server token buckets for member activity, third-
 
 - Members receive 10 action tokens. Each message or Discord interaction consumes one token; one token returns every 2 seconds, up to the 10-token capacity.
 - Other bots receive a separate 10-token bucket. A bot message consumes one token. Regeneration starts only after that bot has been quiet for 2 seconds; continued activity keeps moving the quiet window.
-- When a member's interaction bucket is empty, Kimi rejects the interaction with an ephemeral cooldown notice. Ordinary messages that exceed the member bucket are deleted because Discord does not support ephemeral replies to normal messages.
+- When a member exhausts all 10 tokens, Kimi locks their actions until the full 10-token bucket has regenerated (up to 20 seconds from an empty bucket). Interactions receive an ephemeral cooldown notice. Ordinary messages that exceed the member bucket are deleted because Discord does not support ephemeral replies to normal messages.
 - When a third-party bot exhausts its bucket, Kimi records an incident, removes roles it can safely manage, and attempts a 28-day timeout. Discord may reject timeouts for bot accounts, so role removal is the primary restriction.
 - Only the server owner can use `/guard-review` to restore the bot's saved roles or keep it restricted. Kimi cannot review or restrict its own account.
 - Kimi's own automation triggers use the bot-style quiet-window bucket. Critical Kimi Lock security and recovery handlers are not paused by automation backpressure.
