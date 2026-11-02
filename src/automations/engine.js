@@ -34,7 +34,7 @@ function safeTemplate(template,context){
 
 export class AutomationEngine{
   constructor({client,store,logger,services}){this.client=client;this.store=store;this.logger=logger;this.services=services;this.drafts=new Map();this.running=new Set();}
-  list(guildId){return this.store.data.automations?.[guildId]||[];}
+  list(guildId){const value=this.store.data.automations?.[guildId];return Array.isArray(value)?value.filter(item=>item&&typeof item==="object"):[];}
   async dashboard(i,selectedId=""){
     const items=this.list(i.guildId);
     const lines=items.length?items.slice(0,25).map((a,n)=>`**${n+1}. ${a.name}** — ${a.enabled?"On":"Off"}\nWhen ${String(a.trigger).replaceAll("_"," ")} · ${a.actions.length} step(s)`).join("\n\n"):"No automations yet. Build a flow from a trigger, optional conditions and ordered actions.";
@@ -204,7 +204,7 @@ export class AutomationEngine{
     if(id.startsWith("automation:select")&&i.isStringSelectMenu())return this.dashboard(i,i.values[0]);
   }
   async run(guild,trigger,context,eventId){
-    const jobs=this.list(guild.id).filter(a=>a.enabled&&a.trigger===trigger&&conditionMatches(a.condition,context));
+    const jobs=this.list(guild.id).filter(a=>a.enabled===true&&a.trigger===trigger&&Array.isArray(a.actions)&&a.actions.length<=MAX_ACTIONS&&conditionMatches(a.condition,context));
     const queued=[];
     for(const automation of jobs){
       const runKey=automation.id+":"+eventId;if(this.running.has(runKey))continue;this.running.add(runKey);
@@ -213,6 +213,7 @@ export class AutomationEngine{
         try{
           for(const action of automation.actions){
             try{
+              if(!action||typeof action!=="object"||!["send_message","assign_role","remove_role","timeout_member","delete_message"].includes(action.type))throw new Error("Unknown or malformed saved automation action.");
               if(action.type==="send_message"){
                 const channel=await guild.channels.fetch(action.channel_id).catch(()=>null);if(channel?.type!==ChannelType.GuildText)continue;
                 const member=context.member,user=member?.user,content=safeTemplate(action.message,{...context,guild});
@@ -232,7 +233,7 @@ export class AutomationEngine{
                 const bot=await guild.members.fetchMe();if(!bot.permissions.has(PermissionFlagsBits.ManageMessages))throw new Error("Missing Manage Messages permission.");
                 await context.message.delete();
               }
-            }catch(error){failedSteps++;this.logger.error("Automation step failed ("+automation.id+", "+action.type+"):",error);}
+            }catch(error){failedSteps++;this.logger.error("Automation step failed ("+automation.id+", "+(action?.type||"invalid")+"):",error);}
           }
         }finally{this.running.delete(runKey);}
         return {failedSteps};
