@@ -109,7 +109,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
     const discordId = link?.linkedBy;
     if (!discordId) return null;
     if (guild.ownerId === discordId) return { owner: true, canManage: true, linkedBy: discordId };
-    const member = guild.members.cache.get(discordId) || await guild.members.fetch(discordId).catch(() => null);
+    const member = await guild.members.fetch({ user: discordId, force: true }).catch(() => null);
     if (!member) return null;
     const bits = member.permissions.bitfield;
     const canManage = (bits & 0x8n) === 0x8n || (bits & 0x20n) === 0x20n;
