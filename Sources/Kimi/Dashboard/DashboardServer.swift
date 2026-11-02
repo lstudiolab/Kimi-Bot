@@ -100,7 +100,8 @@ final class DashboardServer:@unchecked Sendable {
  }
  private func readRequest(_ fd:Int32)->Request?{
   var bytes=[UInt8](repeating:0,count:65536)
-  let count=bytes.withUnsafeMutableBytes{recv(fd,$0.baseAddress,bytes.count,0)}
+  let capacity=bytes.count
+  let count=bytes.withUnsafeMutableBytes{buffer in recv(fd,buffer.baseAddress,capacity,0)}
   guard count>0 else{return nil}
   let raw=String(decoding:bytes.prefix(count),as:UTF8.self)
   let parts=raw.components(separatedBy:"\r\n\r\n")
@@ -122,7 +123,7 @@ final class DashboardServer:@unchecked Sendable {
  }
  private func completeOAuth(fd:Int32,query:[String:String])async{
   guard let code=query["code"],let state=query["state"] else{redirect(fd,"/login");return}
-  lock.lock();let expiry=states.removeValue(forKey:state);lock.unlock()
+  let expiry=consumeState(state)
   guard let expiry,expiry>Date() else{write(fd,400,page("Sign-in expired","Return to Kimi and try again."),"text/html");return}
   do{
    var request=URLRequest(url:URL(string:"https://discord.com/api/v10/oauth2/token")!)
@@ -136,7 +137,7 @@ final class DashboardServer:@unchecked Sendable {
    let sessionToken=UUID().uuidString.replacingOccurrences(of:"-",with:"")+UUID().uuidString.replacingOccurrences(of:"-",with:"")
    let csrf=UUID().uuidString
    let expires=Date().addingTimeInterval(7*86400)
-   lock.lock();sessions[sessionToken]=Session(user:user,accessToken:access,expiresAt:expires,csrf:csrf,guilds:guilds);lock.unlock()
+   saveSession(sessionToken,Session(user:user,accessToken:access,expiresAt:expires,csrf:csrf,guilds:guilds))
    let secure=config.oauthRedirectURI.hasPrefix("https://") ? "; Secure":""
    write(fd,303,"","text/plain",["Location":"/","Set-Cookie":"kimi_session="+sessionToken+"; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"+secure])
   }catch{write(fd,400,page("Discord sign-in failed",error.localizedDescription),"text/html")}
@@ -178,6 +179,8 @@ final class DashboardServer:@unchecked Sendable {
  private func botIsPresent(_ guild:String)async->Bool{
   do{_ = try await rest.call("GET","guilds/"+guild);return true}catch{return false}
  }
+ private func consumeState(_ state:String)->Date?{lock.lock();defer{lock.unlock()};return states.removeValue(forKey:state)}
+ private func saveSession(_ token:String,_ session:Session){lock.lock();sessions[token]=session;lock.unlock()}
  private func getSession(_ token:String)->Session?{
   lock.lock();defer{lock.unlock()}
   guard let value=sessions[token],value.expiresAt>Date() else{sessions.removeValue(forKey:token);return nil}
