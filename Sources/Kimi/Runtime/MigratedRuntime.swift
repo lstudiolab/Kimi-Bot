@@ -298,9 +298,11 @@ extension KimiRuntime {
      _ = try await rest.call("DELETE","guilds/"+guild+"/members/"+target)
      try await rest.editKimiInteraction(app,token,"Bot rejected and removed from the server. The incident remains documented.")
     } else { throw KimiError.configuration("Unknown bot approval decision.") }
-   } else if custom=="rolepicker:select" {
+   } else if custom.hasPrefix("rolepicker:select") {
     let selected=data["values"] as? [String] ?? []
-    let count=try await RolePickerService(store:store,rest:rest,logger:logger).select(guild:guild,user:actorID,selected:selected)
+    let parts=custom.split(separator:":").map(String.init)
+    let menuID=parts.count>2 ? parts[2]:nil
+    let count=try await RolePickerService(store:store,rest:rest,logger:logger).select(guild:guild,user:actorID,selected:selected,menuID:menuID)
     try await rest.editKimiInteraction(app,token,"Your role selection was updated. Active roles: "+String(count)+".")
    } else {
     try await rest.editKimiInteraction(app,token,"This Kimi control is unknown or expired. Reopen the panel to get a current control.")
