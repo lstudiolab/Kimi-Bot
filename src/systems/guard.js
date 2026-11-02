@@ -14,11 +14,11 @@ export class GuardRateLimiter{
   consume(guildId,actorId,kind="user",now=Date.now()){
     const state=this.bucket(guildId,actorId,kind);
     if(kind==="bot"){
-      const refillStart=Math.max(state.updated_at||now,(state.last_activity||0)+TOKEN_REFILL_MS);
-      if(now>=refillStart+TOKEN_REFILL_MS){
-        const gained=Math.floor((now-refillStart)/TOKEN_REFILL_MS);
+      const refillStart=(state.last_activity||0)+TOKEN_REFILL_MS;
+      if((state.last_activity||0)>0&&now>=refillStart){
+        const gained=1+Math.floor((now-refillStart)/TOKEN_REFILL_MS);
         state.tokens=Math.min(TOKEN_CAPACITY,(state.tokens??TOKEN_CAPACITY)+gained);
-        state.updated_at=refillStart+gained*TOKEN_REFILL_MS;
+        state.updated_at=refillStart+(gained-1)*TOKEN_REFILL_MS;
       }
       state.last_activity=now;
     }else{
