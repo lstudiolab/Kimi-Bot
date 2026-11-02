@@ -4,7 +4,8 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Welcome app (legacy alias).").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-welcome").setDescription("Configure the Welcome app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-roles").setDescription("Configure the Roles app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-roles").setDescription("Configure the Role Picker app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-auto-role").setDescription("Configure the Auto Role app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-embeds").setDescription("Configure the Embeds app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure Kimi Lock.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Support.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
@@ -49,7 +50,7 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-welcome","configure-roles","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
+  Core:["kimi","configure-foundation","configure-welcome","configure-roles","configure-auto-role","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
   Welcome:["setup","welcome"],
   "Auto Role":["autorole"],
   "Role Picker":["roles"],
