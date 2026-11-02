@@ -6,11 +6,12 @@ const P=PermissionFlagsBits;
 export class Protection {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();this.activeRaids=new Map();}
   async document(guild,{type,actorId="",targetId="",reason="",action="",result="",details=""}){
+    this.store.data ||= {};this.store.data.security_events ||= {};
     const now=Date.now(),events=this.store.data.security_events[guild.id]||(this.store.data.security_events[guild.id]=[]);
     const event={id:String(now)+"-"+Math.random().toString(36).slice(2,8),at:now,type:String(type||"security").slice(0,60),
       actor_id:String(actorId||"").slice(0,24),target_id:String(targetId||"").slice(0,24),reason:String(reason||"").slice(0,500),
       action:String(action||"").slice(0,200),result:String(result||"").slice(0,500),details:String(details||"").slice(0,700)};
-    events.push(event);if(events.length>300)events.splice(0,events.length-300);this.store.queueSave();
+    events.push(event);if(events.length>300)events.splice(0,events.length-300);this.store.queueSave?.();
     const lines=["**Kimi Security Record**","Event: "+event.type,"Time: <t:"+Math.floor(now/1000)+":F>",
       event.actor_id?"Actor: <@"+event.actor_id+">":null,event.target_id?"Target: <@"+event.target_id+">":null,
       event.reason?"Reason: "+event.reason:null,event.action?"Action: "+event.action:null,
