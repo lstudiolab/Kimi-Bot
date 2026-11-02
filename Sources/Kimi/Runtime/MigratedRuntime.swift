@@ -482,12 +482,15 @@ extension KimiRuntime {
    await AnalyticsService(store:store).record(guild:guild,event:"message")
    await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:content)
    let installed=await AppManager(store:store).installed(guildID:guild)
-   guard installed.contains("Kimi Lock") else{return}
+   let recoveryEnabled=await migratedModuleEnabled("recovery",guild:guild)
+   let moderationEnabled=await migratedModuleEnabled("moderation",guild:guild)
+   guard installed.contains("Kimi Lock"),recoveryEnabled || moderationEnabled else{return}
    let recovery=RecoveryService(store:store,logger:logger,rest:rest)
    let attachments=data["attachments"] as? [[String:Any]] ?? []
    let attachmentURLs=attachments.compactMap{$0["url"] as? String}
-   await recovery.captureMessage(guild,channel,message,user,content,attachments:attachmentURLs)
-   await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)
+   if recoveryEnabled{await recovery.captureMessage(guild,channel,message,user,content,attachments:attachmentURLs)}
+   if moderationEnabled{await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)}
+   guard moderationEnabled else{return}
    let owner=(try? await rest.ownerID(guild)) ?? ""
    let member=data["member"] as? [String:Any] ?? [:]
    let memberRoles=Set(member["roles"] as? [String] ?? [])
