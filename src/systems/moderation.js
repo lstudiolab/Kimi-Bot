@@ -255,13 +255,20 @@ export class Moderation {
     this.spam.delete(key);
     const record=this.store.member(guild.id,message.author.id);record.suspicious++;record.last_suspicious=Date.now();record.last_reason=reason;
     const warning=await this.warn(guild.id,message.author.id,reason);
-    let actionResult="messages deleted";
-    if(x.sanction==="timeout")actionResult=`timed out for ${x.timeout_minutes} minute(s)`;
-    else if(x.sanction==="kick")actionResult="kicked";
-    else if(x.sanction==="ban")actionResult="banned";
+    const recentWarnings=(this.store.data.moderation_cases[guild.id]||[]).filter(item=>
+      item.type==="warning"&&item.user_id===message.author.id&&Date.now()-(item.created_at||0)<=this.warningRetention);
+    const strike=recentWarnings.length;
+    let action=x.sanction,timeoutMinutes=x.timeout_minutes,actionResult="messages deleted";
+    if(strike>=2){
+      if(strike===2){action="timeout";timeoutMinutes=Math.max(5,Number(x.timeout_minutes)||5);actionResult=`timed out for ${timeoutMinutes} minute(s) (repeat violation)`;}
+      else if(strike===3){action="timeout";timeoutMinutes=60;actionResult="timed out for 60 minutes (continued violations)";}
+      else{action="kick";actionResult="kicked after repeated violations";}
+    }else if(action==="timeout")actionResult=`timed out for ${timeoutMinutes} minute(s)`;
+    else if(action==="kick")actionResult="kicked";
+    else if(action==="ban")actionResult="banned";
     const job={id:`automod:${guild.id}:${message.id}`,type:"automod-sanction",status:"pending",
       guild_id:guild.id,user_id:message.author.id,channel_id:message.channelId,message_ids:window.map(v=>v.id),
-      reason,warning_id:warning,action:x.sanction,action_result:actionResult,timeout_minutes:x.timeout_minutes,
+      reason:`${reason}; automatic escalation strike ${strike}/4`,warning_id:warning,action,action_result:actionResult,timeout_minutes:timeoutMinutes,
       action_duration_seconds:x.action_duration_seconds,steps:{deleted:false,sanction:false,logged:false},
       attempts:0,created_at:Date.now(),updated_at:Date.now()};
     await this.enqueueJob(guild,job);
