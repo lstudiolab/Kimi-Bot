@@ -2,7 +2,7 @@ export const TOKEN_CAPACITY=10;
 export const TOKEN_REFILL_MS=2000;
 
 export class GuardRateLimiter{
-  constructor(store){this.store=store;this.store.data.guard_state||={};this.lastPrune=new Map();this.bucketCounts=new Map();}
+  constructor(store){this.store=store;if(!this.store.data.guard_state||typeof this.store.data.guard_state!=="object"||Array.isArray(this.store.data.guard_state))this.store.data.guard_state={};this.lastPrune=new Map();this.bucketCounts=new Map();}
   bucket(guildId,actorId,kind,now=Date.now()){
     let guild=this.store.data.guard_state[guildId];
     if(!guild||typeof guild!=="object"||Array.isArray(guild))guild=this.store.data.guard_state[guildId]={users:{},bots:{},incidents:{}};
