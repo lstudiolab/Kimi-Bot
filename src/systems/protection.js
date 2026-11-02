@@ -5,6 +5,20 @@ import { button, row, greyEmbed } from "../ui.js";
 const P=PermissionFlagsBits;
 export class Protection {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.joins=new Map();this.lastAlert=new Map();this.nukeEvents=new Map();this.activeRaids=new Map();}
+  async document(guild,{type,actorId="",targetId="",reason="",action="",result="",details=""}){
+    const now=Date.now(),events=this.store.data.security_events[guild.id]||(this.store.data.security_events[guild.id]=[]);
+    const event={id:String(now)+"-"+Math.random().toString(36).slice(2,8),at:now,type:String(type||"security").slice(0,60),
+      actor_id:String(actorId||"").slice(0,24),target_id:String(targetId||"").slice(0,24),reason:String(reason||"").slice(0,500),
+      action:String(action||"").slice(0,200),result:String(result||"").slice(0,500),details:String(details||"").slice(0,700)};
+    events.push(event);if(events.length>300)events.splice(0,events.length-300);this.store.queueSave();
+    const lines=["**Kimi Security Record**","Event: "+event.type,"Time: <t:"+Math.floor(now/1000)+":F>",
+      event.actor_id?"Actor: <@"+event.actor_id+">":null,event.target_id?"Target: <@"+event.target_id+">":null,
+      event.reason?"Reason: "+event.reason:null,event.action?"Action: "+event.action:null,
+      event.result?"Result: "+event.result:null,event.details?"Details: "+event.details:null,"Record ID: "+event.id].filter(Boolean);
+    try{const channel=await this.privateChannel(guild);await channel.send({content:lines.join("\n"),allowedMentions:{parse:[]}});}
+    catch(error){this.logger.warn("Kimi could not publish a security record for "+guild.id+":",error.message);}
+    return event;
+  }
   async privateChannel(guild){
     const bot=await guild.members.fetchMe();
     const setup=this.store.data.timi_setup?.[guild.id]||{};
@@ -65,6 +79,7 @@ export class Protection {
           ? "Restrictions applied in "+result.restricted+" of "+result.total+" channels. "+result.failed+" channel(s) could not be restricted; review those channels manually before approving."
           : "Temporary restrictions applied to "+result.restricted+" channel(s). Review this request before approving the bot.";
       await msg.edit({embeds:[greyEmbed(administratorBypass?"Administrator access bypass detected":result.failed?"Bot access review required":"Bot approval required",`Bot: <@${member.id}> (${member.user.username})\n\n${status}`)]});
+      await this.document(guild,{type:"bot-join-containment",actorId:member.id,targetId:member.id,reason:"New bot joined and was placed into temporary access review",action:"Restrict channel access",result:status,details:"Restricted "+result.restricted+"/"+result.total+" channels; "+result.failed+" failures; Administrator bypass: "+administratorBypass});
     }catch(error){
       this.logger.error("Could not apply temporary bot restrictions:",error);
       await msg.edit({embeds:[greyEmbed("Bot joined — restriction failed",`Bot: <@${member.id}> (${member.user.username})\n\nThe bot is in the server, but Timi could not apply the channel restrictions. Review its access manually.`)]}).catch(()=>{});
@@ -120,6 +135,7 @@ export class Protection {
       }
       const result=await this.containRaid(guild,cohort,log,"8 or more member joins within 10 seconds");
       await log.send({content:`AUTOMATIC RAID CONTAINMENT ACTIVATED. ${recent.length} members joined within 10 seconds. Timi temporarily timed out ${result.timedOut} recent non-administrator members for 10 minutes. ${result.skipped} owner, administrator, or bot accounts were excluded; ${result.failed} actions failed. New arrivals will be contained for 60 seconds. Review the member list and audit log; remove false positives manually.`});
+      await this.document(guild,{type:"raid-containment",reason:"Eight or more joins within ten seconds",action:"Activate 60-second join lockdown and apply 10-minute timeouts",result:result.timedOut+" timed out; "+result.skipped+" excluded; "+result.failed+" failed",details:"Detected cohort: "+recent.length});
       return;
     }
     if(recent.length>=6&&now-(this.lastAlert.get(guild.id)||0)>=60000){
@@ -149,6 +165,7 @@ export class Protection {
       ].filter(([flag])=>granted.includes(flag)).map(([,name])=>name);
       const log=await this.privateChannel(guild);
       await log.send({content:`PRIVILEGE ESCALATION ALERT: <@${actorId}> changed role **${role.name}** and newly granted: ${names.join(", ")}. Review the role's members and audit history immediately. Timi did not automatically revert the role because that could remove legitimate access.`,allowedMentions:{users:[actorId]}});
+      await this.document(guild,{type:"privilege-escalation",actorId,targetId:role.id,reason:"Sensitive permissions were added to a role",action:"Record and alert; do not automatically revoke a potentially legitimate role change",result:"No automatic rollback performed",details:"Role: "+role.name+"; newly granted: "+names.join(", ")});
       return true;
     }
     if(entry.action===25){
@@ -226,6 +243,7 @@ export class Protection {
     const actionNames={12:"channel deletion",22:"member ban",32:"role deletion",50:"webhook creation",52:"webhook deletion",92:"automated integration change",13:"channel permission creation",14:"channel permission change",15:"channel permission deletion",25:"member role change",31:"role permission change",51:"webhook update"};
     const summary=[...new Set(events.map(event=>actionNames[event.action]||"sensitive server change"))].join(", ");
     await log.send({content:"Anti-nuke alert: <@"+actorId+"> performed "+events.length+" sensitive actions within 10 seconds ("+summary+"). "+action+". Timi applied containment where possible. Review the audit log and restore affected resources.",allowedMentions:{users:[actorId]}});
+    await this.document(guild,{type:"anti-nuke-containment",actorId,reason:"Destructive audit activity: "+summary,action:"60-minute timeout and dangerous-role removal where possible",result:action,details:events.length+" sensitive actions in ten seconds; removed roles: "+(containment.rolesRemoved.join(", ")||"none")+"; failures: "+(containment.failures.join("; ")||"none")});
   }
   async scan(guild){
     const risks=[],good=[];
