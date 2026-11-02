@@ -20,8 +20,8 @@ enum ComponentRouter {
   if id.hasPrefix("verify:approve:"){return .verifyApprove(String(id.dropFirst(15)))}
   if id.hasPrefix("verify:reject:"){return .verifyReject(String(id.dropFirst(14)))}
   if id=="rolepicker:select"{return .roleSelect}
-  if id.hasPrefix("botguard:yes:"){return .botApprove(String(id.dropFirst(12)))}
-  if id.hasPrefix("botguard:no:"){return .botReject(String(id.dropFirst(11)))}
+  if id.hasPrefix("botguard:yes:"){return .botApprove(String(id.dropFirst(13)))}
+  if id.hasPrefix("botguard:no:"){return .botReject(String(id.dropFirst(12)))}
   if id.hasPrefix("settings:"){return .settings(String(id.dropFirst(9)))}
   return .unknown
  }
