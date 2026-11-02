@@ -26,6 +26,9 @@ extension DiscordREST {
  func editKimiInteraction(_ app:String,_ token:String,_ content:String) async throws {
   _ = try await call("PATCH","webhooks/\(app)/\(token)/messages/@original",body:["content":String(content.prefix(1900)),"allowed_mentions":["parse":[]]])
  }
+ func editKimiInteraction(_ app:String,_ token:String,_ content:String,_ components:[[String:Any]]) async throws {
+  _ = try await call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":String(content.prefix(1900)),"components":components,"allowed_mentions":["parse":[]]])
+ }
  func deleteKimiMessage(_ channel:String,_ message:String) async throws {
   _ = try await call("DELETE","channels/\(channel)/messages/\(message)")
  }
@@ -57,11 +60,13 @@ extension KimiRuntime {
   do { try await rest.deferKimiInteraction(id,token) }
   catch { await logger.log("WARN","Interaction acknowledgement failed: "+error.localizedDescription);return true }
   var reply="Command completed."
+  var responseComponents:[[String:Any]]=[]
   do {
    switch name {
    case "kimi":
     let installed=await AppManager(store:store).installed(guildID:guild)
     reply="Kimi server control centre\nInstalled apps: "+(installed.isEmpty ? "None":installed.joined(separator:", "))
+    responseComponents=[KimiUI.row([KimiUI.button(id:"settings:apps",label:"App Store"),KimiUI.button(id:"settings:status",label:"System Status")]),KimiUI.row([KimiUI.button(id:"settings:preferences",label:"Preferences"),KimiUI.button(id:"settings:activity",label:"Activity")])]
    case "apps","app-store":
     let installed=await AppManager(store:store).installed(guildID:guild)
     reply="Kimi Apps\n"+CommandCatalog.appNames().map{ $0+" — "+(installed.contains($0) ? "Installed":"Available") }.joined(separator:"\n")+"\n\nUse /install to add an app."
@@ -214,8 +219,10 @@ extension KimiRuntime {
    default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
    }
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
-  do { try await rest.editKimiInteraction(app,token,reply) }
-  catch { await logger.log("ERROR","Interaction response update failed: "+error.localizedDescription) }
+  do {
+   if responseComponents.isEmpty{try await rest.editKimiInteraction(app,token,reply)}
+   else{try await rest.editKimiInteraction(app,token,reply,responseComponents)}
+  } catch { await logger.log("ERROR","Interaction response update failed: "+error.localizedDescription) }
   await AnalyticsService(store:store).record(guild:guild,event:"command")
   await performance.record(name,duration:Date().timeIntervalSince(started),success:!reply.hasPrefix("Kimi could not"))
   return true
