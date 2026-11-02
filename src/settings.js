@@ -47,7 +47,7 @@ export class KimiSettings {
       return i.editReply({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
         row(button("settings:modules",tr("modules")),button("settings:install",tr("install")),button("settings:uninstall",tr("uninstall"))),
         row(button("settings:language",tr("language")),button("settings:status",tr("status")),button("settings:permissions",tr("permissions"))),
-        row(button("settings:advanced",tr("advanced")))
+        row(button("settings:appearance","Appearance"),button("settings:advanced",tr("advanced")))
       ]});
     }
     if(page==="library"){
@@ -127,6 +127,13 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(page==="permissions"){
       return i.editReply({embeds:[embed(tr("permissions"),"Only this server's owner can open or change Kimi Settings. Other administrators cannot modify these settings.")],components:[row(button("settings:home","Back"))]});
     }
+    if(page==="appearance"){
+      const appearance=this.store.data.customizations?.[id]||{};
+      const color=typeof appearance.accent_color==="string"&&/^#[0-9A-F]{6}$/i.test(appearance.accent_color)?appearance.accent_color:"#808080";
+      const style=["Primary","Secondary","Success","Danger"].includes(appearance.button_style)?appearance.button_style:"Secondary";
+      const styleMenu=new StringSelectMenuBuilder().setCustomId("settings:appearance-style").setPlaceholder("Choose a button style").addOptions(["Primary","Secondary","Success","Danger"].map(value=>({label:value,value,default:value===style})));
+      return i.editReply({embeds:[new EmbedBuilder().setColor(Number.parseInt(color.slice(1),16)).setTitle("Appearance").setDescription("**Accent color:** `"+color+"`\n**Button style:** "+style+"\n\nChoose the visual style Kimi should use for its panels and controls. These preferences are saved for this server.")],components:[row(button("settings:appearance-color","Change Accent Color")),row(styleMenu),row(button("settings:home","Back"))]});
+    }
     if(page==="advanced"){
       return i.editReply({embeds:[embed(tr("advanced"),"Configuration reset and backup controls are reserved for a later safe implementation. No server data is changed from this page.")],components:[row(button("settings:home","Back"))]});
     }
@@ -135,6 +142,13 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(!i.inGuild())return i.editReply({content:"Use Kimi Settings inside a server.",embeds:[],components:[]});
     if(!hasAccess(i))return i.editReply({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
     const id=i.customId||"";
+    if(i.isModalSubmit()&&id==="settings:appearance-color-modal"){
+      const color=i.fields.getTextInputValue("accent-color").trim();
+      if(!/^#?[0-9A-Fa-f]{6}$/.test(color))return i.editReply({content:"Enter a valid six-digit hexadecimal color, such as #5865F2.",components:[],embeds:[]});
+      this.store.data.customizations||={};this.store.data.customizations[i.guildId]||={};
+      this.store.data.customizations[i.guildId].accent_color="#"+color.replace(/^#/,"").toUpperCase();
+      this.store.save();return this.show(i,"appearance");
+    }
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
       if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
       const phrase=i.fields.getTextInputValue("phrase").trim();
@@ -196,6 +210,12 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.editReply({content:"Welcome, goodbye and automatic-role settings saved.",components:[],embeds:[]});
     }
     if(i.isStringSelectMenu()){
+      if(id==="settings:appearance-style"){
+        if(!["Primary","Secondary","Success","Danger"].includes(i.values[0]))return this.show(i,"appearance");
+        this.store.data.customizations||={};this.store.data.customizations[i.guildId]||={};
+        this.store.data.customizations[i.guildId].button_style=i.values[0];this.store.save();
+        return this.show(i,"appearance");
+      }
       if(id==="settings:module-select")return this.show(i,"modules",i.values[0]);
       if(id==="settings:language-select"){
         this.store.data.languages||={};this.store.data.languages[i.guildId]=i.values[0];this.store.save();
@@ -211,6 +231,13 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       return i.showModal(modal);
     }
     if(id==="settings:home")return this.show(i,"home");
+    if(id==="settings:appearance")return this.show(i,"appearance");
+    if(id==="settings:appearance-color"){
+      const current=this.store.data.customizations?.[i.guildId]?.accent_color||"#808080";
+      const input=new TextInputBuilder().setCustomId("accent-color").setLabel("Accent color (HEX)").setPlaceholder("#5865F2").setStyle(TextInputStyle.Short).setRequired(true).setMinLength(6).setMaxLength(7).setValue(current);
+      const modal=new ModalBuilder().setCustomId("settings:appearance-color-modal").setTitle("Change accent color").addComponents(new ActionRowBuilder().addComponents(input));
+      return i.showModal(modal);
+    }
     if(id==="settings:modules")return this.show(i,"modules");
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
