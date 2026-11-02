@@ -127,17 +127,17 @@ test("plugin installation is isolated per server and preserves data",()=>{
 });
 
 import { commandData, pluginCommandsForPlugins, pluginForCommand } from "../src/commands.js";
-test("plugin management commands are registered with the intended option behavior",()=>{
+test("app management commands are registered with the intended option behavior",()=>{
   const install=commandData.find(command=>command.name==="install");
   const uninstall=commandData.find(command=>command.name==="uninstall");
-  const list=commandData.find(command=>command.name==="plugins");
+  const list=commandData.find(command=>command.name==="apps");
   assert.ok(install&&uninstall&&list);
-  assert.equal(install.options[0].name,"plugin");
+  assert.equal(install.options[0].name,"app");
   assert.equal(install.options[0].required,true);
   assert.equal(uninstall.options[0].required,true);
   assert.ok(commandData.some(command=>command.name==="filter"));
   assert.ok(commandData.some(command=>command.name==="security"));
-  for(const name of ["plan","plugins","install"]) {
+  for(const name of ["plan","apps","app-store","install"]) {
     assert.ok(commandData.some(command=>command.name===name),"missing slash command: "+name);
   }
 });
