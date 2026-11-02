@@ -27,7 +27,7 @@ extension DiscordREST {
   _ = try await call("PATCH","webhooks/\(app)/\(token)/messages/@original",body:["content":String(content.prefix(1900)),"allowed_mentions":["parse":[]]])
  }
  func editKimiInteraction(_ app:String,_ token:String,_ content:String,_ components:[[String:Any]]) async throws {
-  _ = try await call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":String(content.prefix(1900)),"components":components,"allowed_mentions":["parse":[]]])
+  _ = try await call("PATCH","webhooks/\(app)/\(token)/messages/@original",body:["content":String(content.prefix(1900)),"components":components,"allowed_mentions":["parse":[]]])
  }
  func deleteKimiMessage(_ channel:String,_ message:String) async throws {
   _ = try await call("DELETE","channels/\(channel)/messages/\(message)")
