@@ -14,7 +14,7 @@ final class CoreTests:XCTestCase {
   let commands=CommandCatalog.globalCommands()
   let names=commands.compactMap{$0["name"] as? String}
   XCTAssertEqual(names.count,Set(names).count,"Global slash-command names must be unique.")
-  for required in ["setup","install","uninstall","automations","guard-review","web-token","plan","apps","app-store"]{
+  for required in ["setup","install","uninstall","automations","guard-review","web-token","plan","apps","app-store","analytics","performance"]{
    XCTAssertTrue(names.contains(required),"Missing global command: "+required)
   }
   XCTAssertTrue(CommandCatalog.appNames().contains("Kimi Lock"))
