@@ -423,6 +423,19 @@ extension KimiRuntime {
    if installed.contains("Welcome"){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
    await AnalyticsService(store:store).record(guild:guild,event:"leave")
    await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
+  case "GUILD_MEMBER_UPDATE":
+   guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){
+    let before=await store.get("moderation.member-snapshot."+guild+"."+user,as:[String:AnyCodable].self)
+    let roles=data["roles"] as? [String] ?? []
+    try? await store.set(roles,key:"moderation.member-snapshot."+guild+"."+user)
+    if let before,let previous=before.values as? [String],Set(previous) != Set(roles){await logger.log("INFO","Member role update recorded for "+user+" in guild "+guild)}
+   }
+  case "GUILD_BAN_ADD","GUILD_BAN_REMOVE":
+   guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){await logger.log("INFO",(name=="GUILD_BAN_ADD" ? "Ban recorded for ":"Unban recorded for ")+user+" in guild "+guild)}
   case "MESSAGE_CREATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
    let content=data["content"] as? String ?? ""
