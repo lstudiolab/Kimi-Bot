@@ -12,13 +12,13 @@ actor EmbedService {
   guard errors.isEmpty else{throw KimiError.configuration(errors.joined(separator:" "))}
   var data=await store.get("embeds.saved",as:[String:[Saved]].self) ?? [:]
   var list=data[guild] ?? []
-  let id=list.first(where:{$0.name.caseInsensitiveCompare(name)==.orderedSame})?.id ?? UUID().uuidString
+  let id=list.first(where:{$0.name.caseInsensitiveCompare(name)== .orderedSame})?.id ?? UUID().uuidString
   let value=Saved(id:id,name:name,title:title,description:description,color:color,footer:footer)
   if let index=list.firstIndex(where:{$0.id==id}){list[index]=value}else{list.append(value)}
   data[guild]=list;try await store.set(data,key:"embeds.saved");return value
  }
  func publish(guild:String,name:String,channel:String)async throws{
-  guard let item=await all(guild:guild).first(where:{$0.name.caseInsensitiveCompare(name)==.orderedSame}) else{throw KimiError.configuration("Saved embed not found.")}
+  guard let item=await all(guild:guild).first(where:{$0.name.caseInsensitiveCompare(name)== .orderedSame}) else{throw KimiError.configuration("Saved embed not found.")}
   var embed:[String:Any]=["title":item.title,"description":item.description,"color":item.color]
   if let footer=item.footer{embed["footer"]=["text":footer]}
   _ = try await rest.call("POST","channels/\(channel)/messages",body:["embeds":[embed],"allowed_mentions":["parse":[]]])
