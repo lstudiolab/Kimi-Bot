@@ -3,7 +3,7 @@ export const TOKEN_REFILL_MS=2000;
 
 export class GuardRateLimiter{
   constructor(store){this.store=store;this.store.data.guard_state||={};}
-  bucket(guildId,actorId,kind){
+  bucket(guildId,actorId,kind,now=Date.now()){
     const guild=this.store.data.guard_state[guildId]||(this.store.data.guard_state[guildId]={users:{},bots:{}});
     guild.users||={};guild.bots||={};
     const collection=kind==="bot"?guild.bots:guild.users;
@@ -13,7 +13,7 @@ export class GuardRateLimiter{
     return state;
   }
   consume(guildId,actorId,kind="user",now=Date.now()){
-    const state=this.bucket(guildId,actorId,kind);
+    const state=this.bucket(guildId,actorId,kind,now);
     if(kind==="bot"){
       const refillStart=(state.last_activity||0)+TOKEN_REFILL_MS;
       if((state.last_activity||0)>0&&now>=refillStart){
