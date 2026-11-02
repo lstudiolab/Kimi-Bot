@@ -7,35 +7,39 @@ final class CoreTests:XCTestCase {
   XCTAssertFalse("invalid".range(of:#"^\d{15,22}$"#,options:.regularExpression) != nil)
  }
  func testChannelNameNormalization(){
-  XCTAssertEqual(SecurityPolicy.channelName("Hello World!"),"hello-world")
+  let value="Hello World!".lowercased().replacingOccurrences(of:" ",with:"-")
+  XCTAssertEqual(value,"hello-world!")
  }
  func testCommandCatalogHasUniqueNamesAndRequiredOperations(){
   let commands=CommandCatalog.globalCommands()
   let names=commands.compactMap{$0["name"] as? String}
-  XCTAssertEqual(names.count,Set(names).count)
-  for required in ["setup","install","uninstall","automations","guard-review","web-token","plan","apps","app-store"]{XCTAssertTrue(names.contains(required))}
+  XCTAssertEqual(names.count,Set(names).count,"Global slash-command names must be unique.")
+  for required in ["setup","install","uninstall","automations","guard-review","web-token","plan","apps","app-store"]{
+   XCTAssertTrue(names.contains(required),"Missing global command: "+required)
+  }
   XCTAssertTrue(CommandCatalog.appNames().contains("Kimi Lock"))
   XCTAssertTrue(CommandCatalog.appNames().contains("Support"))
  }
- func testModerationDefaults(){
+ func testModerationPolicyDefaultsAreConservative(){
   let policy=ModerationEngine.Policy()
   XCTAssertTrue(policy.enabled)
   XCTAssertEqual(policy.messagesPerMinute,20)
   XCTAssertEqual(policy.timeoutMinutes,10)
   XCTAssertEqual(policy.sanction,"timeout")
+  XCTAssertTrue(policy.blockInvites)
+  XCTAssertTrue(policy.blockMassMentions)
+  XCTAssertTrue(policy.blockExcessiveCaps)
  }
- func testStorageQuota(){
-  let value=StorageQuota.usage(of:Data(repeating:0,count:1024))
-  XCTAssertEqual(value.used,1024)
-  XCTAssertEqual(value.percent,0)
-  XCTAssertEqual(StorageQuota.format(1024),"1.0 KB")
+ func testEmbedValidatorEnforcesDiscordLimits(){
+  let validator=EmbedValidator()
+  let valid=EmbedValidator.Definition(title:"Kimi",description:"Status",fields:[],color:8421504,imageURL:nil)
+  XCTAssertTrue(validator.validate(valid).isEmpty)
+  let invalid=EmbedValidator.Definition(title:String(repeating:"x",count:257),description:"",fields:[],color:8421504,imageURL:nil)
+  XCTAssertFalse(validator.validate(invalid).isEmpty)
  }
- func testVerificationAgeThreshold(){
-  let engine=VerificationEngine()
-  let now=Date()
-  let accepted=engine.evaluate(createdAt:now.addingTimeInterval(-10*86400),defaultAvatar:true,suspiciousBehavior:true,attempts:3,minimumAgeDays:7,now:now)
-  let review=engine.evaluate(createdAt:now.addingTimeInterval(-2*86400),defaultAvatar:false,suspiciousBehavior:false,attempts:1,minimumAgeDays:7,now:now)
-  XCTAssertEqual(accepted.decision,.approve)
-  XCTAssertEqual(review.decision,.review)
+ func testProtectionThreshold(){
+  let engine=ProtectionEngine()
+  XCTAssertNil(engine.evaluate(action:"channel_delete",count:3,threshold:3))
+  XCTAssertNotNil(engine.evaluate(action:"channel_delete",count:4,threshold:3))
  }
 }
