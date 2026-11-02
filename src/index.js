@@ -58,7 +58,7 @@ function opensModal(i){
  }
  if(!i.isButton())return false;
  const id=i.customId;
- return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
+ return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="settings:appearance-color"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:")||id.startsWith("tbm:");
 }
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
