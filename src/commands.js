@@ -11,6 +11,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("apps").setDescription("See the apps available for your server."),
   new SlashCommandBuilder().setName("app-store").setDescription("Browse and manage Kimi apps."),
   new SlashCommandBuilder().setName("automations").setDescription("Build and manage server automations."),
+  new SlashCommandBuilder().setName("guard-review").setDescription("Review a bot security incident (server owner only).").addUserOption(o=>o.setName("bot").setDescription("Bot account under review").setRequired(true)).addStringOption(o=>o.setName("decision").setDescription("Choose whether to restore the bot").setRequired(true).addChoices({name:"Restore roles and release",value:"restore"},{name:"Keep restricted",value:"keep"})),
   new SlashCommandBuilder().setName("uninstall").setDescription("Remove a Kimi app from this server (server owner only).").addStringOption(o=>o.setName("app").setDescription("App to remove").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
   new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
@@ -45,7 +46,7 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations"],
+  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
   Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
