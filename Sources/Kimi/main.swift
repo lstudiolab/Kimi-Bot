@@ -58,7 +58,7 @@ actor PersistentStore {
  }
 }
 actor DiscordREST {
- let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10")!
+ let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10/")!
  init(token:String){self.token=token;session=URLSession(configuration:.ephemeral)}
  func call(_ method:String,_ path:String,body:Any?=nil,auditReason:String?=nil)async throws->Any{
   guard let url=URL(string:path,relativeTo:base)?.absoluteURL else{throw KimiError.invalidResponse}
@@ -106,7 +106,7 @@ actor DiscordGateway {
   }
  }
  private func connect()async throws{
-  let endpoint=resumeURL ?? "wss://gateway.discord.gg/?v=10&encoding=json"
+  let endpoint=resumeURL.map{$0.contains("?") ? $0 : $0+"?v=10&encoding=json"} ?? "wss://gateway.discord.gg/?v=10&encoding=json"
   guard let url=URL(string:endpoint) else{throw KimiError.invalidResponse}
   let ws=URLSession.shared.webSocketTask(with:url);socket=ws;ws.resume()
   await logger.log("INFO","Discord Gateway socket connected.")
@@ -134,7 +134,7 @@ actor DiscordGateway {
      await self.heartbeatTick()
     }}
    case 1:
-    try await send(["op":1,"d":sequence as Any? ?? NSNull()])
+    await heartbeatTick()
    case 7:
     throw KimiError.http(0,"Gateway requested reconnect.")
    case 9:
