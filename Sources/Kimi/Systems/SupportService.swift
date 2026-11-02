@@ -40,6 +40,11 @@ actor SupportService {
    ["type":2,"style":4,"label":"Close","custom_id":"ticket:close:"+ticket.id]
   ]]] as [[String:Any]]
   _=try await rest.call("POST","channels/\(channel)/messages",body:["content":"Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal","components":controls,"allowed_mentions":["users":[user],"parse":[]]])
+  if let threadResponse=try? await rest.call("POST","channels/"+channel+"/threads",body:["name":"staff-handoff","type":11,"auto_archive_duration":1440]),let threadID=(threadResponse as? [String:Any])?["id"] as? String {
+   _ = try? await SupportTickets(store:store).setStaffThread(id:ticket.id,guildID:guild,threadID:threadID)
+   let staffNotice=value.supportRoleID.map{"<@&"+$0+"> " } ?? ""
+   _ = try? await rest.call("POST","channels/"+threadID+"/messages",body:["content":staffNotice+"Staff handoff for ticket "+ticket.id+". Coordinate the response here; the ticket channel remains visible to its opener and support staff.","allowed_mentions":["roles":value.supportRoleID.map{[$0]} ?? [],"parse":[]]])
+  } else { await logger.log("WARN","Ticket "+ticket.id+" opened without a staff handoff thread; check Create Public Threads permission.") }
   await logger.log("INFO","Support ticket opened: "+ticket.id+" in guild "+guild)
   return ticket
  }
