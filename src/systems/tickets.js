@@ -4,7 +4,6 @@ import {
 } from "discord.js";
 import { cleanChannelName, chunkText, renderTemplate, isPrivateTextChannel } from "../utils.js";
 import { GREY, greyEmbed, button, row, textInput, modal, respond, deny, requireManager } from "../ui.js";
-import { applyPanelTbScript } from "../tbscript.js";
 import { applyGuildTheme, applyButtonTheme } from "../styles.js";
 
 const P = PermissionFlagsBits;
@@ -35,7 +34,7 @@ export class Tickets {
     const embed=applyGuildTheme(greyEmbed(renderTemplate(x.panel_title,context),renderTemplate(x.panel_description,context)),this.store,guildId);
     const openButton=applyButtonTheme(button("ticket:open",renderTemplate(x.open_label,context),ButtonStyle.Primary),this.store,guildId);
     const base={embeds:[embed],components:[row(openButton)],allowedMentions:{parse:[]}};
-    return guildId?applyPanelTbScript(this.store,guildId,"ticket",base,context):base;
+    return base;
   }
   async command(i) {
     if (!await requireManager(i)) return;
