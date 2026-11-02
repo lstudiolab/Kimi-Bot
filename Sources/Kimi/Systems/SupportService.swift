@@ -75,8 +75,18 @@ actor SupportService {
   try await store.set(String(transcript.suffix(100_000)),key:"support.transcript."+ticketID)
   let settings=await self.settings(guild)
   if let destination=settings.transcriptChannelID{
-   let summary="Ticket transcript saved for ticket "+ticketID+". Messages captured: "+String(history.count)+". The full text is retained in Kimi's local transcript storage."
+   let summary="Ticket transcript for "+ticketID+". Messages captured: "+String(history.count)+". Full transcript is retained in local Kimi storage; exported text is capped to 18,000 characters."
    _ = try? await rest.call("POST","channels/\(destination)/messages",body:["content":summary,"allowed_mentions":["parse":[]]])
+   let exported=String(transcript.suffix(18_000))
+   var cursor=exported.startIndex
+   var part=1
+   while cursor<exported.endIndex {
+    let next=exported.index(cursor,offsetBy:1750,limitedBy:exported.endIndex) ?? exported.endIndex
+    let chunk=String(exported[cursor..<next])
+    _ = try? await rest.call("POST","channels/\(destination)/messages",body:["content":"Transcript part "+String(part)+"\n"+chunk,"allowed_mentions":["parse":[]]])
+    cursor=next
+    part += 1
+   }
   }
   await logger.log("INFO","Support ticket closed: "+ticketID+"; archived "+String(history.count)+" messages.")
   return ticket
