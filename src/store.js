@@ -174,7 +174,16 @@ export class Store{
     return value;
   }
   member(guild,user){
-    const key=guild+":"+user;this.data.members[key]||={};
+    if(!this.data.members||typeof this.data.members!=="object"||Array.isArray(this.data.members))this.data.members={};
+    const key=guild+":"+user;
+    if(!Object.hasOwn(this.data.members,key)){
+      if(Object.keys(this.data.members).length>=100000){
+        const oldest=Object.keys(this.data.members)[0];
+        if(oldest!==undefined)delete this.data.members[oldest];
+      }
+      this.data.members[key]={};
+    }
+    if(!this.data.members[key]||typeof this.data.members[key]!=="object"||Array.isArray(this.data.members[key]))this.data.members[key]={};
     return fillDefaults(this.data.members[key],{joins:0,leaves:0,attempts:[],failed:0,suspicious:0,last_join:0,
       last_verified:0,last_suspicious:0,last_reason:"",last_join_audited:0});
   }
