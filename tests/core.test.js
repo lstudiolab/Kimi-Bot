@@ -193,8 +193,8 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   try{
     const store=new Store(dir,quiet);
     const source="x".repeat(5*1024*1024+1024);
-    const projects={...(store.data.developer_projects||{}),["guild-free"]:{large:{source}}};
-    const report=canStoreGuildState(store,"guild-free",{developer_projects:projects});
+    const customizations={...(store.data.customizations||{}),["guild-free"]:{payload:source}};
+    const report=canStoreGuildState(store,"guild-free",{customizations});
     assert.equal(report.ok,false);
     assert.equal(report.limit,5*1024*1024);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
@@ -590,7 +590,7 @@ test("unanswered interactions get one fallback, while deleted ticket replies are
   assert.equal(edits,1);
 });
 
-test("Security refuses to write private logs when channel permissions cannot be secured",async()=>{
+test("Kimi Lock refuses to write private logs when channel permissions cannot be secured",async()=>{
   const channel={type:0,permissionOverwrites:{set:async()=>{throw new Error("Missing Manage Channels");}}};
   const store={data:{timi_setup:{guild:{log_channel_id:"log"}}},mods:()=>({}),save(){}};
   const protection=new Protection({user:{id:"timi"}},store,quiet);
