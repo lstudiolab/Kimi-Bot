@@ -51,4 +51,18 @@ final class CoreTests:XCTestCase {
   XCTAssertNil(engine.evaluate(action:"channel_delete",count:3,threshold:3))
   XCTAssertNotNil(engine.evaluate(action:"channel_delete",count:4,threshold:3))
  }
+ func testVerificationScoringSeparatesPassReviewAndReject(){
+  let engine=VerificationEngine()
+  let now=Date()
+  let trusted=engine.evaluate(createdAt:now.addingTimeInterval(-30*86400),defaultAvatar:false,suspiciousBehavior:false,attempts:1,minimumAgeDays:7,now:now)
+  XCTAssertEqual(trusted.score,100)
+  XCTAssertEqual(trusted.decision,.approve)
+  let young=engine.evaluate(createdAt:now.addingTimeInterval(-1*86400),defaultAvatar:false,suspiciousBehavior:false,attempts:1,minimumAgeDays:7,now:now)
+  XCTAssertEqual(young.score,60)
+  XCTAssertEqual(young.decision,.review)
+  let risky=engine.evaluate(createdAt:now.addingTimeInterval(-30*86400),defaultAvatar:true,suspiciousBehavior:true,attempts:3,minimumAgeDays:7,now:now)
+  XCTAssertLessThan(risky.score,60)
+  XCTAssertEqual(risky.decision,.reject)
+ }
+
 }
