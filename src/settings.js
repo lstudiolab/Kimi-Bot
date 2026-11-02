@@ -69,13 +69,13 @@ export class KimiSettings {
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
       return edit({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
-        row(button("settings:modules","Systems"),button("settings:install","Plugins")),
+        row(button("settings:modules","Systems"),button("settings:install","App Store")),
         row(button("settings:preferences","Preferences"),button("settings:status","Status"))
       ]});
     }
     if(page==="plugin"){
       const plugin=selected;
-      if(!["Foundation","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown plugin.",embeds:[],components:[]});
+      if(!["Foundation","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
       if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
       const sections=[];
       if(plugin==="Kimi Lock"){
@@ -88,7 +88,7 @@ export class KimiSettings {
       }else{
         sections.push(row(button("settings:home","Back to Kimi Settings")));
       }
-      return edit({embeds:[embed(plugin+" Configuration",`Configure the ${plugin} plugin for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
+      return edit({embeds:[embed(plugin+" Configuration",`Configure the ${plugin} app for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
     }
     if(page==="configure"){
       const sections=[];
@@ -96,7 +96,7 @@ export class KimiSettings {
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
-      return edit({embeds:[embed("Configuration","Choose a system to configure. Only installed plugins are shown here.")],components:sections});
+      return edit({embeds:[embed("Configuration","Choose a system to configure. Only apps added to this server are shown here.")],components:sections});
     }
     if(page==="filter"){
       const words=this.store.data.automod_words[id]||[];
@@ -119,13 +119,13 @@ export class KimiSettings {
     }
     if(page==="install"||page==="uninstall"){
       const choices=Object.values(PLUGINS).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
-      const menu=new StringSelectMenuBuilder().setCustomId("settings:plugin-select:"+page).setPlaceholder(page==="install"?"Choose a plugin to install":"Choose an installed plugin");
+      const menu=new StringSelectMenuBuilder().setCustomId("settings:plugin-select:"+page).setPlaceholder(page==="install"?"Choose an app to add":"Choose an app to remove");
       if(choices.length)menu.addOptions(choices.map(lib=>({label:lib.name,value:lib.name,description:lib.description.slice(0,100)})));
       const components=choices.length?[row(menu)]:[];
       if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:plugin-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
       components.push(row(button("settings:home",tr("back"))));
-      const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available plugins are installed.":"There are no installed plugins to remove.");
-      return edit({embeds:[embed(page==="install"?"Install Plugins":"Uninstall Plugins",description)],components});
+      const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available apps are already added.":"There are no apps to remove.");
+      return edit({embeds:[embed(page==="install"?"App Store":"Remove Apps",description)],components});
     }
     if(page==="language"){
       const makeLanguageMenu=(items,suffix,customId="settings:language-select")=>new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
@@ -138,7 +138,7 @@ Choose from the supported Discord locale list. The preference is saved per serve
     if(page==="status"){
       const libs=Object.values(PLUGINS).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\\n");
       const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
-      return edit({embeds:[embed(tr("status"),`**Plugins**
+      return edit({embeds:[embed(tr("status"),`**Apps**
 ${libs}
 
 **Modules**
@@ -179,7 +179,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       this.store.save();return this.show(i,"appearance");
     }
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock plugin is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock app is no longer added.",components:[],embeds:[]});
       const phrase=i.fields.getTextInputValue("phrase").trim();
       if(!phrase||phrase.length>100)return i.editReply({content:"Enter a phrase between 1 and 100 characters.",components:[],embeds:[]});
       const words=this.store.data.automod_words[i.guildId]||[];
@@ -312,7 +312,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const [,action,moduleId]=id.split(":");
       const module=MODULES.find(m=>m.id===moduleId);
       if(!module)return this.show(i,"modules");
-      if(!installed(this.store,i.guildId,module.plugin))return i.editReply({content:`Install the **${module.plugin}** plugin before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Modules"))]});
+      if(!installed(this.store,i.guildId,module.plugin))return i.editReply({content:`Add the **${module.plugin}** app before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Modules"))]});
       this.store.data.modules||={};this.store.data.modules[i.guildId]||={};
       this.store.data.modules[i.guildId][moduleId]=action==="module-on";this.store.save();
       this.logger.info(`Module ${moduleId} ${action==="module-on"?"enabled":"disabled"} for guild ${i.guildId}.`);
@@ -321,7 +321,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id.startsWith("settings:module-info:"))return this.show(i,"modules",id.split(":")[2]);
     if(id.startsWith("settings:plugin-confirm:")){
       const [, ,action,name]=id.split(":");
-      if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can install or uninstall plugins.",embeds:[],components:[]});
+      if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can add or remove apps.",embeds:[],components:[]});
       if(action==="install"){
         const result=this.manager.install(i.guildId,name);
         if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
@@ -329,14 +329,14 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         const plugin=this.hooks.plugins?.[name];
         if(plugin?.ready)await plugin.ready(i.guild);
         if(plugin?.onInstall)await plugin.onInstall(i.guild);
-        return i.editReply({embeds:[embed("Plugin Installed",`**${name}** is now installed. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
+        return i.editReply({embeds:[embed("App Added",`**${name}** is now added. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
       }
       const result=this.manager.uninstall(i.guildId,name);
       if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
       const plugin=this.hooks.plugins?.[name];
       if(plugin?.onUninstall)await plugin.onUninstall(i.guild);
       await this.hooks.syncGuildCommands?.(i.guildId);
-      return i.editReply({embeds:[embed("Plugin Uninstalled",`**${name}** has been uninstalled. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
+      return i.editReply({embeds:[embed("App Removed",`**${name}** has been removed. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
     }
   }
 }
