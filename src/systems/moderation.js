@@ -23,6 +23,17 @@ export class Moderation {
     this.processingJobs.add(job.id);
     job.steps={deleted:false,sanction:false,logged:false,...(job.steps||{})};
     try{
+      if(!/^\d{15,22}$/.test(String(job.user_id||""))||!/^\d{15,22}$/.test(String(job.channel_id||""))||
+        !Array.isArray(job.message_ids)||job.message_ids.length>100||
+        job.message_ids.some(id=>!/^\d{15,22}$/.test(String(id)))||
+        !["timeout","kick","ban","delete"].includes(job.action)){
+        job.status="cancelled";job.cancel_reason="Invalid or unsafe persisted moderation job";job.updated_at=Date.now();this.store.save();return;
+      }
+      const initialTarget=await guild.members.fetch(job.user_id).catch(()=>null);
+      if(initialTarget&&(initialTarget.id===guild.ownerId||initialTarget.user.bot||
+        initialTarget.permissions.has(P.Administrator)||initialTarget.permissions.has(P.ManageMessages))){
+        job.status="cancelled";job.cancel_reason="Target is now privileged or is a bot; automatic sanction cancelled";job.updated_at=Date.now();this.store.save();return;
+      }
       job.status="processing";job.updated_at=Date.now();this.store.save();
       if(!job.steps.deleted){
         const channel=await guild.channels.fetch(job.channel_id).catch(()=>null);
@@ -45,12 +56,18 @@ export class Moderation {
       }
       if(!job.steps.sanction){
         const member=await guild.members.fetch(job.user_id).catch(()=>null);
-        if(job.action==="ban"){
+        if(member&&(member.id===guild.ownerId||member.user.bot||
+          member.permissions.has(P.Administrator)||member.permissions.has(P.ManageMessages))){
+          job.action_result="sanction skipped because the target is now privileged or is a bot";
+        }else if(member&&job.action==="ban"){
           const existing=await guild.bans.fetch(job.user_id).catch(()=>null);
           if(!existing)await guild.members.ban(job.user_id,{deleteMessageSeconds:Math.max(0,Math.min(60,Number(job.action_duration_seconds)||0)),reason:job.reason});
-        }else if(member){
-          if(job.action==="timeout")await member.timeout(Math.max(1,Number(job.timeout_minutes)||10)*60000,job.reason);
-          else if(job.action==="kick")await member.kick(job.reason);
+        }else if(member&&job.action==="timeout"){
+          await member.timeout(Math.max(1,Number(job.timeout_minutes)||10)*60000,job.reason);
+        }else if(member&&job.action==="kick"){
+          await member.kick(job.reason);
+        }else if(!member&&job.action!=="delete"){
+          job.action_result="sanction skipped because the member had already left";
         }
         job.steps.sanction=true;job.updated_at=Date.now();this.store.save();
       }
