@@ -485,7 +485,9 @@ extension KimiRuntime {
    let attachments=data["attachments"] as? [[String:Any]] ?? []
    let attachmentURLs=attachments.compactMap{$0["url"] as? String}
    if recoveryEnabled{await recovery.captureMessage(guild,channel,message,user,content,attachments:attachmentURLs)}
-   if moderationEnabled{await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments)}
+   let mentionedUsers=(data["mentions"] as? [[String:Any]] ?? []).compactMap{$0["id"] as? String}
+   let reference=(data["message_reference"] as? [String:Any])?["message_id"] as? String
+   if moderationEnabled{await ImageAnalysisService(store:store,rest:rest,logger:logger).inspect(guild:guild,channel:channel,messageID:message,content:content,attachments:attachments,userID:user,mentionedUserIDs:mentionedUsers,referenceMessageID:reference)}
    guard moderationEnabled else{return}
    let owner=(try? await rest.ownerID(guild)) ?? ""
    let member=data["member"] as? [String:Any] ?? [:]
