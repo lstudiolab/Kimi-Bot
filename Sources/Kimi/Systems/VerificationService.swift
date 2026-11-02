@@ -41,7 +41,15 @@ actor VerificationService {
   let result=VerificationEngine().evaluate(createdAt:created,defaultAvatar:defaultAvatar,suspiciousBehavior:record.failures>0,attempts:record.attempts,minimumAgeDays:value.minimumAgeDays)
   let age=max(0,Int(Date().timeIntervalSince(created)/86400))
   if result.decision != .approve{
-   if result.decision == .reject { try? await records.markFailed(guildID:guild,userID:userID,reason:result.reasons.joined(separator:"; ")) }
+   if result.decision == .reject {
+    try? await records.markFailed(guildID:guild,userID:userID,reason:result.reasons.joined(separator:"; "))
+    do {
+     _ = try await rest.call("DELETE","guilds/"+guild+"/members/"+userID)
+     try? await rest.editKimiInteraction(applicationID,interactionToken,"Verification score: "+String(result.score)+"/100. The account did not meet the minimum safety score and was removed.")
+     await logger.log("WARN","Verification automatically removed member "+userID+" from guild "+guild+"; score "+String(result.score))
+     return
+    } catch { await logger.log("ERROR","Automatic verification removal failed: "+error.localizedDescription) }
+   }
    var queued=false
    if let review=value.reviewChannelID{
     let details=result.reasons.isEmpty ? "No additional risk signals." : result.reasons.joined(separator:"; ")
