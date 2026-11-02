@@ -62,3 +62,18 @@ test("dashboard session and one-time link-code state stays bounded per account",
     assert.equal(Object.keys(auth.links).filter(code=>auth.links[code].accountId===account.id).length,1);
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test("server-link tokens are capped per account during the validity window",()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-web-token-bounds-"));
+ try{
+  const auth=new AuthStore(root);
+  const {account}=auth.createAccount({email:"web-token@example.com",password:"a sufficiently long password"});
+  for(let index=0;index<5;index++){
+   const token=auth.createWebToken(account.id);
+   assert.ok(token.token);
+   const linked=auth.completeWebToken(token.token,{id:String(123456789012345670+index),name:"Server "+index},{id:"223456789012345678"});
+   assert.ok(linked.guild);
+  }
+  assert.match(auth.createWebToken(account.id).error,/Too many server-link tokens/);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
