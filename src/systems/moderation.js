@@ -83,9 +83,9 @@ export class Moderation {
       }
       job.status="completed";job.completed_at=Date.now();job.updated_at=Date.now();
       const jobs=this.store.data.moderation_jobs[guild.id]||[];
-      const completed=jobs.filter(v=>v.status==="completed").sort((a,b)=>(b.completed_at||0)-(a.completed_at||0));
-      const keep=new Set(completed.slice(0,200).map(v=>v.id));
-      this.store.data.moderation_jobs[guild.id]=jobs.filter(v=>v.status!=="completed"||keep.has(v.id));
+      const terminal=jobs.filter(v=>["completed","cancelled","failed"].includes(v.status)).sort((a,b)=>(b.updated_at||0)-(a.updated_at||0));
+      const keep=new Set(terminal.slice(0,200).map(v=>v.id));
+      this.store.data.moderation_jobs[guild.id]=jobs.filter(v=>!["completed","cancelled","failed"].includes(v.status)||keep.has(v.id));
       this.store.save();
     }catch(error){
       job.attempts=(job.attempts||0)+1;job.last_error=String(error?.message||error).slice(0,500);job.updated_at=Date.now();
@@ -105,9 +105,9 @@ export class Moderation {
       else{this.logger.error("Moderation queue is full of active jobs in guild "+guild.id+"; new sanction was not queued.");return;}
     }
     jobs.push(job);
-    const completed=jobs.filter(item=>item?.status==="completed").sort((a,b)=>(b.completed_at||0)-(a.completed_at||0));
-    const keep=new Set(completed.slice(0,200).map(item=>item.id));
-    this.store.data.moderation_jobs[guild.id]=jobs.filter(item=>item&&!["completed"].includes(item.status)||keep.has(item.id));
+    const terminal=jobs.filter(item=>item&&["completed","cancelled","failed"].includes(item.status)).sort((a,b)=>(b.updated_at||0)-(a.updated_at||0));
+    const keep=new Set(terminal.slice(0,200).map(item=>item.id));
+    this.store.data.moderation_jobs[guild.id]=jobs.filter(item=>item&&!["completed","cancelled","failed"].includes(item.status)||keep.has(item.id));
     this.store.save();
     await this.processJob(guild,job);
   }
