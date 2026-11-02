@@ -74,7 +74,8 @@ export class Verification {
         record.last_reason="Account age below configured minimum";
         this.recordAudit(guild,member,"review",checks,"Member requested verification but account age is below the configured minimum; sent for manual review.",{accountAgeDays:ageDays,minimumAgeDays:minimumAge});
         const controls=[row(button("verify:review:approve:"+guild.id+":"+user.id,"Approve"),button("verify:review:reject:"+guild.id+":"+user.id,"Reject"))];
-        await this.log(guild,settings.review_channel_id,"**Verification review required**\nMember: <@"+user.id+">\n"+checks.map(check=>"**"+check.name+":** "+check.detail).join("\n"),controls);
+        const reviewMessage=await this.log(guild,settings.review_channel_id,"**Verification review required**\nMember: <@"+user.id+">\n"+checks.map(check=>"**"+check.name+":** "+check.detail).join("\n"),controls);
+        if(reviewMessage){record.pending_review_message_id=reviewMessage.id;record.pending_review_channel_id=reviewMessage.channelId;this.store.save();}
         return respond(i,"Your account does not meet the server's minimum age requirement. Your verification has been sent for moderator review.");
       }
       if(settings.role_id){
@@ -103,7 +104,7 @@ export class Verification {
     if(!isPrivateTextChannel(ch,guild)){
       this.logger.warn("Verification details were not logged because no private Timi channel is available.");return;
     }
-    await ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>this.logger.warn("Verification log failed:",error.message));
+    return ch.send({content,components,allowedMentions:{parse:[]}}).catch(error=>{this.logger.warn("Verification log failed:",error.message);return null;});
   }
   settingsText(s){
     return "**Member verification**\nMembers must click the Verify button after joining.\nVerification channel: "+mentionChannel(s.channel_id)+"\n\nVerified role: "+mentionRole(s.role_id)+"\nMinimum account age: "+s.min_age_days+" days\nManual review channel: "+mentionChannel(s.review_channel_id)+"\nOnly the configured account-age minimum determines pass or review. Avatar, previous joins, failures and behavior are recorded as context only; they are never scored. Members below the age minimum go to manual review. Kimi does not automatically kick or timeout members for verification.";
@@ -135,12 +136,14 @@ export class Verification {
     if(i.guildId!==guildId)return deny(i,"This review belongs to a different server.");
     const guild=i.guild||await this.client.guilds.fetch(guildId);
     if(guild.ownerId!==i.user.id&&!isManager(i))return deny(i,"Only server managers can decide verification reviews.");
+    if(i.message?.author?.id!==this.client.user.id)return deny(i,"This verification review control is not an authentic Kimi message.");
     const key=guildId+":"+userId;
     if(this.reviewing.has(key))return deny(i,"A verification decision for this member is already being processed.");
     this.reviewing.add(key);
     try{
       const record=this.store.member(guildId,userId);
       if(record.last_verified>0)return deny(i,"This member has already been approved.");
+      if(record.pending_review_message_id!==i.message.id||record.pending_review_channel_id!==i.channelId)return deny(i,"This verification review has already been resolved or replaced.");
       const member=await guild.members.fetch(userId).catch(()=>null);
       if(!member)return deny(i,"This member is no longer in the server.");
       if(decision==="approve"){
@@ -152,11 +155,13 @@ export class Verification {
         await member.roles.add(role,"Timi manual verification approval");
         record.last_verified=Date.now();
         record.last_reason="Manual verification approval";
+        delete record.pending_review_message_id;delete record.pending_review_channel_id;
         this.store.save();
       }else{
         await member.kick("Timi verification manually rejected");
         record.failed++;
         record.last_reason="Manual verification rejection";
+        delete record.pending_review_message_id;delete record.pending_review_channel_id;
         this.store.save();
       }
       const auditMember=member;
@@ -171,6 +176,7 @@ export class Verification {
     const [,decision,guildId,botId]=match;
     if(i.guildId!==guildId)return deny(i,"This approval request belongs to a different server.");
     const guild=i.guild||await this.client.guilds.fetch(guildId);
+    if(i.message?.author?.id!==this.client.user.id||!isPrivateTextChannel(i.channel,guild))return deny(i,"This bot approval control is not in a private Kimi channel.");
     if(guild.ownerId!==i.user.id)return deny(i,"Only the server owner can approve or reject another bot.");
     const botMember=await guild.members.fetch(botId).catch(()=>null);
     if(!botMember?.user.bot)return deny(i,"The bot is no longer in this server or is not a bot account.");
