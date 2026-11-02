@@ -328,10 +328,10 @@ test("renamed Foundation slash commands reach their system handlers",async()=>{
 
 test("published role pickers revalidate role safety before assigning",async()=>{
   let added=false,response=null;
-  const store={data:{role_picker_menus:{menu:{guild_id:"guild",roles:[{id:"role-safe"}],selections:{}}}},save(){}};
+  const store={data:{role_picker_menus:{menu:{guild_id:"guild",channel_id:"channel",message_id:"message",roles:[{id:"role-safe"}],selections:{}}}},save(){}};
   const picker=new RolePicker({},store,quiet,{validateRole:async()=>[false,"role has privileged permissions"]});
   const interaction={
-    customId:"rolepicker:menu:menu",guildId:"guild",values:["role-safe"],user:{id:"member"},
+    customId:"rolepicker:menu:menu",guildId:"guild",channelId:"channel",message:{id:"message",author:{id:"kimi"}},values:["role-safe"],user:{id:"member"},
     guild:{roles:{fetch:async()=>({id:"role-safe"})},members:{fetch:async()=>({user:{bot:false},roles:{add:async()=>{added=true;},remove:async()=>{}}})}},
     member:{roles:{add:async()=>{added=true;},remove:async()=>{}}},
     deferred:true,replied:false,editReply:async payload=>{response=payload;}
