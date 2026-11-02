@@ -28,10 +28,33 @@ struct Configuration {
  }
 }
 actor PersistentStore {
- private let url:URL;private var values:[String:Data]=[:]
- init(directory:URL)throws{url=directory.appendingPathComponent("kimi.json");if let d=try? Data(contentsOf:url),let v=try? JSONDecoder().decode([String:Data].self,from:d){values=v}}
- func get<T:Decodable>(_ key:String,as type:T.Type)->T?{guard let d=values[key] else{return nil};return try? JSONDecoder().decode(type,from:d)}
- func set<T:Encodable>(_ value:T,key:String)throws{values[key]=try JSONEncoder().encode(value);try JSONEncoder().encode(values).write(to:url,options:.atomic)}
+ private let url:URL
+ private var values:[String:Data]=[:]
+ private var legacy:[String:Any]=[:]
+ init(directory:URL)throws{
+  url=directory.appendingPathComponent("timi.json")
+  if let data=try? Data(contentsOf:url),let root=try? JSONSerialization.jsonObject(with:data) as? [String:Any] {
+   legacy=root.filter{$0.key != "_swift_runtime"}
+   if let runtime=root["_swift_runtime"],let runtimeData=try? JSONSerialization.data(withJSONObject:runtime),let decoded=try? JSONDecoder().decode([String:Data].self,from:runtimeData){values=decoded}
+   if let installed=legacy["installed_plugins"],let bytes=try? JSONSerialization.data(withJSONObject:installed){values["apps.installed"]=bytes}
+  }
+ }
+ func get<T:Decodable>(_ key:String,as type:T.Type)->T?{
+  guard let data=values[key] else{return nil}
+  return try? JSONDecoder().decode(type,from:data)
+ }
+ func getLegacy<T:Decodable>(_ key:String,as type:T.Type)->T?{
+  guard let value=legacy[key],let data=try? JSONSerialization.data(withJSONObject:value,options:[.fragmentsAllowed]) else{return nil}
+  return try? JSONDecoder().decode(type,from:data)
+ }
+ func set<T:Encodable>(_ value:T,key:String)throws{
+  values[key]=try JSONEncoder().encode(value)
+  var root=legacy
+  let runtime=try JSONEncoder().encode(values)
+  root["_swift_runtime"]=try JSONSerialization.jsonObject(with:runtime)
+  let data=try JSONSerialization.data(withJSONObject:root,options:[.prettyPrinted,.sortedKeys,.fragmentsAllowed])
+  try data.write(to:url,options:.atomic)
+ }
 }
 actor DiscordREST {
  let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10")!
