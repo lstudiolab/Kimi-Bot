@@ -43,3 +43,15 @@ swift run -c release
 ```
 
 Back up the full `data/` directory before first startup. Keep the old bot deployment and data backup until the live Discord test matrix passes. Do not commit `.env`, bot tokens, OAuth secrets, or production data.
+
+## Engineering hardening in progress
+
+The Swift runtime is being hardened incrementally without changing the deployment model or replacing existing domain behavior.
+
+- Persistent storage now publishes candidate values to actor memory only after the atomic file write succeeds. A failed write therefore cannot leave the running process ahead of durable state.
+- Discord REST sessions now use explicit request and resource timeouts.
+- Automatic retries for transient 5xx responses are limited to idempotent HTTP methods. Non-idempotent message and channel creation requests are not blindly replayed after ambiguous server failures.
+- Regression tests cover successful persistence round-trips and the failed-write state invariant.
+- The engineering and experience standard is documented in [docs/ENGINEERING.md](docs/ENGINEERING.md).
+
+These changes are not a production-readiness declaration. The build and test suite must pass in CI, and the Termux and disposable-server validation matrix above remains mandatory.
