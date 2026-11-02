@@ -6,7 +6,7 @@ Kimi Automations is an owner-facing visual flow builder inspired by the simplici
 
 Each automation is an ordered flow:
 
-1. **Trigger** — member joins, member leaves, or a new message.
+1. **Trigger** — manual run, member joins, member leaves, or a new message. Manual flows expose a Run Now control in the automation dashboard.
 2. **Condition** — every time, account age, invite/link detection, or a custom phrase match.
 3. **Actions** — send a templated message, assign/remove a role, delete the triggering message, or apply a temporary timeout.
 
