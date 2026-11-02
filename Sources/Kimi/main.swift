@@ -58,12 +58,52 @@ actor PersistentStore {
   return try? JSONDecoder().decode(type,from:data)
  }
  func set<T:Encodable>(_ value:T,key:String)throws{
-  values[key]=try JSONEncoder().encode(value)
+  var candidate=values;candidate[key]=try JSONEncoder().encode(value)
+  try persist(candidate)
+ }
+ func setGuild<T:Encodable>(_ value:T,key:String,guildID:String)throws{
+  var candidate=values;candidate[key]=try JSONEncoder().encode(value)
+  let usage=guildUsage(guildID,source:candidate)
+  guard usage<=StorageQuota.freeLimit else{throw KimiError.configuration("This server has reached its 5 MB storage allowance. Remove old records or snapshots before saving more data.")}
+  try persist(candidate)
+ }
+ func storageUsage(guildID:String)->Int{guildUsage(guildID,source:values)}
+ func storageReport(guildID:String)->(used:Int,limit:Int,percent:Int){
+  StorageQuota.usage(of:Data(repeating:0,count:storageUsage(guildID:guildID)))
+ }
+ private func persist(_ candidate:[String:Data])throws{
+  values=candidate
   var root=legacy
   let runtime=try JSONEncoder().encode(values)
   root["_swift_runtime"]=try JSONSerialization.jsonObject(with:runtime)
   let data=try JSONSerialization.data(withJSONObject:root,options:[.prettyPrinted,.sortedKeys,.fragmentsAllowed])
   try data.write(to:url,options:.atomic)
+ }
+ private func guildUsage(_ guild:String,source:[String:Data])->Int{
+  var snapshot:[String:Any]=[:]
+  func select(_ object:Any)->Any?{
+   if let dictionary=object as? [String:Any]{
+    if let value=dictionary[guild]{return [guild:value]}
+    let prefixed=dictionary.filter{$0.key.hasPrefix(guild+":") || $0.key.hasPrefix(guild+".")}
+    if !prefixed.isEmpty{return prefixed}
+    return nil
+   }
+   if let array=object as? [[String:Any]]{
+    let selected=array.filter{($0["guildID"] as? String)==guild || ($0["guild_id"] as? String)==guild}
+    return selected.isEmpty ? nil:selected
+   }
+   return nil
+  }
+  for (key,data) in source{
+   if key.hasSuffix("."+guild){snapshot[key]=data;continue}
+   guard let object=try? JSONSerialization.jsonObject(with:data,options:[.fragmentsAllowed]),let selected=select(object) else{continue}
+   snapshot[key]=selected
+  }
+  for (key,value) in legacy{
+   if let selected=select(value){snapshot["legacy."+key]=selected}
+  }
+  guard let encoded=try? JSONSerialization.data(withJSONObject:snapshot,options:[.fragmentsAllowed]) else{return 0}
+  return encoded.count
  }
 }
 actor DiscordREST {
