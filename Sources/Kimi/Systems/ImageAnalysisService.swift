@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -83,11 +84,11 @@ actor ImageAnalysisService {
     let duplicate=remember(guild:guild,sha:sha,differenceHash:hash,name:attachment["filename"] as? String ?? "image",now:now)
     let name=attachment["filename"] as? String ?? "image"
     var lines=[name+": "+metadata.type.uppercased()+" · "+(metadata.width != nil && metadata.height != nil ? String(metadata.width!)+" × "+String(metadata.height!):"dimensions unavailable")+" · "+String(format:"%.1f",Double(metadata.bytes)/1024)+" KB","SHA-256: "+String(sha.prefix(20))+"…","Duplicate check: "+(duplicate ?? "No match in recent in-memory history.")]
-    if !ocr.isEmpty{lines.append("Text detected: "+ocr.replacingOccurrences(of:"\\s+",with:" ",options:.regularExpression).prefix(320))}
+    if !ocr.isEmpty{lines.append("Text detected: "+String(ocr.replacingOccurrences(of:"\\s+",with:" ",options:.regularExpression).prefix(320)))}
     else{lines.append("Text detection: "+(ImageProcess.resolve("tesseract") != nil ? "No readable text found.":"Unavailable; install Tesseract for OCR."))}
-    if !qr.isEmpty{lines.append("QR data: "+qr.prefix(3).joined(separator:" | ").prefix(260))}
+    if !qr.isEmpty{lines.append("QR data: "+String(qr.prefix(3).joined(separator:" | ").prefix(260)))}
     else{lines.append("QR scan: "+(ImageProcess.resolve("zbarimg") != nil ? "No QR code found.":"Unavailable; install ZBar for QR decoding."))}
-    if !extracted.isEmpty{lines.append("Links found: "+extracted.prefix(4).joined(separator:" | ").prefix(320))}
+    if !extracted.isEmpty{lines.append("Links found: "+String(extracted.prefix(4).joined(separator:" | ").prefix(320)))}
     if hash==nil{lines.append("Perceptual duplicate matching unavailable; install ImageMagick.")}
     reports.append(contentsOf:lines)
    }catch{reports.append((attachment["filename"] as? String ?? "image")+": analysis failed: "+error.localizedDescription);await logger.log("WARN","Image analysis failed in guild "+guild+": "+error.localizedDescription)}
