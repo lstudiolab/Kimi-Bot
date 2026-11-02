@@ -2,16 +2,20 @@ import Foundation
 
 actor RaidProtectionService {
  struct Incident:Codable,Sendable {let guildID:String;let joinedAt:Date;let joinCount:Int;let quarantinedUserID:String?;let accountAgeDays:Int?;let action:String}
+ private struct Join:Codable,Sendable {let user:String;let date:Date}
  private let store:PersistentStore;private let rest:DiscordREST;private let logger:Logger
- private var joins:[String:[(user:String,date:Date)]]=[:]
- private var cooldown:[String:Date]=[:]
  init(store:PersistentStore,rest:DiscordREST,logger:Logger){self.store=store;self.rest=rest;self.logger=logger}
  func memberJoined(guild:String,userID:String,createdAt:Date,isBot:Bool,now:Date=Date())async{
   guard !isBot else{return}
-  var recent=(joins[guild] ?? []).filter{now.timeIntervalSince($0.date)<=10}
-  recent.append((userID,now));joins[guild]=recent
-  guard recent.count>=8,(cooldown[guild].map{now.timeIntervalSince($0)>300} ?? true) else{return}
-  cooldown[guild]=now
+  let key="security.raid-joins."+guild
+  var recent=(await store.get(key,as:[Join].self) ?? []).filter{now.timeIntervalSince($0.date)<=10 && now >= $0.date}
+  recent.append(Join(user:userID,date:now))
+  try? await store.set(recent,key:key)
+  guard recent.count>=8 else{return}
+  let cooldownKey="security.raid-cooldown."+guild
+  let last=await store.get(cooldownKey,as:Date.self)
+  guard last.map({now.timeIntervalSince($0)>300}) ?? true else{return}
+  try? await store.set(now,key:cooldownKey)
   let age=max(0,Int(now.timeIntervalSince(createdAt)/86400))
   var action="Raid burst detected; alert only."
   var quarantined:String?=nil
