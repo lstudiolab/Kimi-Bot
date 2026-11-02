@@ -5,7 +5,7 @@ import { t, LOCALE_NAMES } from "./i18n.js";
 import { isSafeAssignableRole } from "./permissions.js";
 
 const MODULES = Object.freeze([
-  { id:"verification", label:"Verification", library:"Security", description:"Member verification and review decisions." },
+  { id:"verification", label:"Verification", library:"Kimi Lock", description:"Member verification and review decisions." },
   { id:"moderation", label:"Moderation", library:"Security", description:"Anti-spam, filters, warnings and sanctions." },
   { id:"protection", label:"Server Protection", library:"Security", description:"Raid detection, anti-nuke and bot approval." },
   { id:"recovery", label:"Recovery", library:"Security", description:"Channel snapshots and message recovery." },
@@ -13,7 +13,6 @@ const MODULES = Object.freeze([
   { id:"roles", label:"Role Picker", library:"Foundation", description:"Self-service role selection panels." },
   { id:"embeds", label:"Embeds", library:"Foundation", description:"Reusable server embeds and placements." },
   { id:"tickets", label:"Tickets", library:"Support", description:"Private support tickets and transcripts." },
-  { id:"scratch", label:"TbScript", library:"Scratch", description:"TbScript projects and panel scripting." }
 ]);
 
 // Discord-supported locale identifiers. These are persisted per server.
@@ -76,10 +75,10 @@ export class KimiSettings {
     }
     if(page==="library"){
       const library=selected;
-      if(!["Foundation","Security","Support","Scratch"].includes(library))return edit({content:"Unknown library.",embeds:[],components:[]});
+      if(!["Foundation","Kimi Lock","Support"].includes(library))return edit({content:"Unknown library.",embeds:[],components:[]});
       if(!installed(this.store,id,library))return edit({content:`${library} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
       const sections=[];
-      if(library==="Security"){
+      if(library==="Kimi Lock"){
         sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
         sections.push(row(button("settings:config:filter","Blocked Phrases")));
       }else if(library==="Support"){
@@ -93,7 +92,7 @@ export class KimiSettings {
     }
     if(page==="configure"){
       const sections=[];
-      if(installed(this.store,id,"Security")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
+      if(installed(this.store,id,"Kimi Lock")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
