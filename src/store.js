@@ -6,7 +6,7 @@ import { getGuildStorageBytes, getPlanForData, restoreGuildStorage, PLANS } from
 const defaults=()=>({
   installed_libraries:{},modules:{},command_settings:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},verification_logs:{},
   role_picker_menus:{},role_picker_drafts:{},embeds:{},moderation_cases:{},moderation_jobs:{},automod_words:{},pending_bots:{},
-  developer_projects:{},developer_history:{},developer_redo:{},developer_active:{},panel_scripts:{},customizations:{},library_data:{}
+  customizations:{},library_data:{}
 });
 function readJson(file){
   try{if(!fs.existsSync(file))return null;const value=JSON.parse(fs.readFileSync(file,"utf8"));
@@ -102,8 +102,9 @@ export class Store{
     }
     let changed=migrateLegacy(this.data,dataDir);
     for(const [guild,installed] of Object.entries(this.data.installed_libraries||{})){
-      const migrated=[...new Set((installed||[]).map(name=>name==="Moderation"?"Security":name==="Developer"?"Scratch":name).filter(name=>["Foundation","Security","Support","Scratch"].includes(name)))];
+      const migrated=[...new Set((installed||[]).map(name=>["Moderation","Security","Shield"].includes(name)?"Kimi Lock":name).filter(name=>["Foundation","Kimi Lock","Support"].includes(name)))];
       if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_libraries[guild]=migrated;changed=true;}
+    for(const key of ["developer_projects","developer_history","developer_redo","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
     }
     if(normalizeData(this.data))changed=true;
     this.persistedData=null;
@@ -113,7 +114,7 @@ export class Store{
   save(){
     const previous=this.persistedData,baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
-    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","developer_projects","developer_history","panel_scripts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
+    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots","developer_active"];
     for(const collection of collections){
       for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
       for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);
