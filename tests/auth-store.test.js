@@ -77,3 +77,16 @@ test("server-link tokens are capped per account during the validity window",()=>
   assert.match(auth.createWebToken(account.id).error,/Too many server-link tokens/);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test("auth storage ignores malformed account records and bounds link failure state",()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-auth-sanitize-"));
+ try{
+  fs.mkdirSync(path.join(root,"auth"),{recursive:true});
+  fs.writeFileSync(path.join(root,"auth","accounts.json"),JSON.stringify({accounts:[null,{id:"broken",email:"bad@example.com",passwordSalt:"x",passwordHash:"x"}]}));
+  const auth=new AuthStore(root);
+  assert.equal(auth.accounts.accounts.length,0);
+  for(let index=0;index<5005;index++)auth.completeLinkCode("not-a-code",{id:String(100000000000000000+index)});
+  assert.ok(auth.linkFailures.size<=5000);
+  assert.equal(auth.completeLinkCode("not-a-code",{id:"invalid"}).error!==undefined,true);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
