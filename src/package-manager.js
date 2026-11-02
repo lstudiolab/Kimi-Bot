@@ -12,7 +12,7 @@ const NAME=/^[a-z0-9][a-z0-9._-]{1,47}$/;
 
 function digest(value){return crypto.createHash("sha256").update(value).digest("hex");}
 function safeRelative(input){
-  if(typeof input!=="string"||!input||input.includes("\\\\")||input.startsWith("/")||input.includes("\\0"))return false;
+  if(typeof input!=="string"||!input||input.includes("\\")||input.startsWith("/")||input.includes("\0"))return false;
   return input.split("/").every(part=>part&&part!=="."&&part!==".."&&!part.startsWith("."));
 }
 function readManifest(root){
@@ -52,14 +52,14 @@ export function scanModuleDirectory(root){
   return {manifest,entries,findings};
 }
 function tarString(value,size){const b=Buffer.alloc(size);Buffer.from(String(value)).copy(b,0,0,size);return b;}
-function octal(value,size){return tarString(Math.max(0,value).toString(8).padStart(size-1,"0")+"\\0",size);}
+function octal(value,size){return tarString(Math.max(0,value).toString(8).padStart(size-1,"0")+"\0",size);}
 function makeTar(entries){
   const blocks=[];
   for(const [name,data] of entries){
     const header=Buffer.alloc(512);
     tarString(name,100).copy(header,0);octal(0o644,8).copy(header,100);octal(0,8).copy(header,108);octal(0,8).copy(header,116);
     octal(data.length,12).copy(header,124);octal(0,12).copy(header,136);header.fill(32,148,156);header[156]=48;
-    tarString("ustar\\0",6).copy(header,257);tarString("00",2).copy(header,263);
+    tarString("ustar\0",6).copy(header,257);tarString("00",2).copy(header,263);
     const checksum=header.reduce((sum,n)=>sum+n,0);octal(checksum,8).copy(header,148);
     blocks.push(header,data);const pad=(512-data.length%512)%512;if(pad)blocks.push(Buffer.alloc(pad));
   }
@@ -70,15 +70,15 @@ function parseTar(buffer){
   while(offset+512<=buffer.length){
     const header=buffer.subarray(offset,offset+512);offset+=512;
     if(header.every(byte=>byte===0))break;
-    const expected=parseInt(header.subarray(148,156).toString().replace(/\\0.*$/s,"").trim(),8);
+    const expected=parseInt(header.subarray(148,156).toString().replace(/\0.*$/s,"").trim(),8);
     const actual=header.reduce((sum,byte,index)=>sum+(index>=148&&index<156?32:byte),0);
     if(!Number.isFinite(expected)||expected!==actual)throw new Error("Module archive header checksum failed.");
-    const name=header.subarray(0,100).toString().replace(/\\0.*$/s,"");
-    const prefix=header.subarray(345,500).toString().replace(/\\0.*$/s,"");
+    const name=header.subarray(0,100).toString().replace(/\0.*$/s,"");
+    const prefix=header.subarray(345,500).toString().replace(/\0.*$/s,"");
     const full=prefix?prefix+"/"+name:name;
-    const size=parseInt(header.subarray(124,136).toString().replace(/\\0.*$/s,"").trim()||"0",8);
+    const size=parseInt(header.subarray(124,136).toString().replace(/\0.*$/s,"").trim()||"0",8);
     const type=String.fromCharCode(header[156]||48);
-    if(type!=="0"&&type!=="\\0")throw new Error("Only regular files are allowed in module archives.");
+    if(type!=="0"&&type!=="\0")throw new Error("Only regular files are allowed in module archives.");
     if(!safeRelative(full)||!Number.isSafeInteger(size)||size<0||size>MAX_FILE_BYTES)throw new Error("Unsafe or oversized file in module archive.");
     if(offset+size>buffer.length)throw new Error("Truncated module archive.");
     files.push([full,Buffer.from(buffer.subarray(offset,offset+size))]);total+=size;
@@ -96,7 +96,7 @@ function inspectSource(file,source){
 
 export function createModuleArchive(root,output){
   const scanned=scanModuleDirectory(root);
-  const manifest=Buffer.from(JSON.stringify(scanned.manifest,null,2)+"\\n");
+  const manifest=Buffer.from(JSON.stringify(scanned.manifest,null,2)+"\n");
   const entries=scanned.entries.filter(([name])=>name!=="manifest.json");
   entries.unshift(["manifest.json",manifest]);
   const archive=zlib.gzipSync(makeTar(entries),{level:9});
