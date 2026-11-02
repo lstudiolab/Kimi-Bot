@@ -4,11 +4,11 @@ actor AutomationEngine {
  struct Rule:Codable,Sendable,Identifiable {let id:String;let guildID:String;var name:String;var trigger:String;var action:String;var enabled:Bool;let createdAt:Date}
  struct Execution:Codable,Sendable {let ruleID:String;let guildID:String;let trigger:String;let success:Bool;let detail:String;let createdAt:Date}
  private let store:PersistentStore
- private let rest:DiscordREST
- private let logger:Logger
+ private let rest:DiscordREST?
+ private let logger:Logger?
  private let triggers:Set<String>=["message_create","member_join","member_leave"]
  private let actions:Set<String>=["delete_message","send_message","timeout","add_role","remove_role"]
- init(store:PersistentStore,rest:DiscordREST,logger:Logger){self.store=store;self.rest=rest;self.logger=logger}
+ init(store:PersistentStore,rest:DiscordREST?=nil,logger:Logger?=nil){self.store=store;self.rest=rest;self.logger=logger}
  func rules(guildID:String)async->[Rule]{(await store.get("automation.rules",as:[Rule].self) ?? []).filter{$0.guildID==guildID}}
  func add(guildID:String,name:String,trigger:String,action:String)async throws->Rule{
   guard !name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw KimiError.configuration("Enter a name for this automation.")}
@@ -41,6 +41,7 @@ actor AutomationEngine {
  }
  func executions(guildID:String)async->[Execution]{(await store.get("automation.executions",as:[Execution].self) ?? []).filter{$0.guildID==guildID}}
  func run(trigger:String,guild:String,user:String="",channel:String="",message:String="",username:String="member",server:String="server",messageID:String?=nil)async{
+  guard let rest else { return }
   let candidates=await matching(guildID:guild,trigger:trigger)
   for rule in candidates{
    do{
@@ -75,7 +76,7 @@ actor AutomationEngine {
     }
     await record(Execution(ruleID:rule.id,guildID:guild,trigger:trigger,success:true,detail:"Completed "+kind,createdAt:Date()))
    }catch{
-    await logger.log("ERROR","Automation "+rule.id+" failed: "+error.localizedDescription)
+    await logger?.log("ERROR","Automation "+rule.id+" failed: "+error.localizedDescription)
     await record(Execution(ruleID:rule.id,guildID:guild,trigger:trigger,success:false,detail:error.localizedDescription,createdAt:Date()))
    }
   }
