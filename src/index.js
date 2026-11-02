@@ -78,6 +78,23 @@ const openConfiguration=async(i,section)=>{
   return libraries[library].handleInteraction(proxy);
  };
 const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
+async function showInstallAnimation(interaction,libraryName){
+ const frames=[
+  {bar:"░░░░░░░░░░",percent:0,status:"Preparing library"},
+  {bar:"██░░░░░░░░",percent:20,status:"Loading system files"},
+  {bar:"████░░░░░░",percent:40,status:"Checking package structure"},
+  {bar:"██████░░░░",percent:60,status:"Registering commands"},
+  {bar:"████████░░",percent:80,status:"Activating library"},
+  {bar:"██████████",percent:100,status:"Finishing installation"}
+ ];
+ for(const frame of frames){
+  await interaction.editReply({
+   content:"**Installing "+libraryName+"**\\n\`"+frame.bar+"\` "+frame.percent+"%\\n"+frame.status+"…\\n\\n*Visual installation animation.*",
+   components:[],embeds:[],allowedMentions:{parse:[]}
+  });
+  if(frame.percent!==100)await new Promise(resolve=>setTimeout(resolve,420));
+ }
+}
 async function coreCommand(i){
  if(!i.inGuild())return respond(i,"Use this command inside a Discord server.");
  if(i.commandName==="web-token"){
@@ -114,6 +131,7 @@ async function coreCommand(i){
   const name=i.options.getString("library");
   if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Moderation, Support. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
+  await showInstallAnimation(i,result.library.name);
   try {
    await syncGuildCommands(i.guildId);
   } catch(error) {
