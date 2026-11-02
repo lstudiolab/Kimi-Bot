@@ -420,38 +420,34 @@ extension KimiRuntime {
   case "GUILD_MEMBER_ADD":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   if installed.contains("Welcome") || installed.contains("Auto Role") {
-    await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0,welcomeEnabled:installed.contains("Welcome"),autoRoleEnabled:installed.contains("Auto Role"))
+   let welcomeOn=await migratedModuleEnabled("welcome",guild:guild),autoRoleOn=await migratedModuleEnabled("auto_role",guild:guild)
+   if installed.contains("Welcome") && welcomeOn || installed.contains("Auto Role") && autoRoleOn {
+    await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0,welcomeEnabled:installed.contains("Welcome") && welcomeOn,autoRoleEnabled:installed.contains("Auto Role") && autoRoleOn)
    }
    if installed.contains("Kimi Lock") {
-    if await migratedModuleEnabled("verification",guild:guild){await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")}
-    if protectionEnabled {
-    let snowflake=Int64(id) ?? 0
-    let createdAt=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
-    await RaidProtectionService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,createdAt:createdAt,isBot:user["bot"] as? Bool ?? false)
-    }
-    let protectionEnabled=await migratedModuleEnabled("protection",guild:guild)
-    if installed.contains("Kimi Lock") && protectionEnabled {
-    if user["bot"] as? Bool == true {
-     do {
-      let owner=try await rest.ownerID(guild)
-      let me=try await rest.call("GET","users/@me") as? [String:Any] ?? [:]
-      guard let botID=me["id"] as? String else { throw KimiError.invalidResponse }
-      let key="guard.confirmation."+guild
-      var confirmation=await store.get(key,as:String.self)
-      if let current=confirmation { do { _ = try await rest.call("GET","channels/"+current) } catch { confirmation=nil } }
-      if confirmation == nil { confirmation=try await rest.createPrivateTextChannel(guild,"kimi-confirmations",owner,botID); if let confirmation { try await store.set(confirmation,key:key) } }
-      guard let confirmation else { throw KimiError.configuration("Could not create the private bot approval channel.") }
-      let containment=try await KimiGuardService(store:store,rest:rest,logger:logger).contain(guild:guild,actor:id,action:"new bot joined; awaiting owner approval")
-      let roles=try await rest.call("GET","guilds/"+guild+"/roles") as? [[String:Any]] ?? []
-      let member=try await rest.call("GET","guilds/"+guild+"/members/"+id) as? [String:Any] ?? [:]
-      let memberRoles=Set(member["roles"] as? [String] ?? [])
-      let admin=roles.contains{role in memberRoles.contains(role["id"] as? String ?? "") && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & 8) != 0}
-      let warning=admin ? "This bot has Administrator access. Discord Administrator bypasses channel restrictions; remove that permission before approving." : "Kimi temporarily removed manageable bot roles while approval is pending."
-      let controls=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"botguard:yes:"+guild+":"+id],["type":2,"style":4,"label":"Reject","custom_id":"botguard:no:"+guild+":"+id]]]] as [[String:Any]]
-      _ = try await rest.call("POST","channels/"+confirmation+"/messages",body:["content":"**New bot approval required**\\nBot: <@"+id+">\\n"+warning+"\\nContainment: "+String(containment?.removedCount ?? 0)+" role(s) removed.","components":controls,"allowed_mentions":["parse":[]]])
-     } catch { await logger.log("ERROR","Kimi Guard bot approval failed: "+error.localizedDescription) }
-    }
+    let verificationOn=await migratedModuleEnabled("verification",guild:guild),protectionOn=await migratedModuleEnabled("protection",guild:guild)
+    if verificationOn{await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")}
+    if protectionOn {
+     let snowflake=Int64(id) ?? 0,createdAt=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
+     await RaidProtectionService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,createdAt:createdAt,isBot:user["bot"] as? Bool ?? false)
+     if user["bot"] as? Bool == true {
+      do {
+       let owner=try await rest.ownerID(guild),me=try await rest.call("GET","users/@me") as? [String:Any] ?? [:]
+       guard let botID=me["id"] as? String else{throw KimiError.invalidResponse}
+       let key="guard.confirmation."+guild
+       var confirmation=await store.get(key,as:String.self)
+       if let current=confirmation{do{_ = try await rest.call("GET","channels/"+current)}catch{confirmation=nil}}
+       if confirmation == nil{confirmation=try await rest.createPrivateTextChannel(guild,"kimi-confirmations",owner,botID);if let confirmation{try await store.set(confirmation,key:key)}}
+       guard let confirmation else{throw KimiError.configuration("Could not create the private bot approval channel.")}
+       let containment=try await KimiGuardService(store:store,rest:rest,logger:logger).contain(guild:guild,actor:id,action:"new bot joined; awaiting owner approval")
+       let roles=try await rest.call("GET","guilds/"+guild+"/roles") as? [[String:Any]] ?? [],member=try await rest.call("GET","guilds/"+guild+"/members/"+id) as? [String:Any] ?? [:]
+       let memberRoles=Set(member["roles"] as? [String] ?? [])
+       let admin=roles.contains{role in memberRoles.contains(role["id"] as? String ?? "") && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & 8) != 0}
+       let warning=admin ? "This bot has Administrator access. Discord Administrator bypasses channel restrictions; remove that permission before approving." : "Kimi temporarily removed manageable bot roles while approval is pending."
+       let controls=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"botguard:yes:"+guild+":"+id],["type":2,"style":4,"label":"Reject","custom_id":"botguard:no:"+guild+":"+id]]]] as [[String:Any]]
+       _ = try await rest.call("POST","channels/"+confirmation+"/messages",body:["content":"**New bot approval required**\\nBot: <@"+id+">\\n"+warning+"\\nContainment: "+String(containment?.removedCount ?? 0)+" role(s) removed.","components":controls,"allowed_mentions":["parse":[]]])
+      }catch{await logger.log("ERROR","Kimi Guard bot approval failed: "+error.localizedDescription)}
+     }
     }
    }
    await AnalyticsService(store:store).record(guild:guild,event:"join")
