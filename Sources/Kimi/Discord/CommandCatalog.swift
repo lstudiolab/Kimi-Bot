@@ -14,7 +14,12 @@ enum CommandCatalog {
   return [
    "kimi":command("kimi","Open Kimi server settings"),"setup":command("setup","Prepare private Kimi channels"),"plan":command("plan","View Kimi storage usage"),"apps":command("apps","Browse Kimi apps"),"app-store":command("app-store","Manage installed apps"),
    "install":command("install","Install a Kimi app",[text("app","App to install",true,apps)]),"uninstall":command("uninstall","Uninstall a Kimi app",[text("app","App to remove",true,apps)]),
-   "automations":command("automations","Manage server automations"),"guard-review":command("guard-review","Review bot containment",[user("bot","Bot under review"),text("decision","Restore or keep restricted",true,[["name":"Restore","value":"restore"],["name":"Keep restricted","value":"keep"]])]),"web-token":command("web-token","Create a dashboard link token"),
+   "automations":command("automations","Manage server automations",[
+    ["type":1,"name":"list","description":"List saved automation rules"],
+    ["type":1,"name":"create","description":"Create an event automation","options":[text("name","Rule name",true),text("trigger","Trigger: message_create, member_join or member_leave",true),text("action","Action: delete_message, send_message:CHANNEL:TEXT, timeout:MINUTES or add_role:ROLE",true)]],
+    ["type":1,"name":"remove","description":"Remove an automation rule","options":[text("id","Rule ID",true)]],
+    ["type":1,"name":"toggle","description":"Enable or disable a rule","options":[text("id","Rule ID",true),["type":5,"name":"enabled","description":"Enable this rule","required":true]]
+   ]),"guard-review":command("guard-review","Review bot containment",[user("bot","Bot under review"),text("decision","Restore or keep restricted",true,[["name":"Restore","value":"restore"],["name":"Keep restricted","value":"keep"]])]),"web-token":command("web-token","Create a dashboard link token"),
    "welcome":command("welcome","Configure welcome and goodbye messages",[channel("welcome-channel","Welcome channel"),channel("goodbye-channel","Goodbye channel"),text("welcome-message","Welcome message"),text("goodbye-message","Goodbye message")]),
    "autorole":command("autorole","Configure automatic member role",[role("role","Role assigned to new members")]),"roles":command("roles","Create a self-service role menu"),
    "embed-new":command("embed-new","Create a reusable embed",[text("name","Saved embed name",true),text("title","Embed title",true),text("description","Embed description",true)]),"embed-edit":command("embed-edit","Edit a saved embed",[text("name","Embed name",true),text("title","New title"),text("description","New description")]),"embed-post":command("embed-post","Publish a saved embed",[text("name","Embed name",true)]),
