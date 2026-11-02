@@ -4,7 +4,7 @@ import { fillDefaults } from "./utils.js";
 import { getGuildStorageBytes, getPlanForData, restoreGuildStorage, PLANS } from "./subscriptions.js";
 
 const defaults=()=>({
-  installed_libraries:{},modules:{},command_settings:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},verification_logs:{},
+  installed_plugins:{},modules:{},command_settings:{},languages:{},subscriptions:{},welcome:{},timi_setup:{},tickets:{},moderation:{},verification:{},members:{},channels:{},messages:{},analytics_requests:{},verification_logs:{},
   role_picker_menus:{},role_picker_drafts:{},embeds:{},moderation_cases:{},moderation_jobs:{},automod_words:{},pending_bots:{},
   customizations:{},library_data:{}
 });
@@ -101,9 +101,10 @@ export class Store{
       this.data=fillDefaults(recovered,defaults());
     }
     let changed=migrateLegacy(this.data,dataDir);
-    for(const [guild,installed] of Object.entries(this.data.installed_libraries||{})){
+    if(this.data.installed_libraries){for(const [guild,plugins] of Object.entries(this.data.installed_libraries)){this.data.installed_plugins[guild]||=plugins;}delete this.data.installed_libraries;changed=true;}
+    for(const [guild,installed] of Object.entries(this.data.installed_plugins||{})){
       const migrated=[...new Set((installed||[]).map(name=>["Moderation","Security","Shield"].includes(name)?"Kimi Lock":name).filter(name=>["Foundation","Kimi Lock","Support"].includes(name)))];
-      if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_libraries[guild]=migrated;changed=true;}
+      if(JSON.stringify(migrated)!==JSON.stringify(installed)){this.data.installed_plugins[guild]=migrated;changed=true;}
     }
     for(const key of ["developer_projects","developer_history","developer_redo","developer_active","panel_scripts"])if(this.data[key]!==undefined){delete this.data[key];changed=true;}
     if(normalizeData(this.data))changed=true;
@@ -114,7 +115,7 @@ export class Store{
   save(){
     const previous=this.persistedData,baseline=previous||defaults();
     const rejected=[],guildIds=new Set();
-    const collections=["installed_libraries","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots"];
+    const collections=["installed_plugins","welcome","tickets","moderation","verification","verification_logs","role_picker_menus","role_picker_drafts","customizations","library_data","timi_setup","automod_words","moderation_cases","moderation_jobs","pending_bots"];
     for(const collection of collections){
       for(const id of Object.keys(this.data[collection]||{}))guildIds.add(id);
       for(const id of Object.keys(baseline[collection]||{}))guildIds.add(id);

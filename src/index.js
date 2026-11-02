@@ -1,13 +1,13 @@
 import { Client, Events, GatewayIntentBits, Partials, REST, Routes, PermissionFlagsBits, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { loadConfig, createLogger } from "./config.js";
 import { startDashboardServer } from "./dashboard.js";
-import { commandsForLibraries, libraryCommandsForLibraries, coreCommandData, libraryForCommand } from "./commands.js";
+import { commandsForPlugins, pluginCommandsForPlugins, coreCommandData, pluginForCommand } from "./commands.js";
 import { Store } from "./store.js";
 import { AuthStore } from "./auth-store.js";
-import { LibraryManager } from "./module-manager.js";
-import { LIBRARIES } from "./libraries/index.js";
+import { PluginManager } from "./plugin-manager.js";
+import { PLUGINS } from "./plugins/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
-import { libraryForComponent } from "./component-routing.js";
+import { pluginForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
 import { KimiSettings } from "./settings.js";
 import { translatePayload } from "./i18n.js";
@@ -16,7 +16,7 @@ import { createRuntimeServices } from "./services/runtime.js";
 const config=loadConfig(),logger=createLogger(config.logLevel),store=new Store(config.dataDir,logger),authStore=new AuthStore(config.dataDir,logger);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildModeration,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Channel,Partials.Message,Partials.GuildMember]});
 const services=createRuntimeServices({logger});
-const manager=new LibraryManager(store,logger),context={client,store,logger,services};
+const manager=new PluginManager(store,logger),context={client,store,logger,services};
 const performanceMonitor=new PerformanceMonitor(logger);
 performanceMonitor.start();
 const moduleEnabled=(guildId,moduleId)=>store.data.modules?.[guildId]?.[moduleId]!==false;
@@ -37,8 +37,8 @@ const commandModule={
  "ticket-panel":"tickets"
 };
 const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":null;
-const foundation=LIBRARIES.Foundation.create(context);context.foundation=foundation;
-const libraries=Object.fromEntries(Object.entries(LIBRARIES).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
+const foundation=PLUGINS.Foundation.create(context);context.foundation=foundation;
+const libraries=Object.fromEntries(Object.entries(PLUGINS).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
 context.libraries=libraries;
 const rest=new REST({version:"10"}).setToken(config.token);
 async function syncGlobalCommands(){
@@ -47,7 +47,7 @@ async function syncGlobalCommands(){
 }
 async function syncGuildCommands(guildId){
  const installed=store.data.installed_libraries[guildId]||[];
- const body=libraryCommandsForLibraries(installed);
+ const body=pluginCommandsForPlugins(installed);
  const route=Routes.applicationGuildCommands(config.clientId,guildId);
  const registered=await rest.put(route,{body});
  logger.info(`Synced ${registered.length} slash commands for guild ${guildId}.`);
@@ -64,8 +64,8 @@ function opensModal(i){
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
   const commandName=names[section];
-  const library=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
-  if(!commandName||!libraries[library])return respond(i,"This configuration section is not available.");
+  const plugin=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
+  if(!commandName||!libraries[plugin])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
    getAttachment:()=>null
@@ -76,16 +76,16 @@ const openConfiguration=async(i,section)=>{
    if(key==="isChatInputCommand")return ()=>true;
    return Reflect.get(target,key,receiver);
   }});
-  return libraries[library].handleInteraction(proxy);
+  return libraries[plugin].handleInteraction(proxy);
  };
 const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,openConfiguration});
 async function showInstallAnimation(interaction,moduleName){
  const frames=[
-  {bar:"░░░░░░░░░░",percent:0,status:"Preparing library"},
-  {bar:"█░░░░░░░░░",percent:10,status:"Loading library"},
-  {bar:"██░░░░░░░░",percent:20,status:"Checking library identity"},
+  {bar:"░░░░░░░░░░",percent:0,status:"Preparing plugin"},
+  {bar:"█░░░░░░░░░",percent:10,status:"Loading plugin"},
+  {bar:"██░░░░░░░░",percent:20,status:"Checking plugin identity"},
   {bar:"███░░░░░░░",percent:30,status:"Checking module structure"},
-  {bar:"████░░░░░░",percent:40,status:"Preparing library systems"},
+  {bar:"████░░░░░░",percent:40,status:"Preparing plugin systems"},
   {bar:"█████░░░░░",percent:50,status:"Listing slash commands"},
   {bar:"██████░░░░",percent:60,status:"Checking slash commands"},
   {bar:"███████░░░",percent:70,status:"Publishing commands"},
@@ -110,8 +110,8 @@ async function coreCommand(i){
   return i.showModal(modal);
  }
  if(i.commandName==="kimi")return settings.show(i,"home");
- const configureLibrary={"configure-foundation":"Foundation","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
- if(configureLibrary)return settings.show(i,"library",configureLibrary);
+ const configurePlugin={"configure-foundation":"Foundation","configure-kimi-lock":"Kimi Lock","configure-support":"Support"}[i.commandName];
+ if(configurePlugin)return settings.show(i,"plugin",configurePlugin);
  if(i.commandName==="plan"){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Kimi Free**\nKimi is free to use. All built-in libraries can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage libraries and systems in /kimi.");
@@ -121,33 +121,33 @@ async function coreCommand(i){
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
   });
-  return respond(i,"**Kimi Library**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi.");
+  return respond(i,"**Kimi Plugins**\n\n"+lines.join("\n\n")+"\n\nInstall or remove libraries in /kimi.");
  }
  if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi libraries.");
-  const result=manager.uninstall(i.guildId,i.options.getString("library"));
+  const result=manager.uninstall(i.guildId,i.options.getString("plugin")||i.options.getString("library"));
   if(!result.ok)return respond(i,result.error);
-  const libraryKey=result.library.name;
-  if(libraries[libraryKey]?.onUninstall)await libraries[libraryKey].onUninstall(i.guild);
+  const pluginKey=result.plugin.name;
+  if(libraries[pluginKey]?.onUninstall)await libraries[pluginKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
-  return respond(i,`**${result.library.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
+  return respond(i,`**${result.plugin.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi libraries.");
-  const name=i.options.getString("library");
-  if(!name)return respond(i,"Choose a library in the library option. Available: Foundation, Kimi Lock, Support. Use /libraries for details.");
+  const name=i.options.getString("plugin")||i.options.getString("library");
+  if(!name)return respond(i,"Choose a plugin in the plugin option. Available: Foundation, Kimi Lock, Support. Use /libraries for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
-  await showInstallAnimation(i,result.library.name);
+  await showInstallAnimation(i,result.plugin.name);
   try {
    await syncGuildCommands(i.guildId);
   } catch(error) {
-   logger.error(`Could not publish ${result.library.name} commands for guild ${i.guildId}:`,error);
-   return respond(i,`**${result.library.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
+   logger.error(`Could not publish ${result.plugin.name} commands for guild ${i.guildId}:`,error);
+   return respond(i,`**${result.plugin.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
-  const libraryKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.library.name]||result.library.name;
-  if(libraries[libraryKey]?.ready)await libraries[libraryKey].ready(i.guild);
-  if(libraries[libraryKey]?.onInstall)await libraries[libraryKey].onInstall(i.guild);
-  return respond(i,`**${result.library.name}** is installed and active in this server. Its slash commands have been published.\n${result.library.description}`);
+  const pluginKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.plugin.name]||result.plugin.name;
+  if(libraries[pluginKey]?.ready)await libraries[pluginKey].ready(i.guild);
+  if(libraries[pluginKey]?.onInstall)await libraries[pluginKey].onInstall(i.guild);
+  return respond(i,`**${result.plugin.name}** is installed and active in this server. Its slash commands have been published.\n${result.plugin.description}`);
  }
 }
 function localizeInteraction(i){
@@ -173,20 +173,20 @@ async function handleInteraction(i){
   if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","libraries","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
-  const required=libraryForCommand(i.commandName);if(!required)return;
-  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi library commands.");
-  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed in this server. Ask the owner to use /install.`);
+  const required=pluginForCommand(i.commandName);if(!required)return;
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi plugin commands.");
+  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed in this server. Ask the owner to use /install.`);
   return libraries[required].handleInteraction(i);
  }
  const id=i.customId||"";
  if(id.startsWith("settings:"))return settings.handle(i);
  const moduleId=componentModule(id);
  if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`This system is disabled. Enable it in /kimi.`);
- const required=libraryForComponent(id);if(!required)return;
+ const required=pluginForComponent(id);if(!required)return;
  const ticketAdminControl=id.startsWith("ticket:edit-")||id.startsWith("ticket:settings:")||id==="ticket:publish";
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
- if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** library is not installed. This control is inactive.`);
+ if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed. This control is inactive.`);
  return libraries[required].handleInteraction(i);
 }
 client.on(Events.GuildCreate,guild=>{
@@ -196,7 +196,7 @@ client.on(Events.GuildCreate,guild=>{
 client.once(Events.ClientReady,async ready=>{
  logger.info(`Logged in as ${ready.user.tag}`);
  const startupTasks=[
-  rest.put(Routes.applicationCommands(config.clientId),{body:commandsForLibraries([])})
+  rest.put(Routes.applicationCommands(config.clientId),{body:commandsForPlugins([])})
    .then(()=>logger.info("Registered core global slash commands."))
    .catch(error=>logger.error("Global command sync failed:",error))
  ];
@@ -204,11 +204,11 @@ client.once(Events.ClientReady,async ready=>{
   startupTasks.push((async()=>{
    try{await syncGuildCommands(guild.id);}catch(error){logger.error(`Command sync failed for guild ${guild.id}:`,error);}
    const readyTasks=[];
-   for(const [name,library] of Object.entries(libraries)){
-    if(manager.installed(guild.id,name)&&library.ready)readyTasks.push(Promise.resolve().then(()=>library.ready(guild)));
+   for(const [name,plugin] of Object.entries(libraries)){
+    if(manager.installed(guild.id,name)&&plugin.ready)readyTasks.push(Promise.resolve().then(()=>plugin.ready(guild)));
    }
    const results=await Promise.allSettled(readyTasks);
-   for(let index=0;index<results.length;index++)if(results[index].status==="rejected")logger.error(`Library startup failed in guild ${guild.id}:`,results[index].reason);
+   for(let index=0;index<results.length;index++)if(results[index].status==="rejected")logger.error(`Plugin startup failed in guild ${guild.id}:`,results[index].reason);
   })());
  }
  await Promise.allSettled(startupTasks);
@@ -245,7 +245,7 @@ client.on(Events.MessageCreate,async m=>{
  if(m.author.bot||!m.guild)return;
  if(m.content.trim().toLowerCase()==="&testgreet"){
   if(!m.member?.permissions.has(PermissionFlagsBits.ManageGuild))return m.reply("You need Manage Server permission to run the greet test.").catch(()=>{});
-  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation library is not installed in this server.").catch(()=>{});
+  if(!manager.installed(m.guild.id,"Foundation"))return m.reply("The Foundation plugin is not installed in this server.").catch(()=>{});
   try{
    const sent=await foundation.testGreet(m.member);
    if(!sent)return m.reply("Greet test could not be sent. Check that a welcome channel is configured and Kimi can view and send messages there.").catch(()=>{});

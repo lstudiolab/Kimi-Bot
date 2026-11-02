@@ -1,18 +1,18 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, EmbedBuilder, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GREY, respond } from "./ui.js";
-import { LIBRARIES } from "./libraries/index.js";
+import { PLUGINS } from "./plugins/index.js";
 import { t, LOCALE_NAMES } from "./i18n.js";
 import { isSafeAssignableRole } from "./permissions.js";
 
 const MODULES = Object.freeze([
-  { id:"verification", label:"Verification", library:"Kimi Lock", description:"Member verification and review decisions." },
-  { id:"moderation", label:"Moderation", library:"Kimi Lock", description:"Anti-spam, filters, warnings and sanctions." },
-  { id:"protection", label:"Server Protection", library:"Kimi Lock", description:"Raid detection, anti-nuke and bot approval." },
-  { id:"recovery", label:"Recovery", library:"Kimi Lock", description:"Channel snapshots and message recovery." },
-  { id:"welcome", label:"Welcome", library:"Foundation", description:"Welcome, goodbye and automatic role systems." },
-  { id:"roles", label:"Role Picker", library:"Foundation", description:"Self-service role selection panels." },
-  { id:"embeds", label:"Embeds", library:"Foundation", description:"Reusable server embeds and placements." },
-  { id:"tickets", label:"Tickets", library:"Support", description:"Private support tickets and transcripts." },
+  { id:"verification", label:"Verification", plugin:"Kimi Lock", description:"Member verification and review decisions." },
+  { id:"moderation", label:"Moderation", plugin:"Kimi Lock", description:"Anti-spam, filters, warnings and sanctions." },
+  { id:"protection", label:"Server Protection", plugin:"Kimi Lock", description:"Raid detection, anti-nuke and bot approval." },
+  { id:"recovery", label:"Recovery", plugin:"Kimi Lock", description:"Channel snapshots and message recovery." },
+  { id:"welcome", label:"Welcome", plugin:"Foundation", description:"Welcome, goodbye and automatic role systems." },
+  { id:"roles", label:"Role Picker", plugin:"Foundation", description:"Self-service role selection panels." },
+  { id:"embeds", label:"Embeds", plugin:"Foundation", description:"Reusable server embeds and placements." },
+  { id:"tickets", label:"Tickets", plugin:"Support", description:"Private support tickets and transcripts." },
 ]);
 
 // Discord-supported locale identifiers. These are persisted per server.
@@ -54,9 +54,9 @@ function normalizePanelComponents(components,logger){
   }
   return components;
 }
-const installed = (store,guildId,name) => (store.data.installed_libraries[guildId]||[]).includes(name);
+const installed = (store,guildId,name) => (store.data.installed_plugins[guildId]||[]).includes(name);
 const enabled = (store,guildId,id) => store.data.modules?.[guildId]?.[id] !== false;
-const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.library) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
+const moduleStatus = (store,guildId,module) => !installed(store,guildId,module.plugin) ? t(store,guildId,"missing") : enabled(store,guildId,module.id) ? t(store,guildId,"enabled") : t(store,guildId,"disabled");
 
 export class KimiSettings {
   constructor(store,manager,logger,hooks={}){this.store=store;this.manager=manager;this.logger=logger;this.hooks=hooks;}
@@ -69,26 +69,26 @@ export class KimiSettings {
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
       return edit({embeds:[embed(tr("title"),`Manage Kimi's systems and server preferences.\n\nOnly you, as this server's owner, can change these settings.`)],components:[
-        row(button("settings:modules","Systems"),button("settings:install","Libraries")),
+        row(button("settings:modules","Systems"),button("settings:install","Plugins")),
         row(button("settings:preferences","Preferences"),button("settings:status","Status"))
       ]});
     }
-    if(page==="library"){
-      const library=selected;
-      if(!["Foundation","Kimi Lock","Support"].includes(library))return edit({content:"Unknown library.",embeds:[],components:[]});
-      if(!installed(this.store,id,library))return edit({content:`${library} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
+    if(page==="plugin"){
+      const plugin=selected;
+      if(!["Foundation","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown plugin.",embeds:[],components:[]});
+      if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not installed in this server. Install it first using /install.`,embeds:[],components:[]});
       const sections=[];
-      if(library==="Kimi Lock"){
+      if(plugin==="Kimi Lock"){
         sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));
         sections.push(row(button("settings:config:filter","Blocked Phrases")));
-      }else if(library==="Support"){
+      }else if(plugin==="Support"){
         sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
-      }else if(library==="Foundation"){
+      }else if(plugin==="Foundation"){
         sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       }else{
         sections.push(row(button("settings:home","Back to Kimi Settings")));
       }
-      return edit({embeds:[embed(library+" Configuration",`Configure the ${library} library for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
+      return edit({embeds:[embed(plugin+" Configuration",`Configure the ${plugin} plugin for this server.`)],components:[...sections,row(button("settings:home","Kimi Settings"))]});
     }
     if(page==="configure"){
       const sections=[];
@@ -96,7 +96,7 @@ export class KimiSettings {
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       if(installed(this.store,id,"Foundation"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
       sections.push(row(button("settings:home",tr("back"))));
-      return edit({embeds:[embed("Configuration","Choose a system to configure. Only installed libraries are shown here.")],components:sections});
+      return edit({embeds:[embed("Configuration","Choose a system to configure. Only installed plugins are shown here.")],components:sections});
     }
     if(page==="filter"){
       const words=this.store.data.automod_words[id]||[];
@@ -105,27 +105,27 @@ export class KimiSettings {
     }
     if(page==="modules"){
       const lines=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
-      const availableModules=MODULES.filter(m=>installed(this.store,id,m.library));
+      const availableModules=MODULES.filter(m=>installed(this.store,id,m.plugin));
       const options=availableModules.map(m=>({label:m.label,value:m.id,description:m.description.slice(0,100)}));
       const menu=new StringSelectMenuBuilder().setCustomId("settings:module-select").setPlaceholder(tr("choose"));
       if(options.length)menu.addOptions(options);
       const components=options.length?[row(menu)]:[];
       if(selected){
         const m=MODULES.find(x=>x.id===selected);
-        if(m&&installed(this.store,id,m.library))components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
+        if(m&&installed(this.store,id,m.plugin))components.push(row(button("settings:module-on:"+selected,tr("enable")),button("settings:module-off:"+selected,tr("disable")),button("settings:module-info:"+selected,tr("details"))));
       }
       components.push(row(button("settings:home",tr("back"))));
       return edit({embeds:[embed(tr("modules"),lines+"\n\nSelect a system to manage it. Disabling a system preserves its saved configuration.")],components});
     }
     if(page==="install"||page==="uninstall"){
-      const choices=Object.values(LIBRARIES).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
-      const menu=new StringSelectMenuBuilder().setCustomId("settings:library-select:"+page).setPlaceholder(page==="install"?"Choose a library to install":"Choose an installed library");
+      const choices=Object.values(PLUGINS).filter(lib=>page==="install"?!installed(this.store,id,lib.name):installed(this.store,id,lib.name));
+      const menu=new StringSelectMenuBuilder().setCustomId("settings:plugin-select:"+page).setPlaceholder(page==="install"?"Choose a plugin to install":"Choose an installed plugin");
       if(choices.length)menu.addOptions(choices.map(lib=>({label:lib.name,value:lib.name,description:lib.description.slice(0,100)})));
       const components=choices.length?[row(menu)]:[];
-      if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:library-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
+      if(selected&&choices.some(lib=>lib.name===selected))components.push(row(button("settings:plugin-confirm:"+page+":"+selected,page==="install"?tr("install"):tr("uninstall"),page==="install"?ButtonStyle.Secondary:ButtonStyle.Danger)));
       components.push(row(button("settings:home",tr("back"))));
-      const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available libraries are installed.":"There are no installed libraries to remove.");
-      return edit({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
+      const description=choices.length?choices.map(lib=>`**${lib.name}**\n${lib.description}`).join("\n\n"):(page==="install"?"All available plugins are installed.":"There are no installed plugins to remove.");
+      return edit({embeds:[embed(page==="install"?"Install Plugins":"Uninstall Plugins",description)],components});
     }
     if(page==="language"){
       const makeLanguageMenu=(items,suffix,customId="settings:language-select")=>new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
@@ -136,9 +136,9 @@ export class KimiSettings {
 Choose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
     }
     if(page==="status"){
-      const libs=Object.values(LIBRARIES).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\\n");
+      const libs=Object.values(PLUGINS).map(lib=>`**${lib.name}** — ${installed(this.store,id,lib.name)?"Installed":"Not installed"}`).join("\\n");
       const mods=MODULES.map(m=>`**${m.label}** — ${moduleStatus(this.store,id,m)}`).join("\\n");
-      return edit({embeds:[embed(tr("status"),`**Libraries**
+      return edit({embeds:[embed(tr("status"),`**Plugins**
 ${libs}
 
 **Modules**
@@ -179,7 +179,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       this.store.save();return this.show(i,"appearance");
     }
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock library is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock plugin is no longer installed.",components:[],embeds:[]});
       const phrase=i.fields.getTextInputValue("phrase").trim();
       if(!phrase||phrase.length>100)return i.editReply({content:"Enter a phrase between 1 and 100 characters.",components:[],embeds:[]});
       const words=this.store.data.automod_words[i.guildId]||[];
@@ -197,7 +197,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
       if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can change verification policy.",components:[],embeds:[]});
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock library is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock plugin is no longer installed.",components:[],embeds:[]});
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
       const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
@@ -217,11 +217,11 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       if(roleId&&!bot.permissions.has(PermissionFlagsBits.ManageRoles))return i.editReply({content:"Kimi needs Manage Roles permission to grant the verified role.",components:[],embeds:[]});
       Object.assign(value,{role_id:roleId,required_role_id:requiredRoleId,review_channel_id:reviewId,min_age_days:age,thresholds:{pass:thresholds[0],review:thresholds[1]}});
       this.store.data.verification[i.guildId]=value;this.store.save();
-      await this.hooks.libraries?.Foundation?.refreshVerification?.(i.guild);
+      await this.hooks.plugins?.Foundation?.refreshVerification?.(i.guild);
       return i.editReply({content:"Verification settings saved. Existing verification panels have been refreshed.",components:[],embeds:[]});
     }
     if(i.isModalSubmit()&&id==="settings:welcome:modal"){
-      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation library is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Foundation"))return i.editReply({content:"The Foundation plugin is no longer installed.",components:[],embeds:[]});
       const current=this.store.data.welcome[i.guildId]||{welcome_channel_id:"",welcome_message:"Welcome {user} to {server}! You are member #{member_count}.",goodbye_channel_id:"",goodbye_message:"{username} has left {server}.",auto_role_id:""};
       const read=key=>i.fields.getTextInputValue(key).trim();
       const channelId=key=>read(key).replace(/[<#>]/g,"");
@@ -250,11 +250,11 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         this.store.data.languages||={};this.store.data.languages[i.guildId]=i.values[0];this.store.save();
         return this.show(i,"language");
       }
-      if(id.startsWith("settings:library-select:"))return this.show(i,id.split(":")[2],i.values[0]);
+      if(id.startsWith("settings:plugin-select:"))return this.show(i,id.split(":")[2],i.values[0]);
     }
     if(!i.isButton())return;
     if(id==="settings:filter-add"||id==="settings:filter-remove"){
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return respond(i,"The Kimi Lock library is no longer installed.");
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return respond(i,"The Kimi Lock plugin is no longer installed.");
       const add=id==="settings:filter-add";
       const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
       return i.showModal(modal);
@@ -271,8 +271,8 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const library=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Foundation";
-      if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Kimi Settings to refresh the panel.");
+      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Foundation";
+      if(!installed(this.store,i.guildId,plugin))return respond(i,"That plugin is no longer installed. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
         if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can change verification policy.");
@@ -312,31 +312,31 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const [,action,moduleId]=id.split(":");
       const module=MODULES.find(m=>m.id===moduleId);
       if(!module)return this.show(i,"modules");
-      if(!installed(this.store,i.guildId,module.library))return i.editReply({content:`Install the **${module.library}** library before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Modules"))]});
+      if(!installed(this.store,i.guildId,module.plugin))return i.editReply({content:`Install the **${module.plugin}** plugin before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Modules"))]});
       this.store.data.modules||={};this.store.data.modules[i.guildId]||={};
       this.store.data.modules[i.guildId][moduleId]=action==="module-on";this.store.save();
       this.logger.info(`Module ${moduleId} ${action==="module-on"?"enabled":"disabled"} for guild ${i.guildId}.`);
       return this.show(i,"modules",moduleId);
     }
     if(id.startsWith("settings:module-info:"))return this.show(i,"modules",id.split(":")[2]);
-    if(id.startsWith("settings:library-confirm:")){
+    if(id.startsWith("settings:plugin-confirm:")){
       const [, ,action,name]=id.split(":");
-      if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can install or uninstall libraries.",embeds:[],components:[]});
+      if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can install or uninstall plugins.",embeds:[],components:[]});
       if(action==="install"){
         const result=this.manager.install(i.guildId,name);
         if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
         await this.hooks.syncGuildCommands?.(i.guildId);
-        const library=this.hooks.libraries?.[name];
-        if(library?.ready)await library.ready(i.guild);
-        if(library?.onInstall)await library.onInstall(i.guild);
-        return i.editReply({embeds:[embed("Library Installed",`**${name}** is now installed. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
+        const plugin=this.hooks.plugins?.[name];
+        if(plugin?.ready)await plugin.ready(i.guild);
+        if(plugin?.onInstall)await plugin.onInstall(i.guild);
+        return i.editReply({embeds:[embed("Plugin Installed",`**${name}** is now installed. Its commands will be registered when Kimi next synchronizes this server.`)],components:[row(button("settings:install","Install Another"),button("settings:home","Done"))]});
       }
       const result=this.manager.uninstall(i.guildId,name);
       if(!result.ok)return i.editReply({content:result.error,embeds:[],components:[]});
-      const library=this.hooks.libraries?.[name];
-      if(library?.onUninstall)await library.onUninstall(i.guild);
+      const plugin=this.hooks.plugins?.[name];
+      if(plugin?.onUninstall)await plugin.onUninstall(i.guild);
       await this.hooks.syncGuildCommands?.(i.guildId);
-      return i.editReply({embeds:[embed("Library Uninstalled",`**${name}** has been uninstalled. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
+      return i.editReply({embeds:[embed("Plugin Uninstalled",`**${name}** has been uninstalled. Saved configuration and project data are preserved.`)],components:[row(button("settings:uninstall","Uninstall Another"),button("settings:home","Done"))]});
     }
   }
 }
