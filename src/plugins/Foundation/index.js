@@ -14,6 +14,7 @@ export function createFoundationLibrary({client,store,logger,services,app="core"
     async ready(guild){if(app==="core"||app==="welcome")await greet.ensureSetup(guild);},
     async handleInteraction(i){
       if(i.isChatInputCommand()){
+        if(app==="core"&&["setup","kimi-channel"].includes(i.commandName))return greet.command(i);
         if(is("roles")&&i.commandName==="roles")return rolePicker.handle(i);
         if(is("welcome")&&["setup","welcome"].includes(i.commandName))return greet.command(i);
         if(is("autorole")&&i.commandName==="autorole")return greet.command(i);
