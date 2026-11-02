@@ -59,7 +59,7 @@ function opensModal(i){
  if(i.isChatInputCommand()){
   return ["embed-new","web-token"].includes(i.commandName);
  }
- if(i.isStringSelectMenu?.()&&i.customId==="automation:action")return true;
+ if(i.isStringSelectMenu?.()&&(i.customId==="automation:action"||i.customId==="automation:condition"))return true;
  if(!i.isButton())return false;
  const id=i.customId;
  return id==="settings:config:welcome"||id==="settings:config:verification"||id==="settings:filter-add"||id==="settings:filter-remove"||id==="settings:appearance-color"||id==="rolepicker:start"||id==="ticket:wizard-start"||id==="ticket:wizard-continue"||id.startsWith("ticket:edit-")||id==="modpanel:sanction"||id==="modpanel:duration"||id==="modpanel:max-count"||id.startsWith("embed:");
@@ -120,7 +120,7 @@ async function coreCommand(i){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Kimi Free**\nKimi is free to use. All built-in plugins can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage plugins and systems in /kimi.");
  }
- if(i.commandName==="plugins"||i.commandName==="libraries"){
+ if(i.commandName==="plugins"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
