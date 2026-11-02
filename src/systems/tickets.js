@@ -39,7 +39,7 @@ export class Tickets {
   async command(i) {
     if (!await requireManager(i)) return;
     const guild=i.guild, name=i.commandName;
-    if (name==="tickets") {
+    if (name==="tickets"||name==="support") {
       if(!this.foundation?.ensureSetup)return deny(i,"Timi setup is unavailable. Install Foundation and run /setup first.");
       const setup=await this.foundation.ensureSetup(guild);
       let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory&&c.name.toLowerCase()==="ticket");

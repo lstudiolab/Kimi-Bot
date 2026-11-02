@@ -32,7 +32,7 @@ function recordAnalytics(guildId,metric,commandName=""){
  store.queueSave();
 }
 const commandModule={
- "verify":"verification","verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","kimi-channel":"setup","setup":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","ticket-config":"tickets",
+ "verify":"verification","verify-config":"verification","filter":"moderation","security":"protection","moderation":"moderation","lock":"moderation","kimi-channel":"setup","setup":"setup","foundation":"setup","welcome":"welcome","autorole":"welcome","tickets":"tickets","support":"tickets","ticket-config":"tickets",
  "roles":"roles","embed-new":"embeds","embed-edit":"embeds","embed-post":"embeds",
  "ticket-panel":"tickets"
 };
