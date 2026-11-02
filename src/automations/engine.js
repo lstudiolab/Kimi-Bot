@@ -8,6 +8,8 @@ const select=(id,placeholder,options)=>new StringSelectMenuBuilder().setCustomId
 const embed=(title,description)=>new EmbedBuilder().setColor(0x808080).setTitle(title).setDescription(description);
 const key=(guild,user)=>guild+":"+user;
 const MAX_AUTOMATIONS=25,MAX_ACTIONS=8,MAX_TIMEOUT_MINUTES=40320;
+const PROTECTED_TARGET_PERMISSIONS=[PermissionFlagsBits.Administrator,PermissionFlagsBits.ManageGuild,PermissionFlagsBits.ManageMessages,PermissionFlagsBits.ManageRoles,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.KickMembers,PermissionFlagsBits.BanMembers,PermissionFlagsBits.ModerateMembers];
+function protectedTarget(member,guild){return !member||member.user?.bot||member.id===guild.ownerId||PROTECTED_TARGET_PERMISSIONS.some(permission=>member.permissions.has(permission));}
 const INVITE=/discord[.]gg[/]|discord(?:app)?[.]com[/]invite[/]/i;
 const LINK=/https?:\/\//i;
 
@@ -214,15 +216,18 @@ export class AutomationEngine{
               if(action.type==="send_message"){
                 const channel=await guild.channels.fetch(action.channel_id).catch(()=>null);if(channel?.type!==ChannelType.GuildText)continue;
                 const member=context.member,user=member?.user,content=safeTemplate(action.message,{...context,guild});
-                await channel.send({content,allowedMentions:{users:user?[user.id]:[]}});
+                await channel.send({content,allowedMentions:{parse:[],users:user?[user.id]:[]}});
               }else if((action.type==="assign_role"||action.type==="remove_role")&&context.member){
-                const role=await guild.roles.fetch(action.role_id).catch(()=>null),bot=await guild.members.fetchMe();
-                if(!role||!isSafeAssignableRole(role,guild.id)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))throw new Error("Role action failed permission or hierarchy validation.");
-                if(action.type==="assign_role")await context.member.roles.add(role,"Kimi automation: "+automation.name);
-                else await context.member.roles.remove(role,"Kimi automation: "+automation.name);
+                const target=await guild.members.fetch(context.member.id).catch(()=>null),role=await guild.roles.fetch(action.role_id).catch(()=>null),bot=await guild.members.fetchMe();
+                if(!target||target.user.bot||!role||!isSafeAssignableRole(role,guild.id)||role.position>=bot.roles.highest.position||!bot.permissions.has(PermissionFlagsBits.ManageRoles))throw new Error("Role action failed live member, permission, or hierarchy validation.");
+                if(action.type==="assign_role")await target.roles.add(role,"Kimi automation: "+automation.name);
+                else await target.roles.remove(role,"Kimi automation: "+automation.name);
               }else if(action.type==="timeout_member"&&context.member){
-                const bot=await guild.members.fetchMe();if(!bot.permissions.has(PermissionFlagsBits.ModerateMembers))throw new Error("Missing Moderate Members permission.");
-                await context.member.timeout(Math.min(MAX_TIMEOUT_MINUTES,Math.max(1,Number(action.duration_minutes)||1))*60000,"Kimi automation: "+automation.name);
+                const target=await guild.members.fetch(context.member.id).catch(()=>null),bot=await guild.members.fetchMe();
+                if(protectedTarget(target,guild))throw new Error("Timeout skipped because the target is missing, a bot, the server owner, or a privileged moderator.");
+                if(!Number.isInteger(Number(action.duration_minutes))||Number(action.duration_minutes)<1||Number(action.duration_minutes)>MAX_TIMEOUT_MINUTES)throw new Error("Invalid saved timeout duration.");
+                if(!bot.permissions.has(PermissionFlagsBits.ModerateMembers))throw new Error("Missing Moderate Members permission.");
+                await target.timeout(Number(action.duration_minutes)*60000,"Kimi automation: "+automation.name);
               }else if(action.type==="delete_message"&&context.message?.deletable){
                 const bot=await guild.members.fetchMe();if(!bot.permissions.has(PermissionFlagsBits.ManageMessages))throw new Error("Missing Manage Messages permission.");
                 await context.message.delete();
