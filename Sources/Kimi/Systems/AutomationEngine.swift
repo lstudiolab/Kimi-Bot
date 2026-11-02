@@ -12,7 +12,7 @@ actor AutomationEngine {
  func rules(guildID:String)async->[Rule]{(await store.get("automation.rules",as:[Rule].self) ?? []).filter{$0.guildID==guildID}}
  func add(guildID:String,name:String,trigger:String,action:String,condition:String?=nil)async throws->Rule{
   guard !name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw KimiError.configuration("Enter a name for this automation.")}
-  guard triggers.contains(trigger) else{throw KimiError.configuration("Unsupported trigger. Choose message_create, member_join or member_leave.")}
+  guard triggers.contains(trigger) else{throw KimiError.configuration("Unsupported trigger. Choose message_create, message_contains, member_join or member_leave.")}
   if trigger=="message_contains" && (condition?.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ?? true){throw KimiError.configuration("message_contains requires a text condition.")}
   let parts=action.split(separator:":",maxSplits:2).map(String.init)
   guard let kind=parts.first,actions.contains(kind) else{throw KimiError.configuration("Unsupported action. Choose delete_message, send_message, timeout, add_role or remove_role.")}
