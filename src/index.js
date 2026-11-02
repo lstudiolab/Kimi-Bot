@@ -202,7 +202,7 @@ async function coreCommand(i){
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can add Kimi apps.");
   const name=i.options.getString("app");
-  if(!name)return respond(i,"Choose an app. Available apps: Welcome, Roles, Embeds, Kimi Lock, Support. Use /apps for details.");
+  if(!name)return respond(i,"Choose an app. Available apps: Welcome, Auto Role, Role Picker, Embeds, Kimi Lock, Support. Use /apps for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
   try {
