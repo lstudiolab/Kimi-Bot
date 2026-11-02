@@ -31,6 +31,7 @@ export class AuthStore {
     this.links = readJson(this.linksFile, {});
     this.webTokens = readJson(this.webTokensFile, {});
     if (!this.accounts || typeof this.accounts !== "object" || !Array.isArray(this.accounts.accounts)) this.accounts = { accounts: [] };
+    else this.accounts.accounts = this.accounts.accounts.filter(account => account && typeof account === "object" && typeof account.id === "string" && typeof account.email === "string" && /^[a-f0-9]{32}$/i.test(account.passwordSalt || "") && /^[a-f0-9]{128}$/i.test(account.passwordHash || ""));
     if (!this.sessions || typeof this.sessions !== "object" || Array.isArray(this.sessions)) this.sessions = {};
     if (!this.links || typeof this.links !== "object" || Array.isArray(this.links)) this.links = {};
     if (!this.webTokens || typeof this.webTokens !== "object" || Array.isArray(this.webTokens)) this.webTokens = {};
@@ -45,10 +46,10 @@ export class AuthStore {
   prune() {
     const now = Date.now();
     let sessionsChanged = false, linksChanged = false, webTokensChanged = false;
-    for (const [key, value] of Object.entries(this.sessions)) if (!value || value.expiresAt <= now) { delete this.sessions[key]; sessionsChanged = true; }
-    for (const [key, value] of Object.entries(this.links)) if (!value || value.expiresAt <= now) { delete this.links[key]; linksChanged = true; }
+    for (const [key, value] of Object.entries(this.sessions)) if (!value || typeof value.accountId !== "string" || !Number.isFinite(value.expiresAt) || value.expiresAt <= now) { delete this.sessions[key]; sessionsChanged = true; }
+    for (const [key, value] of Object.entries(this.links)) if (!value || typeof value.accountId !== "string" || !Number.isFinite(value.expiresAt) || value.expiresAt <= now) { delete this.links[key]; linksChanged = true; }
     if (sessionsChanged) this.saveSessions();
-    for (const [key, value] of Object.entries(this.webTokens)) if (!value || value.expiresAt <= now) { delete this.webTokens[key]; webTokensChanged = true; }
+    for (const [key, value] of Object.entries(this.webTokens)) if (!value || typeof value.accountId !== "string" || !Number.isFinite(value.expiresAt) || value.expiresAt <= now) { delete this.webTokens[key]; webTokensChanged = true; }
     if (linksChanged) this.saveLinks();
     if (webTokensChanged) this.saveWebTokens();
   }
@@ -177,7 +178,9 @@ export class AuthStore {
   completeLinkCode(code, discordUser) {
     const normalized = String(code || "").trim();
     const now = Date.now();
-    for (const [userId, record] of this.linkFailures) if (record.resetAt <= now) this.linkFailures.delete(userId);
+    if (!discordUser || !/^\d{15,22}$/.test(String(discordUser.id || ""))) return { error: "The Discord account could not be verified." };
+    for (const [userId, record] of this.linkFailures) if (!record || record.resetAt <= now) this.linkFailures.delete(userId);
+    if (!this.linkFailures.has(discordUser.id) && this.linkFailures.size >= 5000) this.linkFailures.delete(this.linkFailures.keys().next().value);
     const attempt = this.linkFailures.get(discordUser.id) || { count: 0, resetAt: now + LINK_TTL };
     if (attempt.resetAt <= now) { attempt.count = 0; attempt.resetAt = now + LINK_TTL; }
     if (attempt.count >= 5) return { error: "Too many incorrect linking codes. Wait 10 minutes and generate a new code." };
