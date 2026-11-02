@@ -3,6 +3,7 @@ import { normalizeMessage, jaccard, mentionChannel, matchesBlockedPhrase, isPriv
 import { button,row,textInput,modal,respond,deny,requireManager } from "../ui.js";
 
 const P=PermissionFlagsBits;
+const PROTECTED_MODERATOR_PERMISSIONS=[P.Administrator,P.ManageGuild,P.ManageMessages,P.ManageRoles,P.ManageChannels,P.ManageWebhooks,P.KickMembers,P.BanMembers,P.ModerateMembers,P.ViewAuditLog];
 export class Moderation {
   constructor(client,store,logger){this.client=client;this.store=store;this.logger=logger;this.spam=new Map();this.warningRetention=30*86400000;this.processingJobs=new Set();this.jobTimers=new Map();}
   async resumeJobs(guild){
@@ -31,7 +32,7 @@ export class Moderation {
       }
       const initialTarget=await guild.members.fetch({user:job.user_id,force:true}).catch(()=>null);
       if(initialTarget&&(initialTarget.id===guild.ownerId||initialTarget.user.bot||
-        initialTarget.permissions.has(P.Administrator)||initialTarget.permissions.has(P.ManageMessages))){
+        PROTECTED_MODERATOR_PERMISSIONS.some(permission=>initialTarget.permissions.has(permission)))){
         job.status="cancelled";job.cancel_reason="Target is now privileged or is a bot; automatic sanction cancelled";job.updated_at=Date.now();this.store.save();return;
       }
       job.status="processing";job.updated_at=Date.now();this.store.save();
@@ -57,7 +58,7 @@ export class Moderation {
       if(!job.steps.sanction){
         const member=await guild.members.fetch(job.user_id).catch(()=>null);
         if(member&&(member.id===guild.ownerId||member.user.bot||
-          member.permissions.has(P.Administrator)||member.permissions.has(P.ManageMessages))){
+          PROTECTED_MODERATOR_PERMISSIONS.some(permission=>member.permissions.has(permission)))){
           job.action_result="sanction skipped because the target is now privileged or is a bot";
         }else if(member&&job.action==="ban"){
           const existing=await guild.bans.fetch(job.user_id).catch(()=>null);
