@@ -26,11 +26,16 @@ export class GuardRateLimiter{
       const elapsed=Math.max(0,now-(state.updated_at||now));
       const gained=Math.floor(elapsed/TOKEN_REFILL_MS);
       if(gained){state.tokens=Math.min(TOKEN_CAPACITY,(state.tokens??TOKEN_CAPACITY)+gained);state.updated_at=(state.updated_at||now)+gained*TOKEN_REFILL_MS;}
+      if(state.locked&&state.tokens>=TOKEN_CAPACITY)state.locked=false;
     }
-    const allowed=state.tokens>0;
-    if(allowed)state.tokens--;
+    const allowed=kind==="user"?(!state.locked&&state.tokens>0):state.tokens>0;
+    if(allowed){
+      state.tokens--;
+      if(kind==="user"&&state.tokens===0)state.locked=true;
+    }
     state.last_consumed=now;
     this.store.queueSave?.();
-    return {allowed,tokens:state.tokens,retryAfterMs:allowed?0:(kind==="bot"?Math.max(TOKEN_REFILL_MS,(state.last_activity||now)+TOKEN_REFILL_MS-now):Math.max(1,TOKEN_REFILL_MS-(now-(state.updated_at||now)) ))};
+    const retryAfterMs=allowed?0:(kind==="bot"?Math.max(TOKEN_REFILL_MS,(state.last_activity||now)+TOKEN_REFILL_MS-now):Math.max(1,(state.updated_at||now)+(TOKEN_CAPACITY-(state.tokens??0))*TOKEN_REFILL_MS-now));
+    return {allowed,tokens:state.tokens,retryAfterMs,locked:kind==="user"&&Boolean(state.locked)};
   }
 }
