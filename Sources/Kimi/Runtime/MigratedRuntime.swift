@@ -258,18 +258,27 @@ extension KimiRuntime {
    }
   case "GUILD_MEMBER_ADD":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
-   await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0)
-   await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Welcome") || installed.contains("Auto Role") {
+    await FoundationEngine(store:store,rest:rest,logger:logger).memberJoined(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server",memberCount:data["member_count"] as? Int ?? 0,welcomeEnabled:installed.contains("Welcome"),autoRoleEnabled:installed.contains("Auto Role"))
+   }
+   if installed.contains("Kimi Lock"){await VerificationService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,username:user["username"] as? String ?? "member")}
    await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
-   await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Welcome"){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
    await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
   case "MESSAGE_CREATE":
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
-   let messageContent=data["content"] as? String ?? ""
-   await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:messageContent)
-   if let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:messageContent) {
+   let content=data["content"] as? String ?? ""
+   await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:content)
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   guard installed.contains("Kimi Lock") else{return}
+   let recovery=RecoveryService(store:store,logger:logger,rest:rest)
+   await recovery.captureMessage(guild,channel,message,user,content)
+   if let finding=await ModerationEngine(store:store).evaluate(guildID:guild,userID:user,messageID:message,content:content) {
+    try? await store.set(true,key:"moderation.deleted."+message)
     try? await rest.deleteKimiMessage(channel,message)
     if finding.reason=="Message rate exceeded" {
      let policy=await ModerationEngine(store:store).policy(guildID:guild)
@@ -277,13 +286,34 @@ extension KimiRuntime {
     }
     await logger.log("WARN","Kimi Lock moderation: "+finding.reason)
    }
+  case "MESSAGE_UPDATE":
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureMessage(guild,channel,message,user,data["content"] as? String ?? "")}
+  case "MESSAGE_DELETE":
+   guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String else{return}
+   let wasModerationDelete=await store.get("moderation.deleted."+message,as:Bool.self) ?? false
+   if wasModerationDelete{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreMessage(guild,channel,message)}
+  case "CHANNEL_CREATE","CHANNEL_UPDATE":
+   guard let guild=data["guild_id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).captureChannel(guild,data)}
+  case "CHANNEL_DELETE":
+   guard let guild=data["guild_id"] as? String,let channel=data["id"] as? String else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   if installed.contains("Kimi Lock"){await RecoveryService(store:store,logger:logger,rest:rest).restoreChannel(guild,channel)}
   case "GUILD_AUDIT_LOG_ENTRY_CREATE":
    guard let guild=data["guild_id"] as? String,let actor=data["user_id"] as? String,let action=data["action_type"] as? Int else{return}
+   let installed=await AppManager(store:store).installed(guildID:guild)
+   guard installed.contains("Kimi Lock") else{return}
    do {if let incident=try await AuditProtection(store:store).record(guildID:guild,actorID:actor,action:String(action)){await logger.log("WARN","Kimi Lock incident: "+incident.reason)}}
    catch {await logger.log("ERROR","Audit incident save failed: "+error.localizedDescription)}
   default:break
   }
  }
+
 }
 
 extension KimiRuntime {
