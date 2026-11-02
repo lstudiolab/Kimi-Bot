@@ -207,11 +207,21 @@ client.on(Events.InteractionCreate,async i=>{
   await finishWorking(i);
   logger.info(`Interaction completed: ${i.id}`);
  }catch(error){
-  logger.error(`Interaction ${i.id} failed:`,error);
+  const details={
+   name:error?.name||"Error",
+   code:error?.code??error?.rawError?.code??null,
+   status:error?.status??error?.httpStatus??null,
+   method:error?.method??error?.requestBody?.method??null,
+   url:error?.url??null,
+   message:error?.message||String(error)
+  };
+  logger.error(`Interaction ${i.id} (${i.commandName||i.customId||"unknown"}) failed:`,error);
+  logger.error(`Interaction failure details ${i.id}:`,JSON.stringify(details));
   if(!i.isRepliable())return;
-  const p={content:"Kimi could not complete that action. Check bot permissions and try again.",components:[],allowedMentions:{parse:[]}};
-  if(i.deferred||i.replied)await i.editReply(p).catch(()=>{});
-  else await i.reply({...p,ephemeral:true}).catch(()=>{});
+  const code=details.code!==null?` Error code: ${details.code}.`:"";
+  const p={content:"Kimi could not complete that action."+code+" The error was recorded in the Termux log. Send the matching Interaction ID to support: "+i.id,components:[],allowedMentions:{parse:[]}};
+  if(i.deferred||i.replied)await i.editReply(p).catch(replyError=>logger.error(`Could not send interaction failure response ${i.id}:`,replyError));
+  else await i.reply({...p,ephemeral:true}).catch(replyError=>logger.error(`Could not acknowledge failed interaction ${i.id}:`,replyError));
  }
 });
 client.on(Events.MessageCreate,async m=>{
