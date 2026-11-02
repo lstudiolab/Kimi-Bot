@@ -87,8 +87,16 @@ export class AuthStore {
     return account;
   }
   createSession(accountId) {
+    const now=Date.now();
+    const active=[];
+    for(const [key,record] of Object.entries(this.sessions)){
+      if(!record||record.expiresAt<=now){delete this.sessions[key];continue;}
+      if(record.accountId===accountId)active.push(key);
+    }
+    while(active.length>=10)delete this.sessions[active.shift()];
+    while(Object.keys(this.sessions).length>=10000)delete this.sessions[Object.keys(this.sessions)[0]];
     const token = crypto.randomBytes(32).toString("base64url");
-    this.sessions[crypto.createHash("sha256").update(token).digest("hex")] = { accountId, expiresAt: Date.now() + SESSION_TTL };
+    this.sessions[crypto.createHash("sha256").update(token).digest("hex")] = { accountId, createdAt:now, expiresAt: now + SESSION_TTL };
     this.saveSessions();
     return token;
   }
@@ -109,10 +117,12 @@ export class AuthStore {
     if (this.sessions[key]) { delete this.sessions[key]; this.saveSessions(); }
   }
   createLinkCode(accountId) {
-    for (const [code, item] of Object.entries(this.links)) if (!item || item.expiresAt <= Date.now()) delete this.links[code];
+    const now=Date.now();
+    for (const [code,item] of Object.entries(this.links)) if(!item||item.expiresAt<=now||item.accountId===accountId)delete this.links[code];
+    while(Object.keys(this.links).length>=10000)delete this.links[Object.keys(this.links)[0]];
     let code;
     do { code = String(crypto.randomInt(0, 100000000)).padStart(8, "0"); } while (this.links[code]);
-    this.links[code] = { accountId, expiresAt: Date.now() + LINK_TTL };
+    this.links[code] = { accountId, expiresAt: now + LINK_TTL };
     this.saveLinks();
     return { code, expiresAt: this.links[code].expiresAt };
   }
