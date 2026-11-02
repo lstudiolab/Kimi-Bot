@@ -9,3 +9,15 @@ Kimi is organized around three first-party apps. The **App Store** is the owner-
 Apps are installed per server. Their systems can be enabled or disabled independently, and removing an app preserves its saved configuration. The shared runtime uses a bounded background queue for non-critical work, in-flight task deduplication, backpressure, and a short-lived LRU cache for permission diagnostics. Enforcement remains synchronous where delay could increase harm.
 
 The App Store currently presents Kimi's built-in apps. Downloaded third-party package code is not activated by the runtime; package validation and installation remain separate from app activation.
+
+## Kimi Guard activity control
+
+Kimi Guard uses independent per-server token buckets for member activity, third-party bot messages, and Kimi's own automation triggers.
+
+- Members receive 10 action tokens. Each message or Discord interaction consumes one token; one token returns every 2 seconds, up to the 10-token capacity.
+- Other bots receive a separate 10-token bucket. A bot message consumes one token. Regeneration starts only after that bot has been quiet for 2 seconds; continued activity keeps moving the quiet window.
+- When a member's interaction bucket is empty, Kimi rejects the interaction with an ephemeral cooldown notice. Ordinary messages that exceed the member bucket are deleted because Discord does not support ephemeral replies to normal messages.
+- When a third-party bot exhausts its bucket, Kimi records an incident, removes roles it can safely manage, and attempts a 28-day timeout. Discord may reject timeouts for bot accounts, so role removal is the primary restriction.
+- Only the server owner can use `/guard-review` to restore the bot's saved roles or keep it restricted. Kimi cannot review or restrict its own account.
+- Kimi's own automation triggers use the bot-style quiet-window bucket. Critical Kimi Lock security and recovery handlers are not paused by automation backpressure.
+- Rate state is persisted, inactive buckets expire after seven days, and the data is included in each server's storage quota.
