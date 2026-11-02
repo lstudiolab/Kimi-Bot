@@ -546,6 +546,21 @@ test("failed AutoMod message deletion remains pending for retry",async()=>{
   assert.equal(job.attempts,1);
 });
 
+test("queued AutoMod cancels if a target becomes privileged before enforcement",async()=>{
+  const job={id:"job-privileged",status:"pending",guild_id:"guild",channel_id:"123456789012345678",user_id:"223456789012345678",
+    message_ids:["323456789012345678"],action:"ban",timeout_minutes:5,reason:"spam",steps:{deleted:false,sanction:false,logged:false}};
+  const store={data:{moderation_jobs:{guild:[job]}},mods:()=>({log_channel_id:""}),save(){}};
+  const moderation=new Moderation({},store,quiet);
+  let channelFetches=0;
+  const guild={id:"guild",ownerId:"999999999999999999",
+    members:{fetch:async()=>({id:job.user_id,user:{bot:false},permissions:{has:permission=>permission===PermissionFlagsBits.ManageMessages}})},
+    channels:{fetch:async()=>{channelFetches++;throw new Error("must not fetch channels");}}
+  };
+  await moderation.processJob(guild,job);
+  assert.equal(job.status,"cancelled");
+  assert.equal(channelFetches,0);
+});
+
 test("automatic moderation warning history is capped per server",async()=>{
   const warnings=Array.from({length:5000},(_,index)=>({
     id:index+1,type:"warning",user_id:"member",created_at:Date.now(),automatic:true
