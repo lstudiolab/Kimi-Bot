@@ -65,4 +65,19 @@ final class CoreTests:XCTestCase {
   XCTAssertEqual(risky.decision,.reject)
  }
 
+ func testAutomationMessageConditionAndPersistence() async throws {
+  let directory=FileManager.default.temporaryDirectory.appendingPathComponent("kimi-tests-"+UUID().uuidString,isDirectory:true)
+  defer{try? FileManager.default.removeItem(at:directory)}
+  let store=try PersistentStore(directory:directory)
+  let engine=AutomationEngine(store:store)
+  do {
+   _ = try await engine.add(guildID:"123456789012345678",name:"Missing condition",trigger:"message_contains",action:"delete_message")
+   XCTFail("message_contains must require a condition")
+  } catch {}
+  let rule=try await engine.add(guildID:"123456789012345678",name:"Invite alert",trigger:"message_contains",condition:"discord.gg",action:"delete_message")
+  XCTAssertEqual((await engine.matching(guildID:rule.guildID,trigger:"message_create",content:"Join discord.gg/example")).map(\\.id),[rule.id])
+  XCTAssertTrue(await engine.matching(guildID:rule.guildID,trigger:"message_create",content:"ordinary conversation").isEmpty)
+  XCTAssertTrue(await engine.remove(id:rule.id,guildID:rule.guildID))
+ }
+
 }
