@@ -315,6 +315,7 @@ client.on(Events.MessageCreate,async m=>{
  const limit=guard.consume(m.guild.id,actorId,kind);
  if(!limit.allowed){
   if(automatedActor&&!m.webhookId){
+   await m.delete().catch(()=>{});
    const member=m.member||await m.guild.members.fetch(m.author.id).catch(()=>null);
    if(member)await restrictBot(member).catch(error=>logger.error("Kimi Guard bot restriction failed:",error));
   }else if(m.webhookId){
