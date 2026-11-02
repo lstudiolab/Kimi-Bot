@@ -235,6 +235,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
         }
         if (method === "POST" && url.pathname === "/api/web-token") {
           const result = authStore.createWebToken(session.account.id);
+          if(result.error)return send(res,429,{error:result.error});
           return send(res, 200, result);
         }
         if (method === "POST" && url.pathname === "/api/web-token/status") {
