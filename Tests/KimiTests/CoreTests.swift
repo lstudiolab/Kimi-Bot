@@ -113,4 +113,17 @@ final class CoreTests:XCTestCase {
  }
 
 
+
+ func testModerationDetectsDiscordInviteLinks() async {
+  let engine = ModerationEngine()
+  let finding = await engine.evaluate(
+   guildID: "123456789012345678",
+   userID: "223456789012345678",
+   messageID: "323456789012345678",
+   content: "Join our community at discord.gg/example"
+  )
+
+  XCTAssertEqual(finding?.reason, "Unapproved Discord invite link")
+ }
+
 }
