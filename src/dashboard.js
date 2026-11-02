@@ -85,8 +85,11 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
   function recordAnalytics(guildId,metric,commandName=""){
     if(!guildId)return;
     const day=new Date().toISOString().slice(0,10);
-    const all=store.data.analytics_requests||(store.data.analytics_requests={});
-    const days=all[guildId]||(all[guildId]={});
+    let all=store.data.analytics_requests;
+    if(!all||typeof all!=="object"||Array.isArray(all))all=store.data.analytics_requests={};
+    if(!Object.hasOwn(all,guildId)&&Object.keys(all).length>=5000)delete all[Object.keys(all)[0]];
+    let days=all[guildId];
+    if(!days||typeof days!=="object"||Array.isArray(days))days=all[guildId]={};
     const row=days[day]||(days[day]={requests:0,commands:0,components:0,messages:0,joins:0,leaves:0,commandCounts:{}});
     if(metric==="request"){
       row.requests++;
