@@ -8,19 +8,19 @@ export class PluginManager{
     const plugin=this.get(name);
     if(!plugin)return {ok:false,error:"App not found. Use /apps to see available apps."};
     const canonical=normalizePluginName(name),installed=this.store.data.installed_plugins[guildId]||=[];
-    if(installed.includes(canonical))return {ok:false,error:`${plugin.name} is already installed in this server.`};
+    if(installed.includes(canonical))return {ok:false,error:`${plugin.name} is already added to this server.`};
     installed.push(canonical);this.store.save();
-    this.logger.info(`Installed ${plugin.name} for guild ${guildId}.`);
+    this.logger.info(`Added ${plugin.name} app for guild ${guildId}.`);
     return {ok:true,plugin};
   }
   uninstall(guildId,name){
     const plugin=this.get(name);
-    if(!plugin)return {ok:false,error:"Plugin not found. Use /plugins to see available plugins."};
+    if(!plugin)return {ok:false,error:"App not found. Use /apps to see available apps."};
     const canonical=normalizePluginName(name),installed=this.store.data.installed_plugins[guildId]||[];
-    if(!installed.includes(canonical))return {ok:false,error:`${plugin.name} is not installed in this server.`};
+    if(!installed.includes(canonical))return {ok:false,error:`${plugin.name} is not added to this server.`};
     this.store.data.installed_plugins[guildId]=installed.filter(value=>value!==canonical);
     this.store.save();
-    this.logger.info(`Uninstalled ${plugin.name} for guild ${guildId}; saved data was preserved.`);
+    this.logger.info(`Removed ${plugin.name} app for guild ${guildId}; saved data was preserved.`);
     return {ok:true,plugin};
   }
 }
