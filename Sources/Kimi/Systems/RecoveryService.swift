@@ -10,11 +10,13 @@ actor RecoveryService {
   if all[guild,default:[:]].count>500{all[guild]=Dictionary(uniqueKeysWithValues:all[guild,default:[:]].sorted{$0.key<$1.key}.suffix(500))}
   try? await store.set(all,key:"recovery.channels")
  }
- func captureMessage(_ guild:String,_ channel:String,_ message:String,_ author:String,_ content:String)async{
+ func captureMessage(_ guild:String,_ channel:String,_ message:String,_ author:String,_ content:String,attachments:[String]=[])async{
   var all=await store.get("recovery.messages",as:[String:[Message]].self) ?? [:]
   var rows=(all[guild] ?? []).filter{Date().timeIntervalSince($0.createdAt)<7*86400}
   rows.removeAll{$0.id==message}
-  rows.append(Message(id:message,channelID:channel,authorID:author,content:String(content.prefix(4000)),createdAt:Date()))
+  let attachmentText=attachments.prefix(10).map{"[attachment] "+$0}.joined(separator:"\\n")
+  let archived=String(content.prefix(3000))+(attachmentText.isEmpty ? "":"\\n"+attachmentText)
+  rows.append(Message(id:message,channelID:channel,authorID:author,content:String(archived.prefix(4000)),createdAt:Date()))
   while rows.count>2000 || rows.reduce(0,{$0+$1.content.utf8.count})>4*1024*1024{rows.removeFirst()}
   all[guild]=rows;try? await store.set(all,key:"recovery.messages")
  }
