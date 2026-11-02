@@ -23,6 +23,8 @@ actor SupportService {
   var next=value;next.panelChannelID=channel;try await configure(next,guild:guild)
  }
  func open(guild:String,user:String,username:String,bot:String)async throws->SupportTickets.Ticket{
+  let existing=await SupportTickets(store:store).all()
+  guard !existing.contains(where:{$0.guildID==guild && $0.userID==user && $0.isOpen}) else{throw TicketError.alreadyOpen}
   let category=try await ensureCategory(guild),value=await settings(guild)
   var overwrites:[[String:Any]]=[
    ["id":guild,"type":0,"deny":"1024"],
