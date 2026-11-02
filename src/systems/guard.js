@@ -4,12 +4,17 @@ export const TOKEN_REFILL_MS=2000;
 export class GuardRateLimiter{
   constructor(store){this.store=store;this.store.data.guard_state||={};}
   bucket(guildId,actorId,kind,now=Date.now()){
-    const guild=this.store.data.guard_state[guildId]||(this.store.data.guard_state[guildId]={users:{},bots:{}});
-    guild.users||={};guild.bots||={};
+    let guild=this.store.data.guard_state[guildId];
+    if(!guild||typeof guild!=="object"||Array.isArray(guild))guild=this.store.data.guard_state[guildId]={users:{},bots:{},incidents:{}};
+    if(!guild.users||typeof guild.users!=="object"||Array.isArray(guild.users))guild.users={};
+    if(!guild.bots||typeof guild.bots!=="object"||Array.isArray(guild.bots))guild.bots={};
     const collection=kind==="bot"?guild.bots:guild.users;
-    for(const [id,value] of Object.entries(collection))if(now-(value.last_consumed||value.updated_at||now)>7*86400000)delete collection[id];
+    for(const [id,value] of Object.entries(collection))if(!value||typeof value!=="object"||now-(Number(value.last_consumed)||Number(value.updated_at)||now)>7*86400000)delete collection[id];
     let state=collection[actorId];
-    if(!state)state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:now,last_activity:0};
+    if(!state||typeof state!=="object"||Array.isArray(state))state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:now,last_activity:0};
+    state.tokens=Math.max(0,Math.min(TOKEN_CAPACITY,Number.isInteger(state.tokens)?state.tokens:TOKEN_CAPACITY));
+    state.updated_at=Math.min(now,Number.isFinite(state.updated_at)?state.updated_at:now);
+    state.last_activity=Math.min(now,Number.isFinite(state.last_activity)?state.last_activity:0);
     return state;
   }
   consume(guildId,actorId,kind="user",now=Date.now()){
