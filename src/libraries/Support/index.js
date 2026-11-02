@@ -4,7 +4,7 @@ export function createSupportLibrary({client,store,logger,foundation,services}){
   const tickets=new Tickets(client,store,logger,foundation);
   return {
     async ready(guild){
-      if(this.foundation?.ensureSetup)await this.foundation.ensureSetup(guild);
+      if(foundation?.ensureSetup)await foundation.ensureSetup(guild);
       let category=guild.channels.cache.find(channel=>channel.type===ChannelType.GuildCategory&&channel.name.toLowerCase()==="ticket");
       if(!category)await guild.channels.create({name:"ticket",type:ChannelType.GuildCategory,reason:"Prepare Kimi Support"});
     },
