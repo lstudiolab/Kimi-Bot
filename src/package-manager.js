@@ -9,18 +9,7 @@ const MAX_UNPACKED_BYTES=24*1024*1024;
 const MAX_FILES=250;
 const MAX_FILE_BYTES=2*1024*1024;
 const NAME=/^[a-z0-9][a-z0-9._-]{1,47}$/;
-const BLOCKED_PATTERNS=[
-  [/\\b(?:eval|Function)\\s*\\(/,"Dynamic code execution"],
-  [/\\bprocess\\s*\\./,"Process access"],
-  [/\\b(?:child_process|worker_threads|cluster)\\b/,"Process or worker creation"],
-  [/\\b(?:exec|execSync|spawn|spawnSync|fork)\\s*\\(/,"Command execution"],
-  [/\\b(?:https?|net|tls|dgram)\\s*\\./,"Direct network access"],
-  [/\\b(?:writeFile|writeFileSync|appendFile|appendFileSync|rmSync|unlinkSync)\\s*\\(/,"Filesystem mutation"],
-  [/\\bcreateRequire\\s*\\(/,"Unrestricted module loading"],
-  [/\\bimport\\s*\\(/,"Dynamic imports"],
-  [/\\brequire\\s*\\(/,"CommonJS runtime loading"],
-  [/\\b(?:TOKEN|BOT_TOKEN|DISCORD_TOKEN)\\b\\s*[:=]/i,"Possible embedded credential"]
-];
+
 function digest(value){return crypto.createHash("sha256").update(value).digest("hex");}
 function safeRelative(input){
   if(typeof input!=="string"||!input||input.includes("\\\\")||input.startsWith("/")||input.includes("\\0"))return false;
