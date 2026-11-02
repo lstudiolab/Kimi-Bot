@@ -1,9 +1,10 @@
 # Kimi apps
 
-Kimi is organized around five first-party apps. The **App Store** is the owner-facing place to add or remove them. Older plugin names and saved installation records remain supported for compatibility.
+Kimi is organized around six first-party apps. The **App Store** is the owner-facing place to add or remove them. Older plugin names and saved installation records remain supported for compatibility.
 
 - **Welcome** — welcome and departure messages.
-- **Roles** — automatic role assignment and self-service role menus.
+- **Auto Role** — automatic assignment of one configured role to new members.
+- **Role Picker** — self-service role selection menus.
 - **Embeds** — create, edit and publish reusable server embeds.
 - **Kimi Lock** — anti-spam, AutoMod, raid and join protection, anti-nuke containment, verification, sanctions, security review, and recovery.
 - **Support** — private tickets, staff handoff, priority, transcripts, and support activity.
