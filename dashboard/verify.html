@@ -4,38 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101112">
-<meta name="description" content="Sign in or create a Kimi account.">
-<title>Account · Kimi</title>
+<title>Sign in · Kimi</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="verify-body">
 <main class="verify-shell">
-<a class="brand verify-brand" href="/login" aria-label="Kimi home"><span class="brand-mark">K</span><span>kimi</span></a>
+<a class="brand verify-brand" href="/" aria-label="Kimi home"><span class="brand-mark">K</span><span>kimi</span></a>
 <section class="verify-card">
-<div class="login-kicker"><span class="login-kicker-line"></span> KIMI CONTROL CENTER</div>
-<div class="login-symbol" aria-hidden="true"><span>K</span></div>
-<h1 id="auth-title">Your server.<br>Under control.</h1>
-<p class="verify-description">Use your Kimi account to manage your bot settings. Your account is stored locally on the Android server running Kimi.</p>
-<div class="auth-tabs" role="group" aria-label="Account action">
-<button type="button" class="auth-tab active" data-mode="login">Sign in</button>
-<button type="button" class="auth-tab" data-mode="register">Create account</button>
-</div>
-<form id="auth-form" class="auth-form">
-<label id="display-name-field" hidden>Display name<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="Your name"></label>
-<label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"></label>
-<label>Password<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required placeholder="At least 10 characters"></label>
-<button id="auth-submit" class="button primary" type="submit">Sign in <span aria-hidden="true">↗</span></button>
-</form>
-<div id="verify-status" class="verify-status" role="status" aria-live="polite">Your Kimi account is separate from your Discord account.</div>
-<div class="login-permissions">
-<div><span class="permission-mark">01</span><span><b>Local account storage</b><small>Account records and sessions stay in your phone's Kimi data folder.</small></span></div>
-<div><span class="permission-mark">02</span><span><b>Separate Discord linking</b><small>Connect Discord only to verify server membership and permissions.</small></span></div>
-<div><span class="permission-mark">03</span><span><b>Server-level access</b><small>Kimi only shows servers where your linked Discord account can manage Kimi.</small></span></div>
-</div>
-<div class="verify-note"><strong>Account security</strong><span>Passwords are stored as scrypt hashes. Keep your Android server and its local data directory secure. Email ownership is not verified in this version.</span></div>
+<div class="login-kicker">KIMI CONTROL CENTER</div>
+<h1>Sign in with Discord.</h1>
+<p class="verify-description">Kimi uses Discord OAuth to verify your identity and server permissions. No separate email account is needed.</p>
+<a class="button primary" href="/login">Continue with Discord</a>
 </section>
-<footer class="verify-footer"><span>Kimi</span><span>Kimi account · Local authentication</span></footer>
 </main>
-<script src="/verify.js" defer></script>
 </body>
 </html>
