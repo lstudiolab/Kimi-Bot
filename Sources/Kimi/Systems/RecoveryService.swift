@@ -24,6 +24,17 @@ actor RecoveryService {
   await logger.log("INFO","Recovery retained deleted message "+message+" from guild "+guild)
   return found
  }
+ func queueDeletedChannel(_ guild:String,_ channel:String)async{
+  var all=await store.get("recovery.pending-channels",as:[String:[String]].self) ?? [:]
+  var values=all[guild] ?? [];if !values.contains(channel){values.append(channel)}
+  all[guild]=Array(values.suffix(100));try? await store.set(all,key:"recovery.pending-channels")
+ }
+ func restorePendingChannels(_ guild:String)async{
+  let all=await store.get("recovery.pending-channels",as:[String:[String]].self) ?? [:]
+  let pending=all[guild] ?? []
+  for channel in pending{await restoreChannel(guild,channel)}
+  var updated=all;updated[guild]=[];try? await store.set(updated,key:"recovery.pending-channels")
+ }
  func restoreChannel(_ guild:String,_ channelID:String)async{
   let all=await store.get("recovery.channels",as:[String:[String:Data]].self) ?? [:]
   guard let data=all[guild]?[channelID],let source=try? JSONSerialization.jsonObject(with:data) as? [String:Any] else{return}
