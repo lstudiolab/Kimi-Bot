@@ -108,6 +108,21 @@ final class DashboardServer:@unchecked Sendable {
     policy.blockMassMentions=form["block-mentions"]=="true"
     policy.blockExcessiveCaps=form["block-caps"]=="true"
     try await moderation.configure(policy,guildID:guild)
+    let support=SupportService(store:store,rest:rest,logger:logger)
+    var supportSettings=await support.settings(guild)
+    supportSettings.supportRoleID=form["support-role"].flatMap{$0.isEmpty ? nil:$0}
+    supportSettings.transcriptChannelID=form["transcript-channel"].flatMap{$0.isEmpty ? nil:$0}
+    supportSettings.panelTitle=form["ticket-title"] ?? supportSettings.panelTitle
+    supportSettings.panelDescription=form["ticket-description"] ?? supportSettings.panelDescription
+    try await support.configure(supportSettings,guild:guild)
+    let verification=VerificationService(store:store,rest:rest,logger:logger)
+    var verificationSettings=await verification.settings(guild)
+    verificationSettings.channelID=form["verification-channel"].flatMap{$0.isEmpty ? nil:$0}
+    verificationSettings.roleID=form["verified-role"].flatMap{$0.isEmpty ? nil:$0}
+    verificationSettings.requiredRoleID=form["required-role"].flatMap{$0.isEmpty ? nil:$0}
+    verificationSettings.reviewChannelID=form["review-channel"].flatMap{$0.isEmpty ? nil:$0}
+    verificationSettings.minimumAgeDays=Int(form["minimum-account-age"] ?? "") ?? verificationSettings.minimumAgeDays
+    try await verification.configure(verificationSettings,guild:guild)
     write(fd,303,"","text/plain",["Location":"/guild?id="+guild])
    }catch{write(fd,400,page("Settings could not be saved",error.localizedDescription),"text/html")}
    return
