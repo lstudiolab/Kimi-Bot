@@ -13,7 +13,7 @@ actor Logger {
  func log(_ level:String,_ message:String) {
   let now=Date();entries.append(LogEntry(date:now,level:level,message:message))
   if entries.count>1000{entries.removeFirst(entries.count-1000)}
-  let line="[\\(ISO8601DateFormatter().string(from:now))] [\\(level)] \\(message)\\n"
+  let line="[\(ISO8601DateFormatter().string(from:now))] [\(level)] \(message)\n"
   FileHandle.standardOutput.write(Data(line.utf8))
  }
  func recent(limit:Int=100)->[LogEntry]{Array(entries.suffix(max(0,limit)))}
@@ -234,8 +234,10 @@ actor KimiRuntime {
    case "ticketpanel":let channel=try await rest.createChannel(guild:guild,name:"ticket",type:4);message="Created Support category (\(channel))."
    case "plan":message="**Kimi Free**\nPersistent server data is stored locally in the Kimi data directory."
    case "verifypanel":message="Verification engine is available. Configure account-age and review policies before publishing a panel."
-   case "automations":message="Automation engine is online. Rule execution adapters are not yet enabled."
-   default:message="This command is not available in this Swift build."
+   case "automations":
+    let rules=await AutomationEngine(store:store,rest:rest,logger:logger).rules(guildID:guild)
+    message=rules.isEmpty ? "No automation rules configured. Use /automations create to build one.":rules.map{$0.name+" · "+$0.trigger+" · "+($0.enabled ? "On":"Off")}.joined(separator:"\n")
+   default:message="Kimi could not route this interaction. Check that the command is registered for this server."
    }
    try await rest.respond(id,token,message);await logger.log("INFO","Handled /\(name)")
   }catch{await logger.log("ERROR","/\(name): \(error.localizedDescription)");try? await rest.respond(id,token,"Kimi could not complete that action. The error was recorded.")}
