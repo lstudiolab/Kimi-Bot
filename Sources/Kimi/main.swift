@@ -11,7 +11,7 @@ actor Logger {
  func log(_ level:String,_ message:String) { let line="[\(ISO8601DateFormatter().string(from:Date()))] [\(level)] \(message)\n"; FileHandle.standardOutput.write(Data(line.utf8)) }
 }
 struct Configuration {
- let token:String;let clientID:String;let dataDirectory:URL
+ let token:String;let clientID:String;let dataDirectory:URL;let dashboardPort:Int;let dashboardHost:String;let oauthSecret:String;let oauthRedirectURI:String
  static func load() throws -> Configuration {
   let root=URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
   var env:[String:String]=[:]
@@ -24,7 +24,8 @@ struct Configuration {
   guard id.range(of:#"^\d{15,22}$"#,options:.regularExpression) != nil else{throw KimiError.configuration("CLIENT_ID is invalid")}
   let dir=root.appendingPathComponent(get("DATA_DIR").isEmpty ? "data":get("DATA_DIR"),isDirectory:true)
   try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
-  return Configuration(token:token,clientID:id,dataDirectory:dir)
+  let port=Int(get("DASHBOARD_PORT")) ?? 8787
+  return Configuration(token:token,clientID:id,dataDirectory:dir,dashboardPort:max(1024,min(65535,port)),dashboardHost:get("DASHBOARD_HOST").isEmpty ? "127.0.0.1":get("DASHBOARD_HOST"),oauthSecret:get("DISCORD_OAUTH_CLIENT_SECRET"),oauthRedirectURI:get("DISCORD_OAUTH_REDIRECT_URI"))
  }
 }
 actor PersistentStore {
