@@ -90,3 +90,16 @@ test("auth storage ignores malformed account records and bounds link failure sta
   assert.equal(auth.completeLinkCode("not-a-code",{id:"invalid"}).error!==undefined,true);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test("malformed linked-server records cannot enter dashboard authorization",()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-auth-guild-links-"));
+ try{
+  const auth=new AuthStore(root);
+  const {account}=auth.createAccount({email:"links@example.com",password:"a sufficiently long password"});
+  const stored=auth.accounts.accounts.find(item=>item.id===account.id);
+  stored.guilds=[null,{}, {id:"not-a-guild",linkedBy:"not-a-user"},{id:"123456789012345678",linkedBy:"223456789012345678"}];
+  auth.saveAccounts();
+  const restored=new AuthStore(root);
+  assert.deepEqual(restored.accounts.accounts[0].guilds,[{id:"123456789012345678",linkedBy:"223456789012345678"}]);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
