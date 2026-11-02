@@ -129,9 +129,12 @@ export class AuthStore {
 
   createWebToken(accountId) {
     const now = Date.now();
+    let activeForAccount=0;
     for (const [key, value] of Object.entries(this.webTokens)) {
       if (!value || value.expiresAt <= now || (value.accountId === accountId && !value.usedAt)) delete this.webTokens[key];
+      else if(value.accountId===accountId)activeForAccount++;
     }
+    if(activeForAccount>=5)return {error:"Too many server-link tokens were used recently. Wait for an earlier token to expire."};
     const token = crypto.randomBytes(18).toString("base64url");
     const key = crypto.createHash("sha256").update(token).digest("hex");
     this.webTokens[key] = { accountId, createdAt: now, expiresAt: now + WEB_TOKEN_TTL, usedAt: null, guildId: null, guildName: null, userId: null };
