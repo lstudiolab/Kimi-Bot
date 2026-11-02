@@ -401,6 +401,7 @@ extension KimiRuntime {
   }
   return true
  }
+ func migratedModuleEnabled(_ module:String,guild:String)async->Bool { let modules=await store.getLegacy("modules",as:[String:[String:Bool]].self) ?? [:];return modules[guild]?[module] != false }
  func dispatchMigratedEvent(_ name:String,_ data:[String:Any]) async {
   switch name {
   case "READY":
@@ -427,6 +428,8 @@ extension KimiRuntime {
     let snowflake=Int64(id) ?? 0
     let createdAt=Date(timeIntervalSince1970:Double((snowflake >> 22)+1_420_070_400_000)/1000)
     await RaidProtectionService(store:store,rest:rest,logger:logger).memberJoined(guild:guild,userID:id,createdAt:createdAt,isBot:user["bot"] as? Bool ?? false)
+    }
+    if installed.contains("Kimi Lock") && await migratedModuleEnabled("protection",guild:guild) {
     if user["bot"] as? Bool == true {
      do {
       let owner=try await rest.ownerID(guild)
@@ -446,6 +449,7 @@ extension KimiRuntime {
       let controls=[["type":1,"components":[["type":2,"style":3,"label":"Approve","custom_id":"botguard:yes:"+guild+":"+id],["type":2,"style":4,"label":"Reject","custom_id":"botguard:no:"+guild+":"+id]]]] as [[String:Any]]
       _ = try await rest.call("POST","channels/"+confirmation+"/messages",body:["content":"**New bot approval required**\\nBot: <@"+id+">\\n"+warning+"\\nContainment: "+String(containment?.removedCount ?? 0)+" role(s) removed.","components":controls,"allowed_mentions":["parse":[]]])
      } catch { await logger.log("ERROR","Kimi Guard bot approval failed: "+error.localizedDescription) }
+    }
     }
    }
    await AnalyticsService(store:store).record(guild:guild,event:"join")
