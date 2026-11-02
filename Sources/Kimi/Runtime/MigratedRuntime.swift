@@ -241,6 +241,20 @@ extension KimiRuntime {
     let approve=custom.hasPrefix("verify:approve:")
     let target=String(custom.dropFirst(approve ? "verify:approve:".count:"verify:reject:".count))
     await VerificationService(store:store,rest:rest,logger:logger).review(guild:guild,userID:target,decision:approve ? "approve":"reject",reviewer:actorID,applicationID:app,interactionToken:token)
+   } else if custom.hasPrefix("botguard:") {
+    let parts=custom.split(separator:":").map(String.init)
+    guard parts.count==4,parts[2]==guild else{throw KimiError.configuration("This bot approval request is invalid.")}
+    let owner=try await rest.ownerID(guild)
+    guard owner==actorID else{throw KimiError.configuration("Only the server owner can approve or reject a bot.")}
+    let target=parts[3]
+    if parts[1]=="yes" {
+     let result=try await KimiGuardService(store:store,rest:rest,logger:logger).review(guild:guild,actor:target,decision:"restore",reviewer:actorID)
+     try await rest.editKimiInteraction(app,token,"Bot approved. "+result)
+    } else if parts[1]=="no" {
+     _ = try await KimiGuardService(store:store,rest:rest,logger:logger).review(guild:guild,actor:target,decision:"keep",reviewer:actorID)
+     _ = try await rest.call("DELETE","guilds/"+guild+"/members/"+target)
+     try await rest.editKimiInteraction(app,token,"Bot rejected and removed from the server. The incident remains documented.")
+    } else { throw KimiError.configuration("Unknown bot approval decision.") }
    } else if custom=="rolepicker:select" {
     let selected=data["values"] as? [String] ?? []
     let count=try await RolePickerService(store:store,rest:rest,logger:logger).select(guild:guild,user:actorID,selected:selected)
