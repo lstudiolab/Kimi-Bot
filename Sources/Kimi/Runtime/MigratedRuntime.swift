@@ -202,9 +202,10 @@ extension KimiRuntime {
     guard let target=value("bot"),let decision=value("decision") else{throw KimiError.configuration("Choose an account and decision.")}
     reply=try await KimiGuardService(store:store,rest:rest,logger:logger).review(guild:guild,actor:target,decision:decision,reviewer:user)
    case "web-token":
-    let host=ProcessInfo.processInfo.environment["KIMI_PUBLIC_URL"] ?? ""
-    guard !host.isEmpty else{throw KimiError.configuration("Set KIMI_PUBLIC_URL to your public HTTPS dashboard address. The dashboard uses Discord OAuth; no email verification or one-time token is required.")}
-    reply="Open the Kimi dashboard and sign in with Discord: "+host.trimmingCharacters(in:CharacterSet(charactersIn:"/"))+"/login"
+    let owner=try await rest.ownerID(guild)
+    guard owner==user else{throw KimiError.configuration("Only the server owner can open the dashboard link.")}
+    guard let dashboardURL else{throw KimiError.configuration("Configure DISCORD_OAUTH_REDIRECT_URI to enable the dashboard.")}
+    reply="Open the Kimi dashboard and sign in with Discord: "+dashboardURL+"/login. No email verification is used."
    default:throw KimiError.configuration("Unknown Kimi command: "+name+". Update Kimi and re-register its commands.")
    }
   } catch { reply="Kimi could not complete the action: "+error.localizedDescription;await logger.log("ERROR","Command "+name+" failed: "+error.localizedDescription) }
