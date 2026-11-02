@@ -254,7 +254,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(!i.isButton())return;
     if(id==="settings:filter-add"||id==="settings:filter-remove"){
-      if(!installed(this.store,i.guildId,"Kimi Lock"))return respond(i,"The Kimi Lock plugin is no longer installed.");
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return respond(i,"The Kimi Lock app is no longer added.");
       const add=id==="settings:filter-add";
       const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
       return i.showModal(modal);
@@ -312,7 +312,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       const [,action,moduleId]=id.split(":");
       const module=MODULES.find(m=>m.id===moduleId);
       if(!module)return this.show(i,"modules");
-      if(!installed(this.store,i.guildId,module.plugin))return i.editReply({content:`Add the **${module.plugin}** app before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Modules"))]});
+      if(!installed(this.store,i.guildId,module.plugin))return i.editReply({content:`Add the **${module.plugin}** app before enabling ${module.label}.`,embeds:[],components:[row(button("settings:modules","Back to Systems"))]});
       this.store.data.modules||={};this.store.data.modules[i.guildId]||={};
       this.store.data.modules[i.guildId][moduleId]=action==="module-on";this.store.save();
       this.logger.info(`Module ${moduleId} ${action==="module-on"?"enabled":"disabled"} for guild ${i.guildId}.`);
