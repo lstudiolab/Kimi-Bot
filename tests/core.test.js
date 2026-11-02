@@ -623,3 +623,13 @@ test("all persistent component prefixes route to their installed plugin",()=>{
   ])assert.equal(pluginForComponent(id),plugin,id);
   assert.equal(pluginForComponent("unknown:component"),null);
 });
+
+test("legacy installed library data migrates to plugin storage without losing enabled plugins",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"kimi-plugin-migration-"));
+  try{
+    fs.writeFileSync(path.join(dir,"timi.json"),JSON.stringify({installed_libraries:{"guild-a":["Foundation","Security","Moderation","Support"]}}));
+    const store=new Store(dir,quiet);
+    assert.deepEqual(store.data.installed_plugins["guild-a"],["Foundation","Kimi Lock","Support"]);
+    assert.equal(store.data.installed_libraries,undefined);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
