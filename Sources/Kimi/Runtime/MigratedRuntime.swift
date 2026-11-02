@@ -86,10 +86,14 @@ extension KimiRuntime {
     guard let bot=(me as? [String:Any])?["id"] as? String else { throw KimiError.invalidResponse }
     let channels=try await rest.call("GET","guilds/\(guild)/channels") as? [[String:Any]] ?? []
     func existing(_ name:String,_ type:Int)->String?{channels.first(where:{($0["name"] as? String)==name && ($0["type"] as? Int)==type})?["id"] as? String}
-    let category=existing("kimi",4) ?? (try await rest.createChannel(guild:guild,name:"kimi",type:4))
-    let ticket=existing("ticket",4) ?? (try await rest.createChannel(guild:guild,name:"ticket",type:4))
-    let logs=existing("kimi-logs",0) ?? (try await rest.createPrivateTextChannel(guild,"kimi-logs",owner,bot,category))
-    let confirmations=existing("kimi-confirmation",0) ?? (try await rest.createPrivateTextChannel(guild,"kimi-confirmation",owner,bot,category))
+    let category:String
+    if let found=existing("kimi",4){category=found}else{category=try await rest.createChannel(guild:guild,name:"kimi",type:4)}
+    let ticket:String
+    if let found=existing("ticket",4){ticket=found}else{ticket=try await rest.createChannel(guild:guild,name:"ticket",type:4)}
+    let logs:String
+    if let found=existing("kimi-logs",0){logs=found}else{logs=try await rest.createPrivateTextChannel(guild,"kimi-logs",owner,bot,category)}
+    let confirmations:String
+    if let found=existing("kimi-confirmation",0){confirmations=found}else{confirmations=try await rest.createPrivateTextChannel(guild,"kimi-confirmation",owner,bot,category)}
     try await store.set(logs,key:"foundation.logs."+guild)
     try await store.set(confirmations,key:"foundation.confirmations."+guild)
     var policy=await ModerationEngine(store:store).policy(guildID:guild);policy.logChannelID=logs;try await ModerationEngine(store:store).configure(policy,guildID:guild)
