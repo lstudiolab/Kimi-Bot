@@ -105,9 +105,9 @@ export class KimiSettings {
       return i.editReply({embeds:[embed(page==="install"?"Install Libraries":"Uninstall Libraries",description)],components});
     }
     if(page==="language"){
-      const makeLanguageMenu=(items,suffix)=>new StringSelectMenuBuilder().setCustomId("settings:language-select").setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
+      const makeLanguageMenu=(items,suffix,customId="settings:language-select")=>new StringSelectMenuBuilder().setCustomId(customId).setPlaceholder(suffix).addOptions(items.map(([value,label])=>({label:LOCALE_NAMES[value]||label,value,default:value===language})));
       const first=makeLanguageMenu(LANGUAGES.slice(0,25),tr("language"));
-      const second=makeLanguageMenu(LANGUAGES.slice(25),tr("language"));
+      const second=makeLanguageMenu(LANGUAGES.slice(25),tr("language"),"settings:language-select:more");
       return i.editReply({embeds:[embed(tr("language"),`Current server language: **${LOCALE_NAMES[language]||language}**
 
 Choose from the supported Discord locale list. The preference is saved per server.`)],components:[row(first),row(second),row(button("settings:home","Back"))]});
@@ -217,7 +217,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
         return this.show(i,"appearance");
       }
       if(id==="settings:module-select")return this.show(i,"modules",i.values[0]);
-      if(id==="settings:language-select"){
+      if(id==="settings:language-select"||id==="settings:language-select:more"){
         this.store.data.languages||={};this.store.data.languages[i.guildId]=i.values[0];this.store.save();
         return this.show(i,"language");
       }
