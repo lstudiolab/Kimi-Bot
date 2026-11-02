@@ -26,7 +26,7 @@ export function createKimiLockLibrary({client,store,logger,foundation,services})
     },
     async handleInteraction(i){
       if(i.isChatInputCommand()&&i.commandName==="security")return respond(i,await protection.scan(i.guild));
-      if(i.isChatInputCommand()&&["moderation","lock","filter"].includes(i.commandName))return moderation.handle(i);
+      if(i.isChatInputCommand()&&["moderation","filter"].includes(i.commandName))return moderation.handle(i);
       if(i.isChatInputCommand()&&i.commandName==="verify-config")return verification.handle(i);
       const id=i.customId||"";
       if(id.startsWith("modpanel:"))return moderation.handle(i);

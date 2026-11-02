@@ -14,7 +14,6 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("uninstall").setDescription("Disable a Kimi plugin (server owner only).").addStringOption(o=>o.setName("plugin").setDescription("Plugin to uninstall").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
 
   new SlashCommandBuilder().setName("setup").setDescription("Set up Kimi channels and server systems."),
-  new SlashCommandBuilder().setName("foundation").setDescription("Open Foundation setup and server essentials."),
   new SlashCommandBuilder().setName("welcome").setDescription("Configure welcome and goodbye messages.")
     .addChannelOption(o=>o.setName("welcome-channel").setDescription("Channel for new member greetings").addChannelTypes(ChannelType.GuildText))
     .addChannelOption(o=>o.setName("goodbye-channel").setDescription("Channel for member departure messages").addChannelTypes(ChannelType.GuildText))
@@ -23,9 +22,7 @@ const allCommandBuilders=[
   new SlashCommandBuilder().setName("autorole").setDescription("Set or disable the automatic member role.")
     .addRoleOption(o=>o.setName("role").setDescription("Role to assign to new members")),
   new SlashCommandBuilder().setName("moderation").setDescription("Create or update the moderation settings panel."),
-  new SlashCommandBuilder().setName("lock").setDescription("Open Kimi Lock protection settings."),
   new SlashCommandBuilder().setName("tickets").setDescription("Prepare the ticket category and private support channels."),
-  new SlashCommandBuilder().setName("support").setDescription("Prepare Support and open ticket settings."),
   new SlashCommandBuilder().setName("ticket-panel").setDescription("Create or update the ticket panel."),
   new SlashCommandBuilder().setName("ticket-config").setDescription("View ticket settings and configure support roles."),
 
@@ -49,9 +46,9 @@ const allCommandBuilders=[
 
 const commandGroups=Object.freeze({
   Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","plugins","libraries","automations"],
-  Foundation:["setup","foundation","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
-  "Kimi Lock":["verify","verify-config","filter","security","moderation","lock"],
-  Support:["tickets","support","ticket-panel","ticket-config"],
+  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  "Kimi Lock":["verify","verify-config","filter","security","moderation"],
+  Support:["tickets","ticket-panel","ticket-config"],
 });
 const adminOnlyCommands=new Set(Object.entries(commandGroups).filter(([name])=>name!=="Core").flatMap(([,names])=>names));
 for(const command of allCommandBuilders)if(adminOnlyCommands.has(command.name))command.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
