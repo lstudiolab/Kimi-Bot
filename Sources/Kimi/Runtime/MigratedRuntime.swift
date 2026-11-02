@@ -226,7 +226,7 @@ extension KimiRuntime {
       guard remove>=1,remove<=fields.count else{throw KimiError.configuration("Field number is outside the current field list.")}
       fields.remove(at:remove-1)
      }
-     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:value("footer") ?? existing?.footer,author:value("author"),thumbnailURL:value("thumbnail"),imageURL:value("image"),url:value("url"),fields:fields)
+     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:options.first(where:{($0["name"] as? String)=="color"})?["value"] as? Int ?? existing?.color ?? 8421504,footer:value("footer") ?? existing?.footer,author:value("author"),thumbnailURL:value("thumbnail"),imageURL:value("image"),url:value("url"),fields:fields)
      reply="Embed **"+saved.name+"** saved."
     }
    case "guard-review":
