@@ -177,8 +177,8 @@ actor DiscordGateway {
  }
 }
 actor KimiRuntime {
- let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String;let dashboardURL:String?
- init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String,dashboardURL:String?=nil){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID;self.dashboardURL=dashboardURL}
+ let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String;let dashboardURL:String?;let performance:PerformanceMonitor
+ init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String,dashboardURL:String?=nil,performance:PerformanceMonitor=PerformanceMonitor()){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID;self.dashboardURL=dashboardURL;self.performance=performance}
  func handle(_ event:[String:Any])async{
   if await handleMigratedCommand(event){return}
   guard let id=event["id"] as? String,let token=event["token"] as? String else{return}
