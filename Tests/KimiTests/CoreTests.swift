@@ -76,8 +76,10 @@ final class CoreTests:XCTestCase {
   } catch {}
   let rule=try await engine.add(guildID:"123456789012345678",name:"Invite alert",trigger:"message_contains",condition:"discord.gg",action:"delete_message")
   XCTAssertEqual((await engine.matching(guildID:rule.guildID,trigger:"message_create",content:"Join discord.gg/example")).map(\\.id),[rule.id])
-  XCTAssertTrue(await engine.matching(guildID:rule.guildID,trigger:"message_create",content:"ordinary conversation").isEmpty)
-  XCTAssertTrue(await engine.remove(id:rule.id,guildID:rule.guildID))
+  let unmatched=await engine.matching(guildID:rule.guildID,trigger:"message_create",content:"ordinary conversation")
+  XCTAssertTrue(unmatched.isEmpty)
+  let removed=try await engine.remove(id:rule.id,guildID:rule.guildID)
+  XCTAssertTrue(removed)
  }
 
 }
