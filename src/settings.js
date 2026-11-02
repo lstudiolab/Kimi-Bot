@@ -64,7 +64,8 @@ export class KimiSettings {
   async show(i,page="home",selected=""){
     if(i.isChatInputCommand?.()&&!i.deferred&&!i.replied)await i.deferReply({ephemeral:false});
     if(!hasAccess(i))return edit({content:t(this.store,i.guildId,"permissionDenied"),embeds:[],components:[]});
-    const guild=i.guild, id=guild.id;\n    const edit=payload=>{payload.components=normalizePanelComponents(payload.components,this.logger);return i.editReply(payload);};
+    const guild=i.guild, id=guild.id;
+    const edit=payload=>{payload.components=normalizePanelComponents(payload.components,this.logger);return i.editReply(payload);};
     const language=this.store.data.languages?.[id]||"en-US";
     const tr=key=>t(this.store,id,key);
     if(page==="home"){
