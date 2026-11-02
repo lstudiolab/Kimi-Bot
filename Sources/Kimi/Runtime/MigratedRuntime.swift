@@ -173,7 +173,7 @@ extension KimiRuntime {
     let sub=options.first?["name"] as? String ?? "list"
     if sub=="create" {
      guard let ruleName=value("name"),let trigger=value("trigger"),let action=value("action") else{throw KimiError.configuration("Provide a name, trigger and action.")}
-     let rule=try await engine.add(guildID:guild,name:ruleName,trigger:trigger,action:action)
+     let rule=try await engine.add(guildID:guild,name:ruleName,trigger:trigger,action:action,condition:value("condition"))
      reply="Automation created: "+rule.name+" ("+rule.id+")."
     } else if sub=="remove" {
      guard let ruleID=value("id"),try await engine.remove(id:ruleID,guildID:guild) else{throw KimiError.configuration("Automation rule not found.")}
