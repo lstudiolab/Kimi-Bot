@@ -448,13 +448,13 @@ extension KimiRuntime {
     }
    }
    await AnalyticsService(store:store).record(guild:guild,event:"join")
-   await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"")
+   await runAutomations(guild:guild,trigger:"member_join",userID:id,channelID:nil,messageID:nil,content:"",username:user["username"] as? String ?? "member")
   case "GUILD_MEMBER_REMOVE":
    guard let guild=data["guild_id"] as? String,let user=data["user"] as? [String:Any],let id=user["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
    if installed.contains("Welcome"),await migratedModuleEnabled("welcome",guild:guild){await FoundationEngine(store:store,rest:rest,logger:logger).memberLeft(guildID:guild,userID:id,username:user["username"] as? String ?? "member",serverName:"the server")}
    await AnalyticsService(store:store).record(guild:guild,event:"leave")
-   await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"")
+   await runAutomations(guild:guild,trigger:"member_leave",userID:id,channelID:nil,messageID:nil,content:"",username:user["username"] as? String ?? "member")
   case "GUILD_MEMBER_UPDATE":
    guard let guild=data["guild_id"] as? String,let user=(data["user"] as? [String:Any])?["id"] as? String else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
@@ -473,7 +473,7 @@ extension KimiRuntime {
    guard let guild=data["guild_id"] as? String,let channel=data["channel_id"] as? String,let message=data["id"] as? String,let author=data["author"] as? [String:Any],let user=author["id"] as? String,(author["bot"] as? Bool != true) else{return}
    let content=data["content"] as? String ?? ""
    await AnalyticsService(store:store).record(guild:guild,event:"message")
-   await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:content)
+   await runAutomations(guild:guild,trigger:"message_create",userID:user,channelID:channel,messageID:message,content:content,username:author["username"] as? String ?? "member")
    let installed=await AppManager(store:store).installed(guildID:guild)
    let recoveryEnabled=await migratedModuleEnabled("recovery",guild:guild)
    let moderationEnabled=await migratedModuleEnabled("moderation",guild:guild)
@@ -540,7 +540,7 @@ extension KimiRuntime {
   case "GUILD_AUDIT_LOG_ENTRY_CREATE":
    guard let guild=data["guild_id"] as? String,let actor=data["user_id"] as? String,let action=data["action_type"] as? Int else{return}
    let installed=await AppManager(store:store).installed(guildID:guild)
-   guard installed.contains("Kimi Lock") else{return}
+   guard installed.contains("Kimi Lock"),await migratedModuleEnabled("protection",guild:guild) else{return}
    do {
     if let incident=try await AuditProtection(store:store).record(guildID:guild,actorID:actor,action:String(action)){
      await logger.log("WARN","Kimi Lock incident: "+incident.reason)
@@ -557,7 +557,7 @@ extension KimiRuntime {
 }
 
 extension KimiRuntime {
- func runAutomations(guild:String,trigger:String,userID:String,channelID:String?,messageID:String?,content:String)async {
-  await AutomationEngine(store:store,rest:rest,logger:logger).run(trigger:trigger,guild:guild,user:userID,channel:channelID ?? "",message:content,username:"member",messageID:messageID)
+ func runAutomations(guild:String,trigger:String,userID:String,channelID:String?,messageID:String?,content:String,username:String="member")async {
+  await AutomationEngine(store:store,rest:rest,logger:logger).run(trigger:trigger,guild:guild,user:userID,channel:channelID ?? "",message:content,username:username,messageID:messageID)
  }
 }
