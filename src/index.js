@@ -117,7 +117,7 @@ async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
  const editable=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed&&role.editable).map(role=>role.id);
  const incident=incidents[member.id]={bot_id:member.id,bot_name:member.user.username,owner_id:guild.ownerId,
-  status:"review_required",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false};
+  status:"review_required",reason,created_at:Date.now(),original_roles:originalRoles,removed_roles:[],timeout_applied:false,original_timeout_until:member.communicationDisabledUntilTimestamp||null};
  try{if(editable.length){await member.roles.remove(editable,reason);incident.removed_roles=editable;}}catch(error){logger.warn("Kimi Guard could not remove every role from bot "+member.id+":",error.message);}
  try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;incident.timeout_until=Date.now()+28*24*60*60*1000;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
  incident.status=incident.removed_roles.length||incident.timeout_applied?"restricted":"review_required";
@@ -155,7 +155,8 @@ async function coreCommand(i){
    let timeoutCleared=false;
    const currentTimeout=member.communicationDisabledUntilTimestamp||0;
    if(incident.timeout_applied&&Number.isFinite(incident.timeout_until)&&currentTimeout&&Math.abs(currentTimeout-incident.timeout_until)<60000){
-    await member.timeout(null,"Released by the server owner after Kimi Guard review");
+    const previousTimeout=Number(incident.original_timeout_until)||0;
+    await member.timeout(previousTimeout>Date.now()?previousTimeout-Date.now():null,"Released by the server owner after Kimi Guard review");
     timeoutCleared=true;
    }
    if(roles.length)await member.roles.add(roles,"Released by the server owner after Kimi Guard review");
