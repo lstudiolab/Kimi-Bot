@@ -40,8 +40,8 @@ const commandModule={
 };
 const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":null;
 const foundation=PLUGINS.Foundation.create(context);context.foundation=foundation;
-const libraries=Object.fromEntries(Object.entries(PLUGINS).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
-context.libraries=libraries;
+const plugins=Object.fromEntries(Object.entries(PLUGINS).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
+context.plugins=plugins;
 const rest=new REST({version:"10"}).setToken(config.token);
 async function syncGlobalCommands(){
  const registered=await rest.put(Routes.applicationCommands(config.clientId),{body:coreCommandData});
@@ -68,7 +68,7 @@ const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
   const commandName=names[section];
   const plugin=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
-  if(!commandName||!libraries[plugin])return respond(i,"This configuration section is not available.");
+  if(!commandName||!plugins[plugin])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
    getAttachment:()=>null
@@ -79,9 +79,9 @@ const openConfiguration=async(i,section)=>{
    if(key==="isChatInputCommand")return ()=>true;
    return Reflect.get(target,key,receiver);
   }});
-  return libraries[plugin].handleInteraction(proxy);
+  return plugins[plugin].handleInteraction(proxy);
  };
-const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,libraries,plugins:libraries,openConfiguration});
+const settings=new KimiSettings(store,manager,logger,{syncGuildCommands,plugins,plugins:plugins,openConfiguration});
 async function showInstallAnimation(interaction,moduleName){
  const frames=[
   {bar:"░░░░░░░░░░",percent:0,status:"Preparing plugin"},
@@ -120,7 +120,7 @@ async function coreCommand(i){
   const report=getStorageReport(store,i.guildId);
   return respond(i,"**Kimi Free**\nKimi is free to use. All built-in plugins can be installed without a subscription.\n\n**Storage:** "+formatBytes(report.bytes)+" / "+formatBytes(report.limit)+" (5 MB per server)\n\nManage plugins and systems in /kimi.");
  }
- if(i.commandName==="plugins"||i.commandName==="libraries"){
+ if(i.commandName==="plugins"||i.commandName==="plugins"){
   const lines=manager.list().map(l=>{
    const state=manager.installed(i.guildId,l.name)?"Installed":"Available";
    return "**"+l.name+"** — "+state+"\n"+l.description+"\nSystems: "+l.systems.join(", ")+"\nHelpers: "+(l.helpers||[]).join(", ");
@@ -129,16 +129,16 @@ async function coreCommand(i){
  }
  if(i.commandName==="uninstall"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can uninstall Kimi plugins.");
-  const result=manager.uninstall(i.guildId,i.options.getString("plugin")||i.options.getString("library"));
+  const result=manager.uninstall(i.guildId,i.options.getString("plugin")||i.options.getString("plugin"));
   if(!result.ok)return respond(i,result.error);
   const pluginKey=result.plugin.name;
-  if(libraries[pluginKey]?.onUninstall)await libraries[pluginKey].onUninstall(i.guild);
+  if(plugins[pluginKey]?.onUninstall)await plugins[pluginKey].onUninstall(i.guild);
   await syncGuildCommands(i.guildId);
   return respond(i,`**${result.plugin.name}** is now disabled in this server. Its slash commands have been removed; saved configuration, source code, and projects are preserved.`);
  }
  if(i.commandName==="install"){
   if(i.guild.ownerId!==i.user.id)return respond(i,"Only the server owner can install Kimi plugins.");
-  const name=i.options.getString("plugin")||i.options.getString("library");
+  const name=i.options.getString("plugin")||i.options.getString("plugin");
   if(!name)return respond(i,"Choose a plugin in the plugin option. Available: Foundation, Kimi Lock, Support. Use /plugins for details.");
   const result=manager.install(i.guildId,name);if(!result.ok)return respond(i,result.error);
   await showInstallAnimation(i,result.plugin.name);
@@ -149,8 +149,8 @@ async function coreCommand(i){
    return respond(i,`**${result.plugin.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
   const pluginKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.plugin.name]||result.plugin.name;
-  if(libraries[pluginKey]?.ready)await libraries[pluginKey].ready(i.guild);
-  if(libraries[pluginKey]?.onInstall)await libraries[pluginKey].onInstall(i.guild);
+  if(plugins[pluginKey]?.ready)await plugins[pluginKey].ready(i.guild);
+  if(plugins[pluginKey]?.onInstall)await plugins[pluginKey].onInstall(i.guild);
   return respond(i,`**${result.plugin.name}** is installed and active in this server. Its slash commands have been published.\n${result.plugin.description}`);
  }
 }
@@ -174,13 +174,13 @@ async function handleInteraction(i){
  const opensPublicSettings=i.isChatInputCommand()&&["kimi","configure-foundation","configure-kimi-lock","configure-support"].includes(i.commandName);
  if(i.isRepliable()&&!opensModal(i)&&!opensPublicSettings)await startWorking(i);
  if(i.isChatInputCommand()){
-  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","plugins","libraries","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
+  if(["kimi","configure-foundation","configure-kimi-lock","configure-support","install","uninstall","plugins","plugins","automations","plan","web-token"].includes(i.commandName))return coreCommand(i);
   const moduleId=commandModule[i.commandName];
   if(moduleId&&!moduleEnabled(i.guildId,moduleId))return respond(i,`The **${moduleId}** system is disabled. Enable it in /kimi.`);
   const required=pluginForCommand(i.commandName);if(!required)return;
   if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use Kimi plugin commands.");
   if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed in this server. Ask the owner to use /install.`);
-  return libraries[required].handleInteraction(i);
+  return plugins[required].handleInteraction(i);
  }
  const id=i.customId||"";
  if(id.startsWith("automation:"))return automationEngine.handleInteraction(i);
@@ -192,7 +192,7 @@ async function handleInteraction(i){
  const administratorControl=id.startsWith("modpanel:")||id.startsWith("botguard:")||id.startsWith("embed:")||ticketAdminControl;
  if(administratorControl&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)&&i.guild?.ownerId!==i.user.id)return respond(i,"You need Manage Server permission to use this control.");
  if(!manager.installed(i.guildId,required))return respond(i,`The **${required}** plugin is not installed. This control is inactive.`);
- return libraries[required].handleInteraction(i);
+ return plugins[required].handleInteraction(i);
 }
 client.on(Events.GuildCreate,guild=>{
  if(!client.isReady())return;
@@ -209,7 +209,7 @@ client.once(Events.ClientReady,async ready=>{
   startupTasks.push((async()=>{
    try{await syncGuildCommands(guild.id);}catch(error){logger.error(`Command sync failed for guild ${guild.id}:`,error);}
    const readyTasks=[];
-   for(const [name,plugin] of Object.entries(libraries)){
+   for(const [name,plugin] of Object.entries(plugins)){
     if(manager.installed(guild.id,name)&&plugin.ready)readyTasks.push(Promise.resolve().then(()=>plugin.ready(guild)));
    }
    const results=await Promise.allSettled(readyTasks);
@@ -261,14 +261,14 @@ client.on(Events.MessageCreate,async m=>{
    return m.reply("Kimi could not send the test greeting. Check the welcome channel permissions.").catch(()=>{});
   }
  }
-  if(manager.installed(m.guildId,"Kimi Lock"))libraries["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
+  if(manager.installed(m.guildId,"Kimi Lock"))plugins["Kimi Lock"].messageCreate(m,{moderation:moduleEnabled(m.guildId,"moderation"),recovery:moduleEnabled(m.guildId,"recovery")}).catch(e=>logger.error("Moderation message processing failed:",e));
 });
-client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Kimi Lock")&&moduleEnabled(m.guild.id,"moderation"))libraries["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
-client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Kimi Lock")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))libraries["Kimi Lock"].messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
-client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Kimi Lock")&&moduleEnabled(newMember.guild.id,"moderation"))libraries["Kimi Lock"].memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
-client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))libraries["Kimi Lock"].ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
-client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))libraries["Kimi Lock"].ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
-client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Kimi Lock")&&moduleEnabled(guild.id,"protection"))libraries["Kimi Lock"].auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
+client.on(Events.MessageDelete,m=>{if(m.guild&&manager.installed(m.guild.id,"Kimi Lock")&&moduleEnabled(m.guild.id,"moderation"))plugins["Kimi Lock"].messageDelete(m).catch(e=>logger.error("Message delete log failed:",e));});
+client.on(Events.MessageUpdate,(oldMessage,newMessage)=>{if(newMessage.guild&&manager.installed(newMessage.guild.id,"Kimi Lock")&&(moduleEnabled(newMessage.guild.id,"moderation")||moduleEnabled(newMessage.guild.id,"recovery")))plugins["Kimi Lock"].messageUpdate(oldMessage,newMessage,{moderation:moduleEnabled(newMessage.guild.id,"moderation"),recovery:moduleEnabled(newMessage.guild.id,"recovery")}).catch(e=>logger.error("Message edit log failed:",e));});
+client.on(Events.GuildMemberUpdate,(oldMember,newMember)=>{if(manager.installed(newMember.guild.id,"Kimi Lock")&&moduleEnabled(newMember.guild.id,"moderation"))plugins["Kimi Lock"].memberUpdate(oldMember,newMember).catch(e=>logger.error("Member update log failed:",e));});
+client.on(Events.GuildBanAdd,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user).catch(e=>logger.error("Ban log failed:",e));});
+client.on(Events.GuildBanRemove,ban=>{if(manager.installed(ban.guild.id,"Kimi Lock")&&moduleEnabled(ban.guild.id,"moderation"))plugins["Kimi Lock"].ban(ban.guild,ban.user,true).catch(e=>logger.error("Unban log failed:",e));});
+client.on(Events.GuildAuditLogEntryCreate,(entry,guild)=>{if(manager.installed(guild.id,"Kimi Lock")&&moduleEnabled(guild.id,"protection"))plugins["Kimi Lock"].auditLog(entry,guild).catch(e=>logger.error("Anti-nuke audit processing failed:",e));});
 client.on(Events.GuildMemberAdd,m=>{
  automationEngine.memberJoin(m).catch(error=>logger.error("Automation join trigger failed:",error));
  const record=store.member(m.guild.id,m.id);
@@ -277,22 +277,22 @@ client.on(Events.GuildMemberAdd,m=>{
  store.queueSave();
  if(manager.installed(m.guild.id,"Kimi Lock")){
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
-  if(modules.protection||modules.verification)libraries["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
+  if(modules.protection||modules.verification)plugins["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
- if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
+ if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
 });
 client.on(Events.GuildMemberRemove,m=>{
  automationEngine.memberLeave(m).catch(error=>logger.error("Automation leave trigger failed:",error));
  const record=store.member(m.guild.id,m.id);
  record.leaves++;
  store.queueSave();
- if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))libraries.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
+ if(manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
-client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelCreate(c);});
-client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelUpdate(o,c);});
-client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))libraries["Kimi Lock"].channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
+client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelCreate(c);});
+client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelUpdate(o,c);});
+client.on(Events.ChannelDelete,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelDelete(c).catch(e=>logger.error("Recovery failed:",e));});
 client.on(Events.Error,e=>logger.error("Discord client error:",e));process.on("unhandledRejection",e=>logger.error("Unhandled rejection:",e));
 function shutdown(signal){logger.info(`Received ${signal}; shutting down Kimi.`);try{store.save();}catch(e){logger.error("Final save failed:",e);}client.destroy();process.exit(0);}
 process.once("SIGINT",()=>shutdown("SIGINT"));process.once("SIGTERM",()=>shutdown("SIGTERM"));
-startDashboardServer({config,client,store,manager,libraries,plugins:libraries,logger,syncGuildCommands,authStore,automationEngine});
+startDashboardServer({config,client,store,manager,plugins,plugins:plugins,logger,syncGuildCommands,authStore,automationEngine});
 try{await client.login(config.token);}catch(e){logger.error("Kimi could not log in. Check DISCORD_TOKEN and application settings:",e);process.exitCode=1;}
