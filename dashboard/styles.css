@@ -229,3 +229,46 @@ button,select,input{touch-action:manipulation}
 }
 
 .switch>span{position:relative;display:block;flex:none}
+
+
+/* App Store — a calm catalogue with clear states and compact controls. */
+.app-store-intro{align-items:flex-end;gap:22px}
+.app-store-count{flex:none;padding:8px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.app-store-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 18px}
+.app-search-wrap{display:flex;align-items:center;gap:10px;width:min(100%,360px);min-height:44px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:#191b1e;color:var(--muted)}
+.app-search-wrap>span{font-size:22px;line-height:1}
+.app-search-wrap input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:14px}
+.app-search-wrap input::placeholder{color:#818991}
+.app-search-wrap:focus-within{border-color:#737c84;box-shadow:0 0 0 3px #cbd0d410}
+.app-store-note{font-size:12px;color:var(--muted)}
+.app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.app-card{min-width:0;padding:20px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(160deg,#1d2023 0%,#17191b 78%);box-shadow:0 10px 30px #00000012;transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+.app-card:hover{border-color:#50575e;transform:translateY(-2px);box-shadow:0 15px 38px #00000025}
+.app-card[hidden]{display:none}
+.app-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.app-icon{width:48px;height:48px;display:grid;place-items:center;border:1px solid #4a5158;border-radius:14px;background:linear-gradient(145deg,#343a40,#202428);box-shadow:inset 0 1px #ffffff12}
+.app-icon span{font-size:22px;font-weight:650;letter-spacing:-1px;color:#f2f4f5}
+.app-icon-kimilock{background:linear-gradient(145deg,#343b42,#1e2429)}
+.app-icon-support{background:linear-gradient(145deg,#3b3b3b,#222426)}
+.app-icon-foundation{background:linear-gradient(145deg,#414448,#24272a)}
+.app-status{padding:6px 9px;border:1px solid #3b4147;border-radius:999px;color:#aeb6bd;font-size:11px;white-space:nowrap}
+.app-status.is-installed{border-color:#48554d;color:#c2d3c6;background:#253029}
+.app-card-copy{margin:18px 0 13px}
+.app-card-copy h2{margin:0 0 5px;font-size:20px;letter-spacing:-.45px;font-weight:620}
+.app-card-copy p{min-height:40px;margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.app-feature-list{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 17px}
+.app-feature-list span{padding:5px 8px;border:1px solid #30363b;border-radius:7px;background:#1b1e21;color:#c0c6cb;font-size:11px}
+.app-systems{padding:12px 0 8px;border-top:1px solid #30353a}
+.app-systems-title{display:flex;justify-content:space-between;margin-bottom:5px;color:#aeb6bd;font-size:11px}
+.app-systems-title span{font-variant-numeric:tabular-nums}
+.app-system-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;border-bottom:1px solid #282d31}
+.app-system-row:last-child{border-bottom:0}
+.app-system-row>span{font-size:12px;color:#d1d5d8}
+.app-system-row .switch{min-height:38px}
+.app-system-row .switch>span{transform:scale(.88);transform-origin:right center}
+.app-card-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid #30353a}
+.app-card-footer>span{font-size:11px;color:#9da5ac}
+.app-card-footer .button{min-width:84px;min-height:38px;padding:7px 13px;font-size:12px}
+.app-store-footnote{margin-top:17px;color:#969ea5;font-size:12px;line-height:1.6}
+@media(max-width:760px){.app-grid{grid-template-columns:1fr}.app-card-copy p{min-height:0}.app-store-intro{align-items:flex-start;flex-direction:column}.app-store-toolbar{align-items:flex-start;flex-direction:column}.app-search-wrap{width:100%;box-sizing:border-box}}
+@media(prefers-reduced-motion:reduce){.app-card{transition:none}}
