@@ -10,7 +10,8 @@ const MODULES = Object.freeze([
   { id:"protection", label:"Server Protection", plugin:"Kimi Lock", description:"Raid detection, anti-nuke and bot approval." },
   { id:"recovery", label:"Recovery", plugin:"Kimi Lock", description:"Channel snapshots and message recovery." },
   { id:"welcome", label:"Welcome", plugin:"Welcome", description:"Welcome and departure messages." },
-  { id:"roles", label:"Roles", plugin:"Roles", description:"Automatic role assignment and self-service role menus." },
+  { id:"auto_role", label:"Automatic Role", plugin:"Auto Role", description:"Assign one configured role to new members." },
+  { id:"roles", label:"Role Picker", plugin:"Role Picker", description:"Self-service role selection panels." },
   { id:"embeds", label:"Embeds", plugin:"Embeds", description:"Reusable server embeds and placements." },
   { id:"tickets", label:"Tickets", plugin:"Support", description:"Private support tickets and transcripts." },
 ]);
@@ -75,7 +76,7 @@ export class KimiSettings {
     }
     if(page==="plugin"){
       const plugin=selected;
-      if(!["Welcome","Roles","Embeds","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
+      if(!["Welcome","Auto Role","Role Picker","Embeds","Kimi Lock","Support"].includes(plugin))return edit({content:"Unknown app.",embeds:[],components:[]});
       if(!installed(this.store,id,plugin))return edit({content:`${plugin} is not added to this server. Add it from the App Store first.`,embeds:[],components:[]});
       const sections=[];
       if(plugin==="Kimi Lock"){
@@ -85,7 +86,9 @@ export class KimiSettings {
         sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       }else if(plugin==="Welcome"){
         sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
-      }else if(plugin==="Roles"){
+      }else if(plugin==="Auto Role"){
+        sections.push(row(button("settings:config:auto-role","Automatic Role")));
+      }else if(plugin==="Role Picker"){
         sections.push(row(button("settings:config:roles","Role Menus")));
       }else if(plugin==="Embeds"){
         sections.push(row(button("settings:config:embeds","Embed Tools")));
@@ -99,7 +102,8 @@ export class KimiSettings {
       if(installed(this.store,id,"Kimi Lock")){sections.push(row(button("settings:config:moderation","Moderation"),button("settings:config:verification","Verification")));sections.push(row(button("settings:config:filter","Blocked Phrases")));}
       if(installed(this.store,id,"Support"))sections.push(row(button("settings:config:tickets-setup","Prepare Tickets"),button("settings:config:tickets","Ticket Settings")));
       if(installed(this.store,id,"Welcome"))sections.push(row(button("settings:config:setup","Server Setup"),button("settings:config:welcome","Welcome")));
-      if(installed(this.store,id,"Roles"))sections.push(row(button("settings:config:roles","Role Menus")));
+      if(installed(this.store,id,"Auto Role"))sections.push(row(button("settings:config:auto-role","Automatic Role")));
+      if(installed(this.store,id,"Role Picker"))sections.push(row(button("settings:config:roles","Role Menus")));
       if(installed(this.store,id,"Embeds"))sections.push(row(button("settings:config:embeds","Embed Tools")));
       sections.push(row(button("settings:home",tr("back"))));
       return edit({embeds:[embed("Configuration","Choose a system to configure. Only apps added to this server are shown here.")],components:sections});
@@ -271,7 +275,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"?"Welcome":section==="roles"?"Roles":section==="embeds"?"Embeds":"Welcome";
+      const plugin=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"?"Welcome":section==="roles"?"Role Picker":section==="auto-role"?"Auto Role":section==="embeds"?"Embeds":"Welcome";
       if(!installed(this.store,i.guildId,plugin))return respond(i,"That app is no longer added. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
