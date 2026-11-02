@@ -12,8 +12,7 @@ export function conditionMatches(condition,context){
   if(!condition||condition.type==="always")return true;
   if(condition.type==="account_age_under_days")return Number(context.accountAgeDays)<Number(condition.value);
   if(condition.type==="message_contains")return String(context.message?.content||"").toLowerCase().includes(String(condition.value||"").toLowerCase());
-  if(condition.type==="contains_invite")return /(?:discord\\.gg\\/|discord(?:app)?\\.com\\/invite\\/)/i.test(String(context.message?.content||""));
-  if(condition.type==="contains_invite")return /(?:discord\\.gg\\/|discord(?:app)?\\.com\\/invite\\/)/i.test(String(context.message?.content||""));
+  if(condition.type==="contains_invite")return /discord[.]gg[/]|discord(?:app)?[.]com[/]invite[/]/i.test(String(context.message?.content||""));
   return false;
 }
 
