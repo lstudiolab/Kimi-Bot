@@ -188,7 +188,7 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
 
       if (method === "POST" && ["/auth/register", "/auth/login"].includes(url.pathname)) {
         const body = await parseBody(req);
-        const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
+        const ip = String(req.socket.remoteAddress || "unknown");
         for (const [key, value] of authAttempts) if (value.resetAt <= Date.now()) authAttempts.delete(key);
         if (!authAttempts.has(ip) && authAttempts.size >= 5000) authAttempts.delete(authAttempts.keys().next().value);
         const attempt = authAttempts.get(ip) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
