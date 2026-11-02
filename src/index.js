@@ -6,6 +6,7 @@ import { Store } from "./store.js";
 import { AuthStore } from "./auth-store.js";
 import { PluginManager } from "./plugin-manager.js";
 import { PLUGINS } from "./plugins/index.js";
+import { createFoundationCore } from "./plugins/Foundation/index.js";
 import { startWorking, respond, finishWorking } from "./ui.js";
 import { pluginForComponent } from "./component-routing.js";
 import { getStorageReport, formatBytes } from "./subscriptions.js";
@@ -40,8 +41,8 @@ const commandModule={
  "ticket-panel":"tickets"
 };
 const componentModule=id=>id.startsWith("modpanel:")?"moderation":id.startsWith("verify:")?"verification":id.startsWith("botguard:")?"protection":id.startsWith("ticket:")?"tickets":id.startsWith("rolepicker:")?"roles":id.startsWith("embed:")?"embeds":null;
-const foundation=PLUGINS.Foundation.create(context);context.foundation=foundation;
-const plugins=Object.fromEntries(Object.entries(PLUGINS).map(([name,definition])=>[name,name==="Foundation"?foundation:definition.create(context)]));
+const foundation=createFoundationCore(context);context.foundation=foundation;
+const plugins=Object.fromEntries(Object.entries(PLUGINS).map(([name,definition])=>[name,definition.create(context)]));
 context.plugins=plugins;
 const rest=new REST({version:"10"}).setToken(config.token);
 async function syncGlobalCommands(){
@@ -68,7 +69,7 @@ function opensModal(i){
 const openConfiguration=async(i,section)=>{
   const names={moderation:"moderation",tickets:"ticket-config","tickets-setup":"tickets",setup:"setup"};
   const commandName=names[section];
-  const plugin=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":"Foundation";
+  const plugin=section==="moderation"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="roles"?"Roles":section==="embeds"?"Embeds":"Welcome";
   if(!commandName||!plugins[plugin])return respond(i,"This configuration section is not available.");
   const options={
    getRole:()=>null,getChannel:()=>null,getString:()=>null,getInteger:()=>null,getBoolean:()=>null,
@@ -210,7 +211,7 @@ async function coreCommand(i){
    logger.error(`Could not publish ${result.plugin.name} commands for guild ${i.guildId}:`,error);
    return respond(i,`**${result.plugin.name}** was saved as installed, but Discord did not accept the slash-command update. Check the bot's application permissions and restart Kimi to retry the sync.`);
   }
-  const pluginKey=({Core:"Foundation",Shield:"Kimi Lock",Support:"Support"})[result.plugin.name]||result.plugin.name;
+  const pluginKey=result.plugin.name;
   if(plugins[pluginKey]?.ready)await plugins[pluginKey].ready(i.guild);
   if(plugins[pluginKey]?.onInstall)await plugins[pluginKey].onInstall(i.guild);
   return respond(i,`**${result.plugin.name}** has been added and is active in this server. Its slash commands have been published.\n${result.plugin.description}`);
@@ -385,7 +386,7 @@ client.on(Events.GuildMemberAdd,m=>{
   const modules={protection:moduleEnabled(m.guild.id,"protection"),verification:moduleEnabled(m.guild.id,"verification")};
   if(modules.protection||modules.verification)plugins["Kimi Lock"].guildMemberAdd(m,modules).catch(e=>logger.error("Security member-join processing failed:",e));
  }
- if(allowAutomation&&manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
+ if(allowAutomation&&manager.installed(m.guild.id,"Welcome")&&moduleEnabled(m.guild.id,"welcome"))plugins.Welcome.guildMemberAdd(m).catch(e=>logger.error("Welcome message failed:",e));
 });
 client.on(Events.GuildMemberRemove,m=>{
  const allowAutomation=allowSystemTrigger(m.guild.id);
@@ -393,7 +394,7 @@ client.on(Events.GuildMemberRemove,m=>{
  const record=store.member(m.guild.id,m.id);
  record.leaves++;
  store.queueSave();
- if(allowAutomation&&manager.installed(m.guild.id,"Foundation")&&moduleEnabled(m.guild.id,"welcome"))plugins.Foundation.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
+ if(allowAutomation&&manager.installed(m.guild.id,"Welcome")&&moduleEnabled(m.guild.id,"welcome"))plugins.Welcome.guildMemberRemove(m).catch(e=>logger.error("Goodbye message failed:",e));
 });
 client.on(Events.ChannelCreate,c=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelCreate(c);});
 client.on(Events.ChannelUpdate,(o,c)=>{if(c.guild&&manager.installed(c.guild.id,"Kimi Lock")&&moduleEnabled(c.guild.id,"recovery"))plugins["Kimi Lock"].channelUpdate(o,c);});
