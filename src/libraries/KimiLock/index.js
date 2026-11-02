@@ -5,7 +5,7 @@ import { Verification } from "../../systems/verification.js";
 import { ImageAnalysis } from "../../systems/image-analysis.js";
 import { respond } from "../../ui.js";
 
-export function createSecurityLibrary({client,store,logger,foundation}){
+export function createKimiLockLibrary({client,store,logger,foundation,services}){
   const moderation=new Moderation(client,store,logger);
   const verification=new Verification(client,store,logger);
   verification.ensureSetup=guild=>foundation?.ensureSetup?.(guild);
@@ -37,15 +37,14 @@ export function createSecurityLibrary({client,store,logger,foundation}){
     async ban(guild,user,removed=false){await moderation.onBan(guild,user,removed);},
     async messageCreate(message,modules={moderation:true,recovery:true}){
       if(modules.recovery)recovery.backupMessage(message);
-      const tasks=[];if(modules.moderation){tasks.push(moderation.onMessage(message));tasks.push(imageAnalysis.handleMessage(message));}
-      const results=await Promise.allSettled(tasks);
-      for(const result of results)if(result.status==="rejected")logger.error("Security message processing failed:",result.reason);
+      if(modules.moderation){await moderation.onMessage(message);if(services?.background)services.background.enqueue("image:"+message.id,()=>imageAnalysis.handleMessage(message)).catch(error=>logger.error("Kimi Lock image analysis failed:",error));else await imageAnalysis.handleMessage(message);}
     },
     async guildMemberAdd(member,modules={protection:true,verification:true}){const tasks=[];if(modules.protection)tasks.push(protection.memberJoin(member));if(modules.verification)tasks.push(verification.memberJoin(member));const results=await Promise.allSettled(tasks);for(const result of results)if(result.status==="rejected")logger.error("Security join check failed:",result.reason);},
     async auditLog(entry,guild){await protection.auditLog(entry,guild);},
     channelCreate(channel){recovery.snapshot(channel);},
     channelUpdate(oldChannel,channel){recovery.snapshot(channel);},
     async channelDelete(channel){await recovery.onChannelDelete(channel);},
-    async refreshPanel(guild){await moderation.refresh(guild,store.mods(guild.id));}
+    async refreshPanel(guild){await moderation.refresh(guild,store.mods(guild.id));},
+    diagnostics(guild){return services?.diagnoseGuild?.(guild,["ViewChannel","SendMessages","ManageMessages","ModerateMembers","ManageChannels","ViewAuditLog"])||{ok:true,missing:[]};}
   };
 }

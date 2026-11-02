@@ -1,0 +1,16 @@
+import { PermissionFlagsBits } from "discord.js";
+const PERMISSIONS=Object.freeze({ViewChannel:PermissionFlagsBits.ViewChannel,SendMessages:PermissionFlagsBits.SendMessages,ManageMessages:PermissionFlagsBits.ManageMessages,ModerateMembers:PermissionFlagsBits.ModerateMembers,ManageChannels:PermissionFlagsBits.ManageChannels,ViewAuditLog:PermissionFlagsBits.ViewAuditLog,ManageRoles:PermissionFlagsBits.ManageRoles,ReadMessageHistory:PermissionFlagsBits.ReadMessageHistory});
+export class TTLCache {
+ constructor({ttlMs=15000,maxEntries=1000}={}){this.ttlMs=ttlMs;this.maxEntries=maxEntries;this.values=new Map();}
+ get(key){const e=this.values.get(key);if(!e)return undefined;if(e.expiresAt<=Date.now()){this.values.delete(key);return undefined;}this.values.delete(key);this.values.set(key,e);return e.value;}
+ set(key,value,ttlMs=this.ttlMs){this.values.delete(key);this.values.set(key,{value,expiresAt:Date.now()+ttlMs});while(this.values.size>this.maxEntries)this.values.delete(this.values.keys().next().value);return value;}
+ delete(key){return this.values.delete(key);} clear(){this.values.clear();}
+}
+export class BoundedTaskQueue {
+ constructor({concurrency=2,maxPending=128}={}){this.concurrency=Math.max(1,Math.floor(concurrency));this.maxPending=Math.max(this.concurrency,Math.floor(maxPending));this.pending=[];this.active=0;this.keys=new Map();this.closed=false;}
+ enqueue(key,task){if(this.closed)return Promise.reject(new Error("Background task queue is closed."));const id=String(key||"");if(id&&this.keys.has(id))return this.keys.get(id);if(this.pending.length>=this.maxPending)return Promise.reject(new Error("Background task queue is full; retry later."));let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});if(id)this.keys.set(id,promise);this.pending.push({id,task,resolve,reject});this.#drain();return promise;}
+ #drain(){while(!this.closed&&this.active<this.concurrency&&this.pending.length){const item=this.pending.shift();this.active++;Promise.resolve().then(item.task).then(item.resolve,item.reject).finally(()=>{this.active--;if(item.id)this.keys.delete(item.id);this.#drain();});}}
+ close({discard=false}={}){this.closed=true;if(discard)for(const item of this.pending.splice(0)){item.reject(new Error("Background task discarded during shutdown."));if(item.id)this.keys.delete(item.id);}}
+ get stats(){return {active:this.active,pending:this.pending.length,concurrency:this.concurrency,closed:this.closed};}
+}
+export function createRuntimeServices(){const background=new BoundedTaskQueue({concurrency:2,maxPending:128});const cache=new TTLCache({ttlMs:10000,maxEntries:500});function diagnoseGuild(guild,required=[]){if(!guild)return {ok:false,missing:[...required],checkedAt:Date.now()};const permissions=guild.members?.me?.permissions,fingerprint=permissions?.bitfield?.toString?.()||"unknown",key=guild.id+":"+fingerprint+":"+required.join(",");const cached=cache.get(key);if(cached)return cached;const missing=required.filter(name=>!PERMISSIONS[name]||!permissions?.has?.(PERMISSIONS[name]));return cache.set(key,{ok:missing.length===0,missing,checkedAt:Date.now()});}return Object.freeze({background,diagnoseGuild,clearDiagnostics:()=>cache.clear()});}
