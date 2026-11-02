@@ -17,6 +17,10 @@ export class Recovery {
     };
     this.store.queueSave();
   }
+  cacheArchiveBytes(guildId,bytes){
+    if(!this.archiveBytes.has(guildId)&&this.archiveBytes.size>=2000)this.archiveBytes.delete(this.archiveBytes.keys().next().value);
+    this.cacheArchiveBytes(guildId,bytes);
+  }
   prune(guildId){
     const list=this.store.data.messages[guildId]||[];
     const cutoff=nowMs()-WEEK,sizeOf=value=>Buffer.byteLength(JSON.stringify(value),"utf8");
@@ -48,7 +52,7 @@ export class Recovery {
     };
     list.push(record);bytes+=sizeOf(record);
     while(list.length&&(list.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(list.shift());
-    this.archiveBytes.set(guild,Math.max(0,bytes));
+    this.cacheArchiveBytes(guild,bytes);
     this.store.queueSave();
   }
   async updateMessage(message){
@@ -60,7 +64,7 @@ export class Recovery {
     const sizeOf=value=>Buffer.byteLength(JSON.stringify(value),"utf8");
     if(!this.archiveBytes.has(message.guild.id)){
       list.sort((a,b)=>(a.timestamp_ms||0)-(b.timestamp_ms||0));
-      this.archiveBytes.set(message.guild.id,list.reduce((total,item)=>total+sizeOf(item),0));
+      this.cacheArchiveBytes(message.guild.id,list.reduce((total,item)=>total+sizeOf(item),0));
     }
     const previous=sizeOf(list[index]);
     list[index]={
@@ -70,7 +74,7 @@ export class Recovery {
     };
     let bytes=this.archiveBytes.get(message.guild.id)-previous+sizeOf(list[index]);
     while(list.length&&(list.length>MAX_MESSAGES||bytes>MAX_ARCHIVE_BYTES))bytes-=sizeOf(list.shift());
-    this.archiveBytes.set(message.guild.id,Math.max(0,bytes));
+    this.cacheArchiveBytes(message.guild.id,bytes);
     this.store.queueSave();
     return true;
   }
@@ -91,6 +95,11 @@ export class Recovery {
     if(!actor||actor.id===guild.ownerId||actor.id===this.client.user.id||actor.bot)return;
     const key=guild.id+":"+actor.id,now=Date.now();
     for(const [storedKey,items] of this.deletions)if(!items.length||now-items[items.length-1].at>60000)this.deletions.delete(storedKey);
+    if(!this.deletions.has(key)&&this.deletions.size>=2000){
+      let oldestKey=null,oldestAt=Infinity;
+      for(const [storedKey,items] of this.deletions){const at=items.at(-1)?.at||0;if(at<oldestAt){oldestAt=at;oldestKey=storedKey;}}
+      if(oldestKey!==null)this.deletions.delete(oldestKey);
+    }
     const entries=(this.deletions.get(key)||[]).filter(item=>now-item.at<=60000);
     entries.push({at:now,id});
     this.deletions.set(key,entries);
