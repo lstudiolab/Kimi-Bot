@@ -1,18 +1,19 @@
 import Foundation
 
 actor AutomationEngine {
- struct Rule:Codable,Sendable,Identifiable {let id:String;let guildID:String;var name:String;var trigger:String;var action:String;var enabled:Bool;let createdAt:Date}
+ struct Rule:Codable,Sendable,Identifiable {let id:String;let guildID:String;var name:String;var trigger:String;var condition:String?;var action:String;var enabled:Bool;let createdAt:Date}
  struct Execution:Codable,Sendable {let ruleID:String;let guildID:String;let trigger:String;let success:Bool;let detail:String;let createdAt:Date}
  private let store:PersistentStore
  private let rest:DiscordREST?
  private let logger:Logger?
- private let triggers:Set<String>=["message_create","member_join","member_leave"]
+ private let triggers:Set<String>=["message_create","message_contains","member_join","member_leave"]
  private let actions:Set<String>=["delete_message","send_message","timeout","add_role","remove_role"]
  init(store:PersistentStore,rest:DiscordREST?=nil,logger:Logger?=nil){self.store=store;self.rest=rest;self.logger=logger}
  func rules(guildID:String)async->[Rule]{(await store.get("automation.rules",as:[Rule].self) ?? []).filter{$0.guildID==guildID}}
- func add(guildID:String,name:String,trigger:String,action:String)async throws->Rule{
+ func add(guildID:String,name:String,trigger:String,action:String,condition:String?=nil)async throws->Rule{
   guard !name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw KimiError.configuration("Enter a name for this automation.")}
   guard triggers.contains(trigger) else{throw KimiError.configuration("Unsupported trigger. Choose message_create, member_join or member_leave.")}
+  if trigger=="message_contains" && (condition?.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ?? true){throw KimiError.configuration("message_contains requires a text condition.")}
   let parts=action.split(separator:":",maxSplits:2).map(String.init)
   guard let kind=parts.first,actions.contains(kind) else{throw KimiError.configuration("Unsupported action. Choose delete_message, send_message, timeout, add_role or remove_role.")}
   if kind=="send_message" && (parts.count<3 || parts[1].range(of:#"^\d{15,22}$"#,options:.regularExpression)==nil || parts[2].isEmpty){throw KimiError.configuration("send_message action format: send_message:CHANNEL_ID:message")}
@@ -20,7 +21,7 @@ actor AutomationEngine {
   if (kind=="add_role" || kind=="remove_role") && (parts.count<2 || parts[1].range(of:#"^\d{15,22}$"#,options:.regularExpression)==nil){throw KimiError.configuration(kind+" action format: "+kind+":ROLE_ID")}
   var values=await store.get("automation.rules",as:[Rule].self) ?? []
   guard values.filter({$0.guildID==guildID}).count<100 else{throw KimiError.configuration("This server has reached the 100-rule limit.")}
-  let rule=Rule(id:UUID().uuidString,guildID:guildID,name:String(name.prefix(80)),trigger:trigger,action:action,enabled:true,createdAt:Date())
+  let rule=Rule(id:UUID().uuidString,guildID:guildID,name:String(name.prefix(80)),trigger:trigger,condition:condition.map{String($0.prefix(200))},action:action,enabled:true,createdAt:Date())
   values.append(rule);try await store.set(values,key:"automation.rules");return rule
  }
  func setEnabled(_ enabled:Bool,id:String,guildID:String)async throws->Bool{
@@ -34,7 +35,7 @@ actor AutomationEngine {
   guard values.count != before else{return false}
   try await store.set(values,key:"automation.rules");return true
  }
- func matching(guildID:String,trigger:String,content:String="")async->[Rule]{await rules(guildID:guildID).filter{$0.enabled && ($0.trigger==trigger || ($0.trigger=="message_contains" && !content.isEmpty))}}
+ func matching(guildID:String,trigger:String,content:String="")async->[Rule]{await rules(guildID:guildID).filter{rule in if !rule.enabled{return false};if rule.trigger==trigger{return true};guard rule.trigger=="message_contains",!content.isEmpty,let condition=rule.condition,!condition.isEmpty else{return false};return content.localizedCaseInsensitiveContains(condition)}}
  func record(_ execution:Execution)async{
   var values=await store.get("automation.executions",as:[Execution].self) ?? []
   values.append(execution);values=Array(values.suffix(1000));try? await store.set(values,key:"automation.executions")
@@ -42,7 +43,7 @@ actor AutomationEngine {
  func executions(guildID:String)async->[Execution]{(await store.get("automation.executions",as:[Execution].self) ?? []).filter{$0.guildID==guildID}}
  func run(trigger:String,guild:String,user:String="",channel:String="",message:String="",username:String="member",server:String="server",messageID:String?=nil)async{
   guard let rest else { return }
-  let candidates=await matching(guildID:guild,trigger:trigger)
+  let candidates=await matching(guildID:guild,trigger:trigger,content:message)
   for rule in candidates{
    do{
     let parts=rule.action.split(separator:":",maxSplits:2).map(String.init)
