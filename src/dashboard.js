@@ -213,7 +213,9 @@ export function startDashboardServer({ config, client, store, manager, plugins, 
         const account = authStore.authenticate(body.email, body.password);
         if (!account) {
           attempt.count++;
-          authAttempts.set(ip, attempt);
+          authAttempts.set("ip:" + ip, attempt);
+          accountAttempt.count++;
+          authAttempts.set(emailKey, accountAttempt);
           return send(res, 401, { error: "Email or password is incorrect." });
         }
         authAttempts.delete("ip:" + ip);
