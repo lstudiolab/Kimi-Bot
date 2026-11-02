@@ -6,9 +6,9 @@ import { isSafeAssignableRole } from "./permissions.js";
 
 const MODULES = Object.freeze([
   { id:"verification", label:"Verification", library:"Kimi Lock", description:"Member verification and review decisions." },
-  { id:"moderation", label:"Moderation", library:"Security", description:"Anti-spam, filters, warnings and sanctions." },
-  { id:"protection", label:"Server Protection", library:"Security", description:"Raid detection, anti-nuke and bot approval." },
-  { id:"recovery", label:"Recovery", library:"Security", description:"Channel snapshots and message recovery." },
+  { id:"moderation", label:"Moderation", library:"Kimi Lock", description:"Anti-spam, filters, warnings and sanctions." },
+  { id:"protection", label:"Server Protection", library:"Kimi Lock", description:"Raid detection, anti-nuke and bot approval." },
+  { id:"recovery", label:"Recovery", library:"Kimi Lock", description:"Channel snapshots and message recovery." },
   { id:"welcome", label:"Welcome", library:"Foundation", description:"Welcome, goodbye and automatic role systems." },
   { id:"roles", label:"Role Picker", library:"Foundation", description:"Self-service role selection panels." },
   { id:"embeds", label:"Embeds", library:"Foundation", description:"Reusable server embeds and placements." },
@@ -179,7 +179,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
       this.store.save();return this.show(i,"appearance");
     }
     if(i.isModalSubmit()&&(id==="settings:filter:add-modal"||id==="settings:filter:remove-modal")){
-      if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock library is no longer installed.",components:[],embeds:[]});
       const phrase=i.fields.getTextInputValue("phrase").trim();
       if(!phrase||phrase.length>100)return i.editReply({content:"Enter a phrase between 1 and 100 characters.",components:[],embeds:[]});
       const words=this.store.data.automod_words[i.guildId]||[];
@@ -197,7 +197,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(i.isModalSubmit()&&id==="settings:verification:modal"){
       if(i.guild.ownerId!==i.user.id)return i.editReply({content:"Only the server owner can change verification policy.",components:[],embeds:[]});
-      if(!installed(this.store,i.guildId,"Security"))return i.editReply({content:"The Security library is no longer installed.",components:[],embeds:[]});
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return i.editReply({content:"The Kimi Lock library is no longer installed.",components:[],embeds:[]});
       const value=this.store.verify(i.guildId),read=key=>i.fields.getTextInputValue(key).trim();
       const roleId=read("verify-role").replace(/[<@&>]/g,""),requiredRoleId=read("required-role").replace(/[<@&>]/g,""),reviewId=read("review-channel").replace(/[<#>]/g,"");
       const age=read("min-age")===""?value.min_age_days:Number(read("min-age"));
@@ -254,7 +254,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     }
     if(!i.isButton())return;
     if(id==="settings:filter-add"||id==="settings:filter-remove"){
-      if(!installed(this.store,i.guildId,"Security"))return respond(i,"The Security library is no longer installed.");
+      if(!installed(this.store,i.guildId,"Kimi Lock"))return respond(i,"The Kimi Lock library is no longer installed.");
       const add=id==="settings:filter-add";
       const modal=new ModalBuilder().setCustomId(add?"settings:filter:add-modal":"settings:filter:remove-modal").setTitle(add?"Block a phrase":"Remove a phrase").addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("phrase").setLabel("Word or phrase").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)));
       return i.showModal(modal);
@@ -271,7 +271,7 @@ ${language}`)],components:[row(button("settings:home","Back"))]});
     if(id==="settings:configure")return this.show(i,"configure");
     if(id.startsWith("settings:config:")){
       const section=id.split(":")[2];
-      const library=section==="moderation"||section==="verification"||section==="filter"?"Security":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Scratch";
+      const library=section==="moderation"||section==="verification"||section==="filter"?"Kimi Lock":section==="tickets"||section==="tickets-setup"?"Support":section==="welcome"||section==="setup"||section==="roles"?"Foundation":"Scratch";
       if(!installed(this.store,i.guildId,library))return respond(i,"That library is no longer installed. Reopen Kimi Settings to refresh the panel.");
       if(section==="filter")return this.show(i,"filter");
       if(section==="verification"){
