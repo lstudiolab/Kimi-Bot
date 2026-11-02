@@ -204,9 +204,9 @@ function localizeInteraction(i){
 }
 async function handleInteraction(i){
  localizeInteraction(i);
- if(i.isChatInputCommand()&&i.commandName!=="guard-review"&&i.guildId){
+ if(i.isRepliable()&&i.guildId){
   const limit=guard.consume(i.guildId,i.user.id,"user");
-  if(!limit.allowed)return i.reply({content:"Kimi is pausing your interactions because your action limit is exhausted. Wait about "+Math.ceil(limit.retryAfterMs/1000)+" second(s) for tokens to return.",ephemeral:true,allowedMentions:{parse:[]}});
+  if(!limit.allowed)return i.reply({content:"Kimi is pausing your actions because your activity limit is exhausted. Wait about "+Math.ceil(limit.retryAfterMs/1000)+" second(s) for all 10 tokens to return.",ephemeral:true,allowedMentions:{parse:[]}});
  }
  if(i.isModalSubmit()&&i.customId==="web-token:submit"){
   if(!i.inGuild())return respond(i,"Use this form inside a Discord server.");
@@ -303,14 +303,6 @@ client.on(Events.MessageCreate,async m=>{
    await m.delete().catch(()=>{});
   }
   return;
- }
- for(const mentioned of m.mentions.users.values()){
-  if(!mentioned.bot||mentioned.id===client.user.id||mentioned.id===m.author.id)continue;
-  const targetLimit=guard.consume(m.guild.id,mentioned.id,"bot");
-  if(!targetLimit.allowed){
-   const member=await m.guild.members.fetch(mentioned.id).catch(()=>null);
-   if(member)await restrictBot(member,"Kimi Guard bot activity limit exhausted by repeated incoming triggers").catch(error=>logger.error("Kimi Guard mentioned-bot restriction failed:",error));
-  }
  }
  if(m.author.bot)return;
  if(allowSystemTrigger(m.guild.id))automationEngine.messageCreate(m).catch(error=>logger.error("Automation message trigger failed:",error));
