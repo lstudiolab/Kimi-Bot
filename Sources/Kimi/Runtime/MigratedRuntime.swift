@@ -149,8 +149,24 @@ extension KimiRuntime {
     if let age=options.first(where:{($0["name"] as? String)=="min-age-days"})?["value"] as? Int{settings.minimumAgeDays=age}
     try await service.configure(settings,guild:guild)
     reply="Kimi Lock verification settings saved. Minimum account age: "+String(settings.minimumAgeDays)+" days. Review channel: "+(settings.reviewChannelID ?? "not configured")
-   case "roles":reply="Role Picker is installed as a server app. The menu editor is being migrated."
-   case "embed-new","embed-edit","embed-post":reply="Embed validation is available. The editor and publishing interactions are being migrated."
+   case "roles":
+    guard let channel=event["channel_id"] as? String else{throw KimiError.configuration("Run this command in a text channel.")}
+    let count=try await RolePickerService(store:store,rest:rest,logger:logger).publish(guild:guild,channel:channel)
+    reply="Role Picker published with "+String(count)+" safe roles."
+   case "embed-new","embed-edit","embed-post":
+    let service=EmbedService(store:store,rest:rest)
+    guard let embedName=value("name") else{throw KimiError.configuration("Enter an embed name.")}
+    if name=="embed-post" {
+     guard let channel=event["channel_id"] as? String else{throw KimiError.configuration("Run this command in a text channel.")}
+     try await service.publish(guild:guild,name:embedName,channel:channel)
+     reply="Embed published."
+    } else {
+     let existing=await service.all(guild:guild).first(where:{$0.name.caseInsensitiveCompare(embedName)==ComparisonResult.orderedSame})
+     let title=value("title") ?? existing?.title ?? ""
+     let description=value("description") ?? existing?.description ?? ""
+     let saved=try await service.save(guild:guild,name:embedName,title:title,description:description,color:existing?.color ?? 8421504,footer:existing?.footer)
+     reply="Embed **"+saved.name+"** saved."
+    }
    case "guard-review":reply="Kimi Guard incident review is being migrated."
    case "web-token":reply="Dashboard authentication is being migrated to Swift. No email verification is required."
    default:reply="This command is not available in the current Swift runtime."
@@ -162,35 +178,48 @@ extension KimiRuntime {
  }
  func handleMigratedComponent(_ event:[String:Any],data:[String:Any]) async -> Bool {
   guard let id=event["id"] as? String,let token=event["token"] as? String,let app=event["application_id"] as? String else{return true}
-  let guild=event["guild_id"] as? String ?? ""
-  let member=event["member"] as? [String:Any] ?? [:]
-  let actor=member["user"] as? [String:Any] ?? [:]
-  let actorID=actor["id"] as? String ?? ""
-  let username=actor["username"] as? String ?? "member"
+  let guild=event["guild_id"] as? String ?? "",channel=event["channel_id"] as? String ?? ""
+  let member=event["member"] as? [String:Any] ?? [:],actor=member["user"] as? [String:Any] ?? [:]
+  let actorID=actor["id"] as? String ?? "",username=actor["username"] as? String ?? "member"
   let custom=data["custom_id"] as? String ?? ""
   do {
    try await rest.deferKimiInteraction(id,token)
    if custom=="ticket:open" {
+    let settings=await SupportService(store:store,rest:rest,logger:logger).settings(guild)
+    guard settings.panelChannelID==channel else{throw KimiError.configuration("This ticket panel is no longer active.")}
     let me=try await rest.call("GET","users/@me")
     guard let bot=(me as? [String:Any])?["id"] as? String else{throw KimiError.invalidResponse}
     let ticket=try await SupportService(store:store,rest:rest,logger:logger).open(guild:guild,user:actorID,username:username,bot:bot)
     try await rest.editKimiInteraction(app,token,"Your private ticket is ready: <#"+ticket.channelID+">")
    } else if custom.hasPrefix("ticket:close:") {
     let ticketID=String(custom.dropFirst("ticket:close:".count))
+    let tickets=await SupportTickets(store:store).all()
+    guard let ticket=tickets.first(where:{$0.id==ticketID && $0.guildID==guild && $0.channelID==channel && $0.isOpen}) else{throw KimiError.configuration("This ticket control is no longer valid.")}
+    guard ticket.userID==actorID || (try await rest.ownerID(guild))==actorID else{throw KimiError.configuration("Only the ticket opener or server owner can close this ticket.")}
     let controls=[["type":1,"components":[["type":2,"style":4,"label":"Yes, close it","custom_id":"ticket:confirm-close:"+ticketID],["type":2,"style":2,"label":"Cancel","custom_id":"ticket:cancel-close"]]]] as [[String:Any]]
     _ = try await rest.call("PATCH","webhooks/\\(app)/\\(token)/messages/@original",body:["content":"Close this support ticket?","components":controls,"allowed_mentions":["parse":[]]])
    } else if custom.hasPrefix("ticket:confirm-close:") {
     let ticketID=String(custom.dropFirst("ticket:confirm-close:".count))
-    let ticket=try await SupportService(store:store,rest:rest,logger:logger).close(guild:guild,ticketID:ticketID)
-    try await rest.editKimiInteraction(app,token,"Ticket closed. Transcript retained in Kimi storage. Channel: <#"+ticket.channelID+">")
+    let tickets=await SupportTickets(store:store).all()
+    guard let ticket=tickets.first(where:{$0.id==ticketID && $0.guildID==guild && $0.channelID==channel && $0.isOpen}) else{throw KimiError.configuration("This ticket is no longer open.")}
+    guard ticket.userID==actorID || (try await rest.ownerID(guild))==actorID else{throw KimiError.configuration("Only the ticket opener or server owner can close this ticket.")}
+    let closed=try await SupportService(store:store,rest:rest,logger:logger).close(guild:guild,ticketID:ticketID)
+    try await rest.editKimiInteraction(app,token,"Ticket closed. Transcript retained in Kimi storage. Channel: <#"+closed.channelID+">")
    } else if custom=="ticket:cancel-close" {
     try await rest.editKimiInteraction(app,token,"Ticket remains open.")
    } else if custom=="verify:start" {
+    let expected=await store.get("verification.prompt."+guild+"."+actorID,as:String.self)
+    let message=(event["message"] as? [String:Any])?["id"] as? String
+    guard expected==message else{throw KimiError.configuration("This verification prompt is no longer valid.")}
     await VerificationService(store:store,rest:rest,logger:logger).verify(guild:guild,userID:actorID,username:username,applicationID:app,interactionToken:token)
    } else if custom.hasPrefix("verify:approve:") || custom.hasPrefix("verify:reject:") {
     let approve=custom.hasPrefix("verify:approve:")
     let target=String(custom.dropFirst(approve ? "verify:approve:".count:"verify:reject:".count))
     await VerificationService(store:store,rest:rest,logger:logger).review(guild:guild,userID:target,decision:approve ? "approve":"reject",reviewer:actorID,applicationID:app,interactionToken:token)
+   } else if custom=="rolepicker:select" {
+    let selected=data["values"] as? [String] ?? []
+    let count=try await RolePickerService(store:store,rest:rest,logger:logger).select(guild:guild,user:actorID,selected:selected)
+    try await rest.editKimiInteraction(app,token,"Your role selection was updated. Active roles: "+String(count)+".")
    } else {
     try await rest.editKimiInteraction(app,token,"This control is not available in the current Swift runtime.")
    }
