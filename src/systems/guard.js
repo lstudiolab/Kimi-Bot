@@ -34,6 +34,7 @@ export class GuardRateLimiter{
       }
       state=collection[actorId]={tokens:TOKEN_CAPACITY,updated_at:now,last_activity:0};
       this.bucketCounts.set(collectionKey,count+(existed?0:1));
+      if(this.bucketCounts.size>5000)this.bucketCounts.delete(this.bucketCounts.keys().next().value);
     }
     state.tokens=Math.max(0,Math.min(TOKEN_CAPACITY,Number.isInteger(state.tokens)?state.tokens:TOKEN_CAPACITY));
     state.updated_at=Math.min(now,Number.isFinite(state.updated_at)?state.updated_at:now);
