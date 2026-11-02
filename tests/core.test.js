@@ -201,7 +201,7 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("each Foundation replacement publishes only its own system commands",()=>{const expected={"Welcome":["setup","welcome"],"Auto Role":["autorole"],"Role Picker":["roles"],"Embeds":["embed-new","embed-edit","embed-post"]};for(const [app,commands] of Object.entries(expected)){const names=pluginCommandsForPlugins([app]).map(command=>command.name);assert.deepEqual(names,commands,app+" must publish only its own commands");}});
+test("each Foundation replacement publishes only its own system commands",()=>{const expected={"Welcome":["welcome"],"Auto Role":["autorole"],"Role Picker":["roles"],"Embeds":["embed-new","embed-edit","embed-post"]};for(const [app,commands] of Object.entries(expected)){const names=pluginCommandsForPlugins([app]).map(command=>command.name);assert.deepEqual(names,commands,app+" must publish only its own commands");}});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
