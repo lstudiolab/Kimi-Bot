@@ -94,6 +94,11 @@ extension KimiRuntime {
     if let found=existing("kimi-logs",0){logs=found}else{logs=try await rest.createPrivateTextChannel(guild,"kimi-logs",owner,bot,category)}
     let confirmations:String
     if let found=existing("kimi-confirmation",0){confirmations=found}else{confirmations=try await rest.createPrivateTextChannel(guild,"kimi-confirmation",owner,bot,category)}
+    for privateChannel in [logs,confirmations]{
+     _ = try await rest.call("PUT","channels/"+privateChannel+"/permissions/"+guild,body:["type":0,"deny":"1024","allow":"0"])
+     _ = try await rest.call("PUT","channels/"+privateChannel+"/permissions/"+owner,body:["type":1,"allow":"68608","deny":"0"])
+     _ = try await rest.call("PUT","channels/"+privateChannel+"/permissions/"+bot,body:["type":1,"allow":"68608","deny":"0"])
+    }
     try await store.set(logs,key:"foundation.logs."+guild)
     try await store.set(confirmations,key:"foundation.confirmations."+guild)
     var policy=await ModerationEngine(store:store).policy(guildID:guild);policy.logChannelID=logs;try await ModerationEngine(store:store).configure(policy,guildID:guild)
