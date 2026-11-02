@@ -41,6 +41,8 @@ export class RolePicker {
         if(!ok)return deny(i,message);
         roles.push({id:role.id,name:role.name});
       }
+      const guildMenus=Object.values(this.store.data.role_picker_menus||{}).filter(item=>item?.guild_id===i.guildId).length;
+      if(guildMenus>=100)return deny(i,"This server has reached the 100 published role menu safety limit. Remove an older menu before creating another.");
       const menuId=Date.now()+"-"+i.id;
       const menu={id:menuId,guild_id:i.guildId,channel_id:draft.channel_id,title:draft.title,description:draft.description,
         placeholder:draft.placeholder,footer_text:draft.footer_text,footer_channel_id:draft.footer_channel_id,roles,selections:{}};
@@ -81,8 +83,11 @@ export class RolePicker {
       const channel=await i.guild.channels.fetch(f["rp-footer-channel"]).catch(()=>null);
       if(!channel||channel.type!==ChannelType.GuildText)return deny(i,"The bottom button channel must be a text channel in this server.");
     }
+    const now=Date.now(),drafts=this.store.data.role_picker_drafts||(this.store.data.role_picker_drafts={});
+    for(const [draftId,draft] of Object.entries(drafts))if(!draft||now-(draft.created_at||0)>60*60*1000)delete drafts[draftId];
+    if(Object.keys(drafts).length>=2000)return deny(i,"Too many role menu setups are currently open. Finish or retry later.");
     const id=i.guildId+":"+i.id;
-    const draft={guild_id:i.guildId,channel_id:i.channelId,title:f["rp-title"],description:f["rp-description"],
+    const draft={guild_id:i.guildId,channel_id:i.channelId,created_at:now,title:f["rp-title"],description:f["rp-description"],
       placeholder:f["rp-placeholder"],footer_text:f["rp-footer"],footer_channel_id:f["rp-footer-channel"],roles:[]};
     this.store.data.role_picker_drafts[id]=draft;this.store.save();
     const count=i.guild.roles.cache.filter(role=>role.id!==i.guildId&&!role.managed).size;
@@ -129,7 +134,12 @@ export class RolePicker {
       this.logger.warn("Role picker role update failed:",error.message);
       return deny(i,"Timi could not update your roles. Check Manage Roles and role hierarchy.");
     }
-    menu.selections||={};menu.selections[i.user.id]=[...selected];this.store.save();
+    menu.selections||={};
+    if(!Object.hasOwn(menu.selections,i.user.id)&&Object.keys(menu.selections).length>=5000){
+      const oldest=Object.keys(menu.selections)[0];
+      if(oldest)delete menu.selections[oldest];
+    }
+    menu.selections[i.user.id]=[...selected];this.store.save();
     return respond(i,selected.size?"Your role selections have been updated.":"Your role selections have been cleared.");
   }
   async handle(i){
