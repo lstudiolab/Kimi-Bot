@@ -667,6 +667,7 @@ test("member security records remain bounded under join floods",()=>{
     const store=new Store(dir,quiet);
     store.data.members={};
     for(let index=0;index<100000;index++)store.data.members["guild:user-"+index]={joins:1};
+    store.memberCount=100000;
     store.member("guild","223456789012345678");
     assert.equal(Object.keys(store.data.members).length,100000);
     assert.equal(Object.hasOwn(store.data.members,"guild:user-0"),false);
