@@ -117,14 +117,14 @@ export class RolePicker {
       if(!ok)return deny(i,"That role can no longer be self-assigned. "+message);
       resolved.set(roleId,role);
     }
+    const removable=[];
     for(const roleId of remove){
       const role=await guild.roles.fetch(roleId).catch(()=>null);
-      if(role&&!await this.verification.validateRole(guild,role,true).then(result=>result[0]))return deny(i,"A previously selected role is no longer safe to remove automatically. Contact a server manager.");
-      if(role)resolved.set(roleId,role);
+      if(role?.editable){resolved.set(roleId,role);removable.push(roleId);}
     }
     try{
       if(add.length)await member.roles.add(add.map(id=>resolved.get(id)),"Kimi self-service role picker");
-      if(remove.length)await member.roles.remove(remove.map(id=>resolved.get(id)).filter(Boolean),"Kimi self-service role picker");
+      if(removable.length)await member.roles.remove(removable.map(id=>resolved.get(id)),"Kimi self-service role picker");
     }catch(error){
       this.logger.warn("Role picker role update failed:",error.message);
       return deny(i,"Timi could not update your roles. Check Manage Roles and role hierarchy.");
