@@ -139,6 +139,7 @@ actor KimiRuntime {
  static func main()async{
   do{
    let config=try Configuration.load(),logger=Logger(),store=try PersistentStore(directory:config.dataDirectory),rest=DiscordREST(token:config.token)
+   DashboardServer(config:config,rest:rest,store:store,logger:logger).start()
    try await rest.registerCommands(config.clientID);await logger.log("INFO","Kimi Swift started. Global commands synchronized.")
    let runtime=KimiRuntime(rest:rest,store:store,logger:logger)
    let gateway=DiscordGateway(token:config.token,logger:logger){event in
