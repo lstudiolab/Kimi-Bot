@@ -76,7 +76,7 @@ function parseBody(req) {
   });
 }
 
-export function startDashboardServer({ config, client, store, manager, libraries, logger, syncGuildCommands, authStore }) {
+export function startDashboardServer({ config, client, store, manager, plugins, logger, syncGuildCommands, authStore }) {
   const authAttempts = new Map();
   function recordAnalytics(guildId,metric,commandName=""){
     if(!guildId)return;
@@ -341,8 +341,8 @@ export function startDashboardServer({ config, client, store, manager, libraries
               if (!result.ok) return send(res, 409, { error: result.error });
               try {
                 await syncGuildCommands(guildId);
-                if (libraries[name]?.ready) await libraries[name].ready(context.guild);
-                if (libraries[name]?.onInstall) await libraries[name].onInstall(context.guild);
+                if (plugins[name]?.ready) await plugins[name].ready(context.guild);
+                if (plugins[name]?.onInstall) await plugins[name].onInstall(context.guild);
               } catch (error) {
                 manager.uninstall(guildId, name);
                 await syncGuildCommands(guildId).catch(() => {});
@@ -352,7 +352,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
               const result = manager.uninstall(guildId, name);
               if (!result.ok) return send(res, 409, { error: result.error });
               try {
-                if (libraries[name]?.onUninstall) await libraries[name].onUninstall(context.guild);
+                if (plugins[name]?.onUninstall) await plugins[name].onUninstall(context.guild);
                 await syncGuildCommands(guildId);
               } catch (error) {
                 manager.install(guildId, name);
