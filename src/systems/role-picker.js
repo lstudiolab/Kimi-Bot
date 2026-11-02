@@ -103,17 +103,28 @@ export class RolePicker {
     if(!menu||menu.guild_id!==i.guildId)return deny(i,"This role picker is no longer available.");
     const allowed=new Set((menu.roles||[]).map(role=>role.id));
     if(i.values.some(roleId=>!allowed.has(roleId)))return deny(i,"This menu contains an invalid role selection.");
-    const selected=new Set(i.values),previous=new Set(menu.selections[i.user.id]||[]);
+    const guild=i.guild;
+    if(!guild||!i.member)return deny(i,"This role menu is not available in a server.");
+    const member=await guild.members.fetch(i.user.id).catch(()=>null);
+    if(!member||member.user.bot)return deny(i,"This role menu is only available to server members.");
+    const selected=new Set(i.values),previous=new Set((menu.selections[i.user.id]||[]).filter(id=>allowed.has(id)));
     const add=[...selected].filter(role=>!previous.has(role)),remove=[...previous].filter(role=>!selected.has(role));
-    for(const roleId of add){
-      const role=await i.guild.roles.fetch(roleId).catch(()=>null);
+    const resolved=new Map();
+    for(const roleId of selected){
+      const role=await guild.roles.fetch(roleId).catch(()=>null);
       if(!role)return deny(i,"A selected role no longer exists. Contact a server manager.");
-      const [ok,message]=await this.verification.validateRole(i.guild,role,true);
+      const [ok,message]=await this.verification.validateRole(guild,role,true);
       if(!ok)return deny(i,"That role can no longer be self-assigned. "+message);
+      resolved.set(roleId,role);
+    }
+    for(const roleId of remove){
+      const role=await guild.roles.fetch(roleId).catch(()=>null);
+      if(role&&!await this.verification.validateRole(guild,role,true).then(result=>result[0]))return deny(i,"A previously selected role is no longer safe to remove automatically. Contact a server manager.");
+      if(role)resolved.set(roleId,role);
     }
     try{
-      if(add.length)await i.member.roles.add(add,"Timi self-service role picker");
-      if(remove.length)await i.member.roles.remove(remove,"Timi self-service role picker");
+      if(add.length)await member.roles.add(add.map(id=>resolved.get(id)),"Kimi self-service role picker");
+      if(remove.length)await member.roles.remove(remove.map(id=>resolved.get(id)).filter(Boolean),"Kimi self-service role picker");
     }catch(error){
       this.logger.warn("Role picker role update failed:",error.message);
       return deny(i,"Timi could not update your roles. Check Manage Roles and role hierarchy.");
