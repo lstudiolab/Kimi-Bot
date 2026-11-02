@@ -16,10 +16,10 @@ actor FoundationEngine {
   return Welcome(welcomeChannel:legacy?.welcome_channel_id,goodbyeChannel:legacy?.goodbye_channel_id,welcomeMessage:legacy?.welcome_message ?? "Welcome {user} to {server}!",goodbyeMessage:legacy?.goodbye_message ?? "{username} has left {server}.",autoRole:legacy?.auto_role_id)
  }
  func configure(guildID:String,_ value:Welcome)async throws{try await store.set(value,key:"foundation.\(guildID)")}
- func memberJoined(guildID:String,userID:String,username:String,serverName:String,memberCount:Int)async{
+ func memberJoined(guildID:String,userID:String,username:String,serverName:String,memberCount:Int,welcomeEnabled:Bool=true,autoRoleEnabled:Bool=true)async{
   let value=await settings(guildID:guildID)
-  if let role=value.autoRole{do{_ = try await rest.call("PUT","guilds/\(guildID)/members/\(userID)/roles/\(role)")}catch{await logger.log("WARN","Auto Role failed: \(error.localizedDescription)")}}
-  if let channel=value.welcomeChannel{let body=value.welcomeMessage.replacingOccurrences(of:"{user}",with:"<@\(userID)>").replacingOccurrences(of:"{username}",with:username).replacingOccurrences(of:"{server}",with:serverName).replacingOccurrences(of:"{member_count}",with:String(memberCount));do{_ = try await rest.call("POST","channels/\(channel)/messages",body:["content":String(body.prefix(1900)),"allowed_mentions":["users":[userID],"parse":[]]])}catch{await logger.log("WARN","Welcome message failed: \(error.localizedDescription)")}}
+  if autoRoleEnabled,let role=value.autoRole{do{_ = try await rest.call("PUT","guilds/\(guildID)/members/\(userID)/roles/\(role)")}catch{await logger.log("WARN","Auto Role failed: \(error.localizedDescription)")}}
+  if welcomeEnabled,let channel=value.welcomeChannel{let body=value.welcomeMessage.replacingOccurrences(of:"{user}",with:"<@\(userID)>").replacingOccurrences(of:"{username}",with:username).replacingOccurrences(of:"{server}",with:serverName).replacingOccurrences(of:"{member_count}",with:String(memberCount));do{_ = try await rest.call("POST","channels/\(channel)/messages",body:["content":String(body.prefix(1900)),"allowed_mentions":["users":[userID],"parse":[]]])}catch{await logger.log("WARN","Welcome message failed: \(error.localizedDescription)")}}
  }
  func memberLeft(guildID:String,userID:String,username:String,serverName:String)async{
   let value=await settings(guildID:guildID);guard let channel=value.goodbyeChannel else{return}
