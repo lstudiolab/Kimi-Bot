@@ -313,7 +313,7 @@ test("image downloads accept only HTTPS Discord attachment CDN URLs",()=>{
 import { RolePicker } from "../src/systems/role-picker.js";
 import { Embeds } from "../src/systems/embeds.js";
 
-test("renamed Foundation slash commands reach their system handlers",async()=>{
+test("split app slash commands reach their system handlers",async()=>{
   let roleCalled=false,embedCalls=[];
   const rolePicker=new RolePicker({}, {}, quiet);
   rolePicker.command=async()=>{roleCalled=true;};
