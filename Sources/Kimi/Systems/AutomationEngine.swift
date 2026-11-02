@@ -70,7 +70,7 @@ actor AutomationEngine {
      let roles=try await rest.call("GET","guilds/\(guild)/roles") as? [[String:Any]] ?? []
      guard let role=roles.first(where:{($0["id"] as? String)==parts[1]}) else{throw KimiError.configuration("Configured role no longer exists.")}
      let permissions=UInt64(role["permissions"] as? String ?? "") ?? 0
-     guard parts[1] != guild,permissions & ((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32)) == 0,role["managed"] as? Bool != true else{throw KimiError.configuration("Automation role has elevated permissions or is managed.")}
+     guard SecurityPolicy.isSafeRole(roleID:parts[1],guildID:guild,managed:role["managed"] as? Bool ?? false,permissions:permissions) else{throw KimiError.configuration("Automation role has elevated permissions or is managed.")}
      let method=kind=="add_role" ? "PUT":"DELETE"
      _ = try await rest.call(method,"guilds/\(guild)/members/\(user)/roles/\(parts[1])")
     default:throw KimiError.configuration("Unsupported automation action.")
