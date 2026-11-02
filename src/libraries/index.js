@@ -11,6 +11,6 @@ export const LIBRARIES = Object.freeze({
 });
 export function normalizeLibraryName(value){
   const key=String(value||"").trim().toLowerCase().replace(/[\s_-]/g,"");
-  const aliases={moderation:"Security",developer:"Scratch",core:"Foundation",shield:"Security",studio:"Scratch"};
+  const aliases={moderation:"Security",core:"Foundation",shield:"Security"};
   return aliases[key]||Object.keys(LIBRARIES).find(name=>name.toLowerCase()===key)||null;
 }
