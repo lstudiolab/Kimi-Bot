@@ -1,6 +1,6 @@
-node_modules/
+.build/
+.swiftpm/
+Package.resolved
 .env
 data/
-*.log
 .DS_Store
-deps/
