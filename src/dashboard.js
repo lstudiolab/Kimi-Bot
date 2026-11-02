@@ -11,11 +11,11 @@ const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const MODULES = Object.freeze([
   { id: "welcome", name: "Welcome", plugin: "Foundation" },
   { id: "roles", name: "Role picker", plugin: "Foundation" },
-  { id: "embeds", name: "Embeds", library: "Foundation" },
+  { id: "embeds", name: "Embeds", plugin: "Foundation" },
   { id: "verification", name: "Verification", plugin: "Kimi Lock" },
-  { id: "moderation", name: "Moderation", library: "Kimi Lock" },
-  { id: "protection", name: "Server protection", library: "Kimi Lock" },
-  { id: "recovery", name: "Recovery", library: "Kimi Lock" },
+  { id: "moderation", name: "Moderation", plugin: "Kimi Lock" },
+  { id: "protection", name: "Server protection", plugin: "Kimi Lock" },
+  { id: "recovery", name: "Recovery", plugin: "Kimi Lock" },
   { id: "tickets", name: "Tickets", plugin: "Support" },
 ]);
 const PLUGIN_NAMES = new Set(["Foundation", "Kimi Lock", "Support"]);
@@ -24,7 +24,7 @@ const COMMAND_GROUPS = Object.freeze({
   "Kimi Lock":["verify","verify-config","filter","security","moderation","lock"],
   Support:["tickets","ticket-panel","ticket-config"],
 });
-const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,bundle}))));
+const COMMAND_NAMES = Object.freeze(Object.entries(COMMAND_GROUPS).flatMap(([bundle,names])=>names.map(name=>({name,plugin:bundle}))));
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -283,7 +283,7 @@ export function startDashboardServer({ config, client, store, manager, libraries
           const commandContext=await requireGuild(req,res,session,commandsMatch[1]);
           if(!commandContext)return;
           const settings=store.data.command_settings?.[commandsMatch[1]]||{};
-          if(method==="GET"&&!commandsMatch[2])return send(res,200,{commands:COMMAND_NAMES.map(item=>({...item,enabled:settings[item.name]!==false,installed:(store.data.installed_plugins[commandsMatch[1]]||[]).includes(item.bundle)}))});
+          if(method==="GET"&&!commandsMatch[2])return send(res,200,{commands:COMMAND_NAMES.map(item=>({...item,enabled:settings[item.name]!==false,installed:(store.data.installed_plugins[commandsMatch[1]]||[]).includes(item.plugin)}))});
           if(method==="POST"&&commandsMatch[2]){
             const body=await parseBody(req);
             if(!COMMAND_NAMES.some(item=>item.name===commandsMatch[2])||typeof body.enabled!=="boolean")return send(res,400,{error:"Invalid command setting."});
