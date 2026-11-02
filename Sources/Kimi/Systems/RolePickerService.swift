@@ -9,11 +9,17 @@ actor RolePickerService {
   let safeName=String(name.lowercased().filter{$0.isLetter || $0.isNumber || $0=="-"}.prefix(24))
   guard !safeName.isEmpty else{throw KimiError.configuration("Menu name must contain letters or numbers.")}
   let roles=try await rest.call("GET","guilds/\(guild)/roles") as? [[String:Any]] ?? []
+  let bot=try await rest.call("GET","guilds/\(guild)/members/@me") as? [String:Any] ?? [:]
+  let botIDs=Set(bot["roles"] as? [String] ?? [])
+  let botRoles=roles.filter{botIDs.contains($0["id"] as? String ?? "")}
+  let highest=botRoles.map{$0["position"] as? Int ?? 0}.max() ?? 0
+  let canManage=botRoles.contains{(UInt64($0["permissions"] as? String ?? "") ?? 0) & (1<<28) != 0}
+  guard canManage else{throw KimiError.configuration("Kimi needs Manage Roles permission to publish role menus.")}
   let dangerous=UInt64((1<<3)|(1<<5)|(1<<28)|(1<<29)|(1<<30)|(1<<31)|(1<<32))
   let safe=roles.filter{item in
    guard let id=item["id"] as? String,id != guild else{return false}
    let permissions=UInt64(item["permissions"] as? String ?? "") ?? 0
-   return permissions & dangerous == 0 && item["managed"] as? Bool != true
+   return permissions & dangerous == 0 && item["managed"] as? Bool != true && (item["position"] as? Int ?? 0)<highest
   }.sorted{($0["position"] as? Int ?? 0)<($1["position"] as? Int ?? 0)}.suffix(25)
   let values=safe.compactMap{item->Role? in guard let id=item["id"] as? String else{return nil};return Role(id:id,name:item["name"] as? String ?? "Role")}
   guard !values.isEmpty else{throw KimiError.configuration("No safe assignable roles were found.")}
