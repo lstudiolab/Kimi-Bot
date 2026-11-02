@@ -38,7 +38,7 @@ actor ModerationEngine {
  func configure(_ policy:Policy,guildID:String)async throws{
   var value=policy;value.messagesPerMinute=max(2,min(100,value.messagesPerMinute));value.timeoutMinutes=max(1,min(40320,value.timeoutMinutes));value.actionDurationSeconds=max(1,min(60,value.actionDurationSeconds));value.blockedPhrases=Array(value.blockedPhrases.prefix(100))
   guard ["timeout","kick","ban","delete"].contains(value.sanction) else{throw KimiError.configuration("Sanction must be timeout, kick, ban or delete.")}
-  policies[guildID]=value;try await store.set(value,key:"moderation."+guildID)
+  policies[guildID]=value;try await store.setGuild(value,key:"moderation."+guildID,guildID:guildID)
  }
  func evaluate(guildID:String,userID:String,messageID:String,content:String,channelID:String="",now:Date=Date())async->Finding?{
   let value=await policy(guildID:guildID);guard value.enabled else{return nil}
