@@ -60,60 +60,116 @@ actor PersistentStore {
 actor DiscordREST {
  let token:String;let session:URLSession;let base=URL(string:"https://discord.com/api/v10")!
  init(token:String){self.token=token;session=URLSession(configuration:.ephemeral)}
- func call(_ method:String,_ path:String,body:Any?=nil)async throws->Any{
-  var r=URLRequest(url:base.appendingPathComponent(path));r.httpMethod=method;r.setValue("Bot \(token)",forHTTPHeaderField:"Authorization");r.setValue("application/json",forHTTPHeaderField:"Content-Type")
-  if let body{r.httpBody=try JSONSerialization.data(withJSONObject:body,options:[.fragmentsAllowed])}
-  let (d,response)=try await session.data(for:r);guard let h=response as? HTTPURLResponse else{throw KimiError.invalidResponse}
-  guard (200..<300).contains(h.statusCode) else{throw KimiError.http(h.statusCode,String(data:d.prefix(1000),encoding:.utf8) ?? "")}
-  return (try? JSONSerialization.jsonObject(with:d,options:[.fragmentsAllowed])) ?? NSNull()
+ func call(_ method:String,_ path:String,body:Any?=nil,auditReason:String?=nil)async throws->Any{
+  guard let url=URL(string:path,relativeTo:base)?.absoluteURL else{throw KimiError.invalidResponse}
+  var request=URLRequest(url:url);request.httpMethod=method
+  request.setValue("Bot "+token,forHTTPHeaderField:"Authorization")
+  request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+  if let auditReason{request.setValue(auditReason.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed) ?? auditReason,forHTTPHeaderField:"X-Audit-Log-Reason")}
+  if let body{request.httpBody=try JSONSerialization.data(withJSONObject:body,options:[.fragmentsAllowed])}
+  var attempt=0
+  while true{
+   let (data,response)=try await session.data(for:request)
+   guard let http=response as? HTTPURLResponse else{throw KimiError.invalidResponse}
+   if http.statusCode==429 && attempt<4{
+    attempt+=1
+    let object=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
+    let delay=object?["retry_after"] as? Double ?? Double(http.value(forHTTPHeaderField:"Retry-After") ?? "1") ?? 1
+    try await Task.sleep(nanoseconds:UInt64(max(0.25,min(30,delay))*1_000_000_000));continue
+   }
+   if (500...599).contains(http.statusCode) && attempt<3{
+    attempt+=1;try await Task.sleep(nanoseconds:UInt64(pow(2.0,Double(attempt))*500_000_000));continue
+   }
+   guard (200..<300).contains(http.statusCode) else{throw KimiError.http(http.statusCode,String(data:data.prefix(1000),encoding:.utf8) ?? "")}
+   return (try? JSONSerialization.jsonObject(with:data,options:[.fragmentsAllowed])) ?? NSNull()
+  }
  }
- func registerCommands(_ client:String)async throws{
-  _=try await call("PUT","applications/\(client)/commands",body:CommandCatalog.globalCommands())
- }
- func respond(_ id:String,_ token:String,_ text:String)async throws{
-  _=try await call("POST","interactions/\(id)/\(token)/callback",body:["type":4,"data":["content":String(text.prefix(1900)),"flags":64,"allowed_mentions":["parse":[]]]])
- }
+ func registerCommands(_ client:String)async throws{_ = try await call("PUT","applications/\(client)/commands",body:CommandCatalog.globalCommands())}
+ func respond(_ id:String,_ token:String,_ text:String)async throws{_ = try await call("POST","interactions/\(id)/\(token)/callback",body:["type":4,"data":["content":String(text.prefix(1900)),"flags":64,"allowed_mentions":["parse":[]]]])}
  func createChannel(guild:String,name:String,type:Int=0)async throws->String{
-  let v=try await call("POST","guilds/\(guild)/channels",body:["name":name,"type":type])
-  return (v as? [String:Any])?["id"] as? String ?? ""
+  let value=try await call("POST","guilds/\(guild)/channels",body:["name":name,"type":type])
+  return (value as? [String:Any])?["id"] as? String ?? ""
  }
 }
 actor DiscordGateway {
  private let token:String;private let logger:Logger;private let onEvent:@Sendable([String:Any])async->Void
- private var socket:URLSessionWebSocketTask?;private var sequence:Int?;private var heartbeat:Task<Void,Never>?
+ private var socket:URLSessionWebSocketTask?;private var sequence:Int?;private var sessionID:String?;private var resumeURL:String?
+ private var heartbeat:Task<Void,Never>?;private var heartbeatInterval:Double=41.25;private var awaitingHeartbeatAck=false
+ private var reconnectDelay:UInt64=2_000_000_000
  init(token:String,logger:Logger,onEvent:@escaping @Sendable([String:Any])async->Void){self.token=token;self.logger=logger;self.onEvent=onEvent}
  func run()async{
   while !Task.isCancelled{
-   do{try await connect()}catch{await logger.log("ERROR","Gateway: \(error.localizedDescription)")}
-   heartbeat?.cancel();socket?.cancel(with:.goingAway,reason:nil);try? await Task.sleep(nanoseconds:3_000_000_000)
+   do{try await connect();reconnectDelay=2_000_000_000}
+   catch{await logger.log("ERROR","Discord Gateway: "+error.localizedDescription)}
+   heartbeat?.cancel();heartbeat=nil;awaitingHeartbeatAck=false;socket?.cancel(with:.goingAway,reason:nil);socket=nil
+   try? await Task.sleep(nanoseconds:reconnectDelay);reconnectDelay=min(reconnectDelay*2,30_000_000_000)
   }
  }
  private func connect()async throws{
-  let ws=URLSession.shared.webSocketTask(with:URL(string:"wss://gateway.discord.gg/?v=10&encoding=json")!);socket=ws;ws.resume()
-  await logger.log("INFO","Discord Gateway connected.")
+  let endpoint=resumeURL ?? "wss://gateway.discord.gg/?v=10&encoding=json"
+  guard let url=URL(string:endpoint) else{throw KimiError.invalidResponse}
+  let ws=URLSession.shared.webSocketTask(with:url);socket=ws;ws.resume()
+  await logger.log("INFO","Discord Gateway socket connected.")
   while true{
-   let m=try await ws.receive();let d:Data
-   switch m{case .data(let x):d=x;case .string(let x):d=Data(x.utf8);@unknown default:continue}
-   guard let p=try JSONSerialization.jsonObject(with:d) as? [String:Any] else{continue}
-   if let s=p["s"] as? Int{sequence=s}
-   let op=p["op"] as? Int ?? -1;let payload=p["d"] as? [String:Any] ?? [:]
-   switch op{
+   let message=try await ws.receive();let data:Data
+   switch message{case .data(let value):data=value;case .string(let value):data=Data(value.utf8);@unknown default:continue}
+   guard let packet=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{continue}
+   if let value=packet["s"] as? Int{sequence=value}
+   let opcode=packet["op"] as? Int ?? -1
+   let payload=packet["d"] as? [String:Any] ?? [:]
+   switch opcode{
    case 10:
-    let interval=(payload["heartbeat_interval"] as? Double ?? 41250)/1000
-    try await send(["op":2,"d":["token":token,"intents":1|2|4|512|1024|32768|65536,"properties":["os":"linux","browser":"Kimi Swift","device":"Termux"]]])
-    heartbeat?.cancel();heartbeat=Task{while !Task.isCancelled{try? await Task.sleep(nanoseconds:UInt64(interval*1_000_000_000));try? await self.send(["op":1,"d":self.sequence as Any? ?? NSNull()])}}
-   case 1:try await send(["op":1,"d":sequence as Any? ?? NSNull()])
-   case 7,9:throw KimiError.http(0,"Gateway reconnect requested")
+    heartbeatInterval=(payload["heartbeat_interval"] as? Double ?? 41250)/1000
+    if let sessionID,let sequence{
+     try await send(["op":6,"d":["token":token,"session_id":sessionID,"seq":sequence]])
+     await logger.log("INFO","Resuming Discord Gateway session.")
+    }else{
+     let intents=1|2|4|512|1024|32768|65536
+     try await send(["op":2,"d":["token":token,"intents":intents,"properties":["os":"linux","browser":"Kimi Swift","device":"Termux"]]])
+    }
+    heartbeat?.cancel()
+    heartbeat=Task{while !Task.isCancelled{
+     try? await Task.sleep(nanoseconds:UInt64(max(1,self.heartbeatInterval)*1_000_000_000))
+     if Task.isCancelled{return}
+     await self.heartbeatTick()
+    }}
+   case 1:
+    try await send(["op":1,"d":sequence as Any? ?? NSNull()])
+   case 7:
+    throw KimiError.http(0,"Gateway requested reconnect.")
+   case 9:
+    let resumable=payload["d"] as? Bool ?? false
+    if !resumable{sessionID=nil;sequence=nil;resumeURL=nil}
+    try? await Task.sleep(nanoseconds:UInt64.random(in:1_000_000_000...5_000_000_000))
+    throw KimiError.http(0,"Gateway invalidated the session.")
+   case 11:
+    awaitingHeartbeatAck=false
    default:break
    }
-   if let name=p["t"] as? String{await onEvent(["name":name,"data":payload])}
+   if let name=packet["t"] as? String{
+    if name=="READY"{
+     sessionID=payload["session_id"] as? String
+     resumeURL=payload["resume_gateway_url"] as? String
+    }
+    if name=="RESUMED"{await logger.log("INFO","Discord Gateway session resumed.")}
+    await onEvent(["name":name,"data":payload])
+   }
   }
  }
- private func send(_ object:[String:Any])async throws{guard let socket else{return};try await socket.send(.data(JSONSerialization.data(withJSONObject:object,options:[.fragmentsAllowed])))}
+ private func heartbeatTick()async{
+  if awaitingHeartbeatAck{socket?.cancel(with:.goingAway,reason:Data("Heartbeat acknowledgement timed out".utf8));return}
+  awaitingHeartbeatAck=true
+  do{try await send(["op":1,"d":sequence as Any? ?? NSNull()])}
+  catch{socket?.cancel(with:.goingAway,reason:nil)}
+ }
+ private func send(_ object:[String:Any])async throws{
+  guard let socket else{throw KimiError.invalidResponse}
+  try await socket.send(.data(JSONSerialization.data(withJSONObject:object,options:[.fragmentsAllowed])))
+ }
 }
 actor KimiRuntime {
- let rest:DiscordREST;let store:PersistentStore;let logger:Logger
- init(rest:DiscordREST,store:PersistentStore,logger:Logger){self.rest=rest;self.store=store;self.logger=logger}
+ let rest:DiscordREST;let store:PersistentStore;let logger:Logger;let clientID:String
+ init(rest:DiscordREST,store:PersistentStore,logger:Logger,clientID:String){self.rest=rest;self.store=store;self.logger=logger;self.clientID=clientID}
  func handle(_ event:[String:Any])async{
   if await handleMigratedCommand(event){return}
   guard let id=event["id"] as? String,let token=event["token"] as? String else{return}
@@ -141,7 +197,7 @@ actor KimiRuntime {
    let config=try Configuration.load(),logger=Logger(),store=try PersistentStore(directory:config.dataDirectory),rest=DiscordREST(token:config.token)
    DashboardServer(config:config,rest:rest,store:store,logger:logger).start()
    try await rest.registerCommands(config.clientID);await logger.log("INFO","Kimi Swift started. Global commands synchronized.")
-   let runtime=KimiRuntime(rest:rest,store:store,logger:logger)
+   let runtime=KimiRuntime(rest:rest,store:store,logger:logger,clientID:config.clientID)
    let gateway=DiscordGateway(token:config.token,logger:logger){event in
     let name=event["name"] as? String ?? "",data=event["data"] as? [String:Any] ?? [:]
     if name=="INTERACTION_CREATE"{await runtime.handle(data)}
