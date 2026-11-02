@@ -49,7 +49,7 @@ actor ModerationEngine {
   let letters=content.filter{$0.isLetter};let uppercase=letters.filter{$0.isUppercase}.count
   let caps=value.blockExcessiveCaps && letters.count>=12 && Double(uppercase)/Double(max(1,letters.count))>=0.75
   let mentions=content.components(separatedBy:"<@").count-1;let massMention=value.blockMassMentions && (content.contains("@everyone") || content.contains("@here") || mentions>=5)
-  let invitePattern = #"discord\\.gg/|discord(?:app)?\\.com/invite/"#
+  let invitePattern = #"discord\.gg/|discord(?:app)?\.com/invite/"#
   let inviteMatch = content.range(of:invitePattern,options:.regularExpression)
   let invite = value.blockInvites && inviteMatch != nil
   let links=content.components(separatedBy:"https://").count+content.components(separatedBy:"http://").count-2;let linkSpam=links>=4
