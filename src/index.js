@@ -111,7 +111,7 @@ function allowSystemTrigger(guildId){
  return result.allowed;
 }
 async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded"){
- const guild=member.guild,record=guard.bucket(guild.id,member.id,"bot");
+ const guild=member.guild;
  const incidents=store.data.guard_state[guild.id].incidents||(store.data.guard_state[guild.id].incidents={});
  if(incidents[member.id]?.status==="restricted")return incidents[member.id];
  const originalRoles=member.roles.cache.filter(role=>role.id!==guild.id&&!role.managed).map(role=>role.id);
@@ -122,6 +122,8 @@ async function restrictBot(member,reason="Kimi Guard bot activity limit exceeded
  try{await member.timeout(28*24*60*60*1000,reason);incident.timeout_applied=true;}catch(error){logger.info("Discord did not allow a timeout for bot "+member.id+"; role restriction remains the fallback:",error.message);}
  store.queueSave();
  logger.warn("Kimi Guard restricted bot "+member.id+" in server "+guild.id+" after its activity bucket was exhausted.");
+ const owner=await client.users.fetch(guild.ownerId).catch(()=>null);
+ if(owner)await owner.send("Kimi Guard restricted the bot **"+member.user.username+"** in **"+guild.name+"** after its activity limit was exhausted. Kimi removed "+incident.removed_roles.length+" manageable role(s) and "+(incident.timeout_applied?"applied a timeout.":"could not apply a timeout; role restriction was used where possible.")+" Review it with `/guard-review` by selecting this bot and choosing Restore or Keep restricted.").catch(error=>logger.info("Could not notify the server owner about bot restriction:",error.message));
  return incident;
 }
 async function coreCommand(i){
