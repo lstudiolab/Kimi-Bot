@@ -227,6 +227,19 @@ extension KimiRuntime {
     guard let bot=(me as? [String:Any])?["id"] as? String else{throw KimiError.invalidResponse}
     let ticket=try await SupportService(store:store,rest:rest,logger:logger).open(guild:guild,user:actorID,username:username,bot:bot)
     try await rest.editKimiInteraction(app,token,"Your private ticket is ready: <#"+ticket.channelID+">")
+   } else if custom.hasPrefix("ticket:priority:") {
+    let value=String(custom.dropFirst("ticket:priority:".count)).split(separator:":").map(String.init)
+    guard value.count==2 else{throw KimiError.configuration("This priority control is invalid.")}
+    let ticketID=value[0],priority=value[1]
+    let tickets=await SupportTickets(store:store).all()
+    guard let ticket=tickets.first(where:{$0.id==ticketID && $0.guildID==guild && $0.channelID==channel && $0.isOpen}) else{throw KimiError.configuration("This ticket is no longer open.")}
+    let owner=try await rest.ownerID(guild)
+    let settings=await SupportService(store:store,rest:rest,logger:logger).settings(guild)
+    let roles=Set((member["roles"] as? [String]) ?? [])
+    let staff=settings.supportRoleID.map{roles.contains($0)} ?? false
+    guard ticket.userID==actorID || owner==actorID || staff else{throw KimiError.configuration("Only the ticket opener, support staff or server owner can change priority.")}
+    let updated=try await SupportService(store:store,rest:rest,logger:logger).setPriority(guild:guild,ticketID:ticketID,priority:priority)
+    try await rest.editKimiInteraction(app,token,"Ticket priority changed to "+updated.priority+".")
    } else if custom.hasPrefix("ticket:close:") {
     let ticketID=String(custom.dropFirst("ticket:close:".count))
     let tickets=await SupportTickets(store:store).all()
