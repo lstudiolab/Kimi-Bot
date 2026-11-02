@@ -126,7 +126,7 @@ test("plugin installation is isolated per server and preserves data",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-import { commandData, pluginCommandsForLibraries, pluginForCommand } from "../src/commands.js";
+import { commandData, pluginCommandsForPlugins, pluginForCommand } from "../src/commands.js";
 test("plugin management commands are registered with the intended option behavior",()=>{
   const install=commandData.find(command=>command.name==="install");
   const uninstall=commandData.find(command=>command.name==="uninstall");
@@ -200,7 +200,7 @@ test("storage allocation is fixed at 5 MB for every server",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test("Foundation publishes only its requested member systems",()=>{const names=pluginCommandsForLibraries(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
+test("Foundation publishes only its requested member systems",()=>{const names=pluginCommandsForPlugins(["Foundation"]).map(command=>command.name);for(const name of ["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"])assert.ok(names.includes(name),"missing Foundation command: "+name);for(const name of ["server-backup","poll","reminder","calculator"])assert.ok(!names.includes(name),"unexpected general utility command: "+name);});
 
 test("greeting placeholders resolve aliases, hyphens, and context values",()=>{
   const user={id:"111111111111111111",username:"Example",globalName:"Example User",tag:"Example#1234",
