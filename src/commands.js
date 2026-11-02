@@ -2,12 +2,15 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.j
 
 const allCommandBuilders=[
   new SlashCommandBuilder().setName("kimi").setDescription("Open Kimi server configuration dashboard.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure Foundation.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-foundation").setDescription("Configure the Welcome app (legacy alias).").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-welcome").setDescription("Configure the Welcome app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-roles").setDescription("Configure the Roles app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName("configure-embeds").setDescription("Configure the Embeds app.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-kimi-lock").setDescription("Configure Kimi Lock.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("configure-support").setDescription("Configure Support.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName("plan").setDescription("View Kimi's free features and storage usage."),
   new SlashCommandBuilder().setName("web-token").setDescription("Link this server to your Kimi dashboard using a one-time token.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-  new SlashCommandBuilder().setName("install").setDescription("Add a Kimi app to this server.").addStringOption(o=>o.setName("app").setDescription("App to add").setRequired(true).addChoices({name:"Foundation",value:"Foundation"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
+  new SlashCommandBuilder().setName("install").setDescription("Add a Kimi app to this server.").addStringOption(o=>o.setName("app").setDescription("App to add").setRequired(true).addChoices({name:"Welcome",value:"Welcome"},{name:"Roles",value:"Roles"},{name:"Embeds",value:"Embeds"},{name:"Kimi Lock",value:"Kimi Lock"},{name:"Support",value:"Support"},)),
   new SlashCommandBuilder().setName("apps").setDescription("See the apps available for your server."),
   new SlashCommandBuilder().setName("app-store").setDescription("Browse and manage Kimi apps."),
   new SlashCommandBuilder().setName("automations").setDescription("Build and manage server automations."),
@@ -46,8 +49,10 @@ const allCommandBuilders=[
  ];
 
 const commandGroups=Object.freeze({
-  Core:["kimi","configure-foundation","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
-  Foundation:["setup","welcome","autorole","roles","embed-new","embed-edit","embed-post"],
+  Core:["kimi","configure-foundation","configure-welcome","configure-roles","configure-embeds","configure-kimi-lock","configure-support","plan","web-token","apps","app-store","install","uninstall","automations","guard-review"],
+  Welcome:["setup","welcome","autorole"],
+  Roles:["roles"],
+  Embeds:["embed-new","embed-edit","embed-post"],
   "Kimi Lock":["verify","verify-config","filter","security","moderation"],
   Support:["tickets","ticket-panel","ticket-config"],
 });
