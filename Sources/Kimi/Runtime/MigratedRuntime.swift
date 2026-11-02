@@ -139,7 +139,9 @@ extension KimiRuntime {
      reply="Support settings saved."
     }
    case "automations":
-    let engine=AutomationEngine(store:store)
+    let owner=try await rest.ownerID(guild)
+    guard owner == user else { throw KimiError.configuration("Only the server owner can manage automations.") }
+    let engine=AutomationEngine(store:store,rest:rest,logger:logger)
     let sub=options.first?["name"] as? String ?? "list"
     if sub=="create" {
      guard let ruleName=value("name"),let trigger=value("trigger"),let action=value("action") else{throw KimiError.configuration("Provide a name, trigger and action.")}
