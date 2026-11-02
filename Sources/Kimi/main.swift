@@ -69,7 +69,8 @@ actor PersistentStore {
  }
  func storageUsage(guildID:String)->Int{guildUsage(guildID,source:values)}
  func storageReport(guildID:String)->(used:Int,limit:Int,percent:Int){
-  StorageQuota.usage(of:Data(repeating:0,count:storageUsage(guildID:guildID)))
+  let used=storageUsage(guildID:guildID),limit=StorageQuota.freeLimit
+  return(used,limit,min(100,Int(Double(used)/Double(limit)*100)))
  }
  private func persist(_ candidate:[String:Data])throws{
   values=candidate
@@ -95,7 +96,7 @@ actor PersistentStore {
    return nil
   }
   for (key,data) in source{
-   if key.hasSuffix("."+guild){snapshot[key]=data;continue}
+   if key.hasSuffix("."+guild){if let object=try? JSONSerialization.jsonObject(with:data,options:[.fragmentsAllowed]){snapshot[key]=object};continue}
    guard let object=try? JSONSerialization.jsonObject(with:data,options:[.fragmentsAllowed]),let selected=select(object) else{continue}
    snapshot[key]=selected
   }
