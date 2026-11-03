@@ -34,6 +34,29 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(policy.blockMassMentions)
         XCTAssertTrue(policy.blockExcessiveCaps)
     }
+
+    func testGatewayJSONFramerHandlesMultiplePacketsAndEscapedBraces() throws {
+        var buffer = Data("{\\"op\\":10,\\"d\\":{\\"text\\":\\"brace } and quote \\\\" safely\\"}}{\\"op\\":11,\\"d\\":null}".utf8)
+        let first = GatewayJSONFramer.takeFrame(from: &buffer)
+        XCTAssertNotNil(first)
+        let firstObject = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(first)) as? [String: Any])
+        XCTAssertEqual(firstObject["op"] as? Int, 10)
+        let second = GatewayJSONFramer.takeFrame(from: &buffer)
+        XCTAssertNotNil(second)
+        let secondObject = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(second)) as? [String: Any])
+        XCTAssertEqual(secondObject["op"] as? Int, 11)
+        XCTAssertTrue(buffer.isEmpty)
+    }
+
+    func testGatewayJSONFramerWaitsForIncompleteObject() {
+        var buffer = Data("{\\"op\\":10,\\"d\\":{".utf8)
+        XCTAssertNil(GatewayJSONFramer.takeFrame(from: &buffer))
+        buffer.append(Data("\\"heartbeat_interval\\":41250}}".utf8))
+        let frame = GatewayJSONFramer.takeFrame(from: &buffer)
+        XCTAssertNotNil(frame)
+        XCTAssertTrue(buffer.isEmpty)
+    }
+
     func testDiscordComponentRowsRespectFiveRowAndFiveButtonLimits() throws {
         let buttons = (0..<6).map { index in
             KimiUI.button(id: "test:\(index)", label: "Button \(index)")
