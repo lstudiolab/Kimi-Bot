@@ -34,6 +34,20 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(policy.blockMassMentions)
         XCTAssertTrue(policy.blockExcessiveCaps)
     }
+    func testDiscordComponentRowsRespectFiveRowAndFiveButtonLimits() throws {
+        let buttons = (0..<6).map { index in
+            KimiUI.button(id: "test:\(index)", label: "Button \(index)")
+        }
+        let rows = KimiUI.buttonRows(buttons)
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual((rows[0]["components"] as? [[String: Any]])?.count, 5)
+        XCTAssertEqual((rows[1]["components"] as? [[String: Any]])?.count, 1)
+        try KimiUI.validateMessageComponents(rows)
+
+        let oversized = Array(repeating: KimiUI.row([KimiUI.button(id: "x", label: "X")]), count: 6)
+        XCTAssertThrowsError(try KimiUI.validateMessageComponents(oversized))
+    }
+
     func testEmbedValidatorEnforcesDiscordLimits() {
         let validator = EmbedValidator()
         let valid = EmbedValidator.Definition(
