@@ -311,82 +311,82 @@ actor DiscordGateway {
             }
 
             while let frame = GatewayJSONFramer.takeFrame(from: &incomingBuffer) {
-            let packet: [String: Any]
-            do {
-                guard
-                    let decoded = try JSONSerialization.jsonObject(
-                        with: frame,
-                        options: [.fragmentsAllowed]
-                    ) as? [String: Any]
-                else {
-                    await logger.log("WARN", "Discord Gateway ignored a non-object JSON message.")
+                let packet: [String: Any]
+                do {
+                    guard
+                        let decoded = try JSONSerialization.jsonObject(
+                            with: frame,
+                            options: [.fragmentsAllowed]
+                        ) as? [String: Any]
+                    else {
+                        await logger.log("WARN", "Discord Gateway ignored a non-object JSON message.")
+                        continue
+                    }
+                    packet = decoded
+                } catch {
+                    await logger.log(
+                        "WARN",
+                        "Discord Gateway ignored an invalid JSON message (\(frame.count) bytes; prefix hex "
+                            + frame.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
+                    )
                     continue
                 }
-                packet = decoded
-            } catch {
-                await logger.log(
-                    "WARN",
-                    "Discord Gateway ignored an invalid JSON message (\(frame.count) bytes; prefix hex "
-                        + frame.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
-                )
-                continue
-            }
-            if let value = packet["s"] as? Int { sequence = value }
-            let opcode = packet["op"] as? Int ?? -1
-            let rawPayload = packet["d"]
-            let payload = rawPayload as? [String: Any] ?? [:]
-            switch opcode {
-            case 10:
-                heartbeatInterval = (payload["heartbeat_interval"] as? Double ?? 41250) / 1000
-                if let sessionID, let sequence {
-                    try await send(["op": 6, "d": ["token": token, "session_id": sessionID, "seq": sequence]])
-                    await logger.log("INFO", "Resuming Discord Gateway session.")
-                } else {
-                    let intents = 1 | 2 | 4 | 512 | 1024 | 32768 | 65536
-                    try await send([
-                        "op": 2,
-                        "d": [
-                            "token": token, "intents": intents,
-                            "properties": ["os": "linux", "browser": "Kimi Swift", "device": "Termux"],
-                        ],
-                    ])
-                }
-                heartbeat?.cancel()
-                heartbeat = Task {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(nanoseconds: UInt64(max(1, self.heartbeatInterval) * 1_000_000_000))
-                        if Task.isCancelled { return }
-                        await self.heartbeatTick()
+                if let value = packet["s"] as? Int { sequence = value }
+                let opcode = packet["op"] as? Int ?? -1
+                let rawPayload = packet["d"]
+                let payload = rawPayload as? [String: Any] ?? [:]
+                switch opcode {
+                case 10:
+                    heartbeatInterval = (payload["heartbeat_interval"] as? Double ?? 41250) / 1000
+                    if let sessionID, let sequence {
+                        try await send(["op": 6, "d": ["token": token, "session_id": sessionID, "seq": sequence]])
+                        await logger.log("INFO", "Resuming Discord Gateway session.")
+                    } else {
+                        let intents = 1 | 2 | 4 | 512 | 1024 | 32768 | 65536
+                        try await send([
+                            "op": 2,
+                            "d": [
+                                "token": token, "intents": intents,
+                                "properties": ["os": "linux", "browser": "Kimi Swift", "device": "Termux"],
+                            ],
+                        ])
                     }
+                    heartbeat?.cancel()
+                    heartbeat = Task {
+                        while !Task.isCancelled {
+                            try? await Task.sleep(nanoseconds: UInt64(max(1, self.heartbeatInterval) * 1_000_000_000))
+                            if Task.isCancelled { return }
+                            await self.heartbeatTick()
+                        }
+                    }
+                case 1:
+                    await heartbeatTick()
+                case 7:
+                    throw KimiError.http(0, "Gateway requested reconnect.")
+                case 9:
+                    let resumable = rawPayload as? Bool ?? false
+                    if !resumable {
+                        sessionID = nil
+                        sequence = nil
+                        resumeURL = nil
+                    }
+                    try? await Task.sleep(nanoseconds: UInt64.random(in: 1_000_000_000...5_000_000_000))
+                    throw KimiError.http(0, "Gateway invalidated the session.")
+                case 11:
+                    awaitingHeartbeatAck = false
+                default: break
                 }
-            case 1:
-                await heartbeatTick()
-            case 7:
-                throw KimiError.http(0, "Gateway requested reconnect.")
-            case 9:
-                let resumable = rawPayload as? Bool ?? false
-                if !resumable {
-                    sessionID = nil
-                    sequence = nil
-                    resumeURL = nil
+                if let name = packet["t"] as? String {
+                    if name == "READY" {
+                        sessionID = payload["session_id"] as? String
+                        resumeURL = payload["resume_gateway_url"] as? String
+                    }
+                    if name == "RESUMED" { await logger.log("INFO", "Discord Gateway session resumed.") }
+                    // Keep application work off the Gateway receive loop. Slow commands
+                    // must not delay receipt of later events or their three-second ACK.
+                    let handler = onEvent
+                    Task { await handler(["name": name, "data": payload]) }
                 }
-                try? await Task.sleep(nanoseconds: UInt64.random(in: 1_000_000_000...5_000_000_000))
-                throw KimiError.http(0, "Gateway invalidated the session.")
-            case 11:
-                awaitingHeartbeatAck = false
-            default: break
-            }
-            if let name = packet["t"] as? String {
-                if name == "READY" {
-                    sessionID = payload["session_id"] as? String
-                    resumeURL = payload["resume_gateway_url"] as? String
-                }
-                if name == "RESUMED" { await logger.log("INFO", "Discord Gateway session resumed.") }
-                // Keep application work off the Gateway receive loop. Slow commands
-                // must not delay receipt of later events or their three-second ACK.
-                let handler = onEvent
-                Task { await handler(["name": name, "data": payload]) }
-            }
             }
         }
     }
