@@ -260,6 +260,59 @@ actor DiscordGateway {
         self.logger = logger
         self.onEvent = onEvent
     }
+    // Extract one balanced top-level JSON object from a byte stream. The scan
+    // respects quoted strings and escapes, so braces inside event content do
+    // not terminate the frame early.
+    private static func takeJSONFrame(from buffer: inout Data) -> Data? {
+        let bytes = [UInt8](buffer)
+        var start: Int?
+        var depth = 0
+        var inString = false
+        var escaped = false
+
+        for index in bytes.indices {
+            let byte = bytes[index]
+            if start == nil {
+                if byte == 0x20 || byte == 0x09 || byte == 0x0A || byte == 0x0D {
+                    continue
+                }
+                guard byte == 0x7B else {
+                    // Discard leading noise until the next possible JSON object.
+                    buffer.removeFirst(index + 1)
+                    return nil
+                }
+                start = index
+                depth = 1
+                continue
+            }
+
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if byte == 0x5C {
+                    escaped = true
+                } else if byte == 0x22 {
+                    inString = false
+                }
+                continue
+            }
+
+            if byte == 0x22 {
+                inString = true
+            } else if byte == 0x7B {
+                depth += 1
+            } else if byte == 0x7D {
+                depth -= 1
+                if depth == 0, let start {
+                    let frame = Data(bytes[start...index])
+                    buffer.removeFirst(index + 1)
+                    return frame
+                }
+            }
+        }
+        return nil
+    }
+
     func run() async {
         while !Task.isCancelled {
             do {
@@ -284,36 +337,45 @@ actor DiscordGateway {
         socket = ws
         ws.resume()
         await logger.log("INFO", "Discord Gateway socket connected.")
+        var incomingBuffer = Data()
         while true {
             let message = try await ws.receive()
-            let data: Data
+            let chunk: Data
             switch message {
-            case .data(let value): data = value
-            case .string(let value): data = Data(value.utf8)
+            case .data(let value): chunk = value
+            case .string(let value): chunk = Data(value.utf8)
             @unknown default: continue
             }
-            // A malformed or unexpected frame must not tear down a healthy Gateway session.
-            // Keep the raw frame in the diagnostic (bounded) so platform-specific decoding
-            // failures can be identified without dumping an entire event or token.
+
+            // FoundationNetworking on Android can expose a fragmented WebSocket
+            // message as multiple receive results. Buffer bytes until one complete
+            // JSON object is available; never parse an individual fragment.
+            incomingBuffer.append(chunk)
+            if incomingBuffer.count > 8 * 1024 * 1024 {
+                await logger.log("WARN", "Discord Gateway discarded an oversized incomplete message.")
+                incomingBuffer.removeAll(keepingCapacity: true)
+                continue
+            }
+
+            guard let frame = Self.takeJSONFrame(from: &incomingBuffer) else {
+                continue
+            }
+
             let packet: [String: Any]
             do {
-                guard
-                    let decoded = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
-                        as? [String: Any]
-                else {
-                    await logger.log(
-                        "WARN",
-                        "Discord Gateway ignored a non-object frame (\\(data.count) bytes; prefix hex "
-                            + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
-                    )
+                guard let decoded = try JSONSerialization.jsonObject(
+                    with: frame,
+                    options: [.fragmentsAllowed]
+                ) as? [String: Any] else {
+                    await logger.log("WARN", "Discord Gateway ignored a non-object JSON message.")
                     continue
                 }
                 packet = decoded
             } catch {
                 await logger.log(
                     "WARN",
-                    "Discord Gateway ignored an invalid JSON frame (\\(data.count) bytes; prefix hex "
-                        + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
+                    "Discord Gateway ignored an invalid JSON message (\\(frame.count) bytes; prefix hex "
+                        + frame.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
                 )
                 continue
             }
