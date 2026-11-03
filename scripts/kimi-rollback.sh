@@ -28,6 +28,7 @@ CURRENT_SHA=""
 [[ ! -f "$BINARY" ]] || CURRENT_SHA="$(sha256 "$BINARY")"
 NEXT="$(dirname "$BINARY")/.kimi.rollback.$$"
 install -m 700 "$BACKUP" "$NEXT" || fail "Could not stage previous executable."
+[[ "$(sha256 "$NEXT")" == "$BACKUP_SHA" ]] || { rm -f -- "$NEXT"; fail "Staged rollback copy failed integrity verification."; }
 mv -f -- "$NEXT" "$BINARY" || fail "Atomic rollback replacement failed."
 RESTORED_SHA="$(sha256 "$BINARY")"
 [[ "$RESTORED_SHA" == "$BACKUP_SHA" ]] || fail "Restored executable failed integrity verification."
