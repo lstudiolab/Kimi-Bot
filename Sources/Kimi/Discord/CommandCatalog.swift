@@ -59,7 +59,7 @@ enum CommandCatalog {
                                 true), text("condition", "Required text when trigger is message_contains"),
                             text(
                                 "action",
-                                "Action: delete_message, send_message:CHANNEL:TEXT, timeout:MINUTES, add_role:ROLE or remove_role:ROLE",
+                                "Action type: delete_message, send_message, timeout, add_role, or remove_role.",
                                 true),
                         ],
                     ],
