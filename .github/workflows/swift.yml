@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -24,22 +24,8 @@ jobs:
       - name: Show Swift toolchain
         run: swift --version
 
-      - name: Format Swift source
-        run: swift format format --in-place --recursive Sources Tests
-
       - name: Verify formatting
         run: swift format lint --strict --recursive Sources Tests
-
-      - name: Commit formatting changes
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources Tests
-          if ! git diff --cached --quiet; then
-            git commit -m "Format Swift source with swift-format"
-            git push
-          fi
 
       - name: Build release
         run: swift build -c release
