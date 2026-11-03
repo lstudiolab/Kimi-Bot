@@ -198,6 +198,11 @@ actor DiscordREST {
                 forHTTPHeaderField: "X-Audit-Log-Reason")
         }
         if let body {
+            if let object = body as? [String: Any],
+                let components = object["components"] as? [[String: Any]]
+            {
+                try KimiUI.validateMessageComponents(components)
+            }
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.fragmentsAllowed])
         }
         var attempt = 0
