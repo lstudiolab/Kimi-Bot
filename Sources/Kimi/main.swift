@@ -292,10 +292,32 @@ actor DiscordGateway {
             case .string(let value): data = Data(value.utf8)
             @unknown default: continue
             }
-            guard let packet = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            // A malformed or unexpected frame must not tear down a healthy Gateway session.
+            // Keep the raw frame in the diagnostic (bounded) so platform-specific decoding
+            // failures can be identified without dumping an entire event or token.
+            let packet: [String: Any]
+            do {
+                guard let decoded = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+                    as? [String: Any]
+                else {
+                    await logger.log(
+                        "WARN",
+                        "Discord Gateway ignored a non-object frame (\\(data.count) bytes): "
+                            + String(decoding: data.prefix(160), as: UTF8.self))
+                    continue
+                }
+                packet = decoded
+            } catch {
+                await logger.log(
+                    "WARN",
+                    "Discord Gateway ignored an invalid JSON frame (\\(data.count) bytes): "
+                        + String(decoding: data.prefix(160), as: UTF8.self))
+                continue
+            }
             if let value = packet["s"] as? Int { sequence = value }
             let opcode = packet["op"] as? Int ?? -1
-            let payload = packet["d"] as? [String: Any] ?? [:]
+            let rawPayload = packet["d"]
+            let payload = rawPayload as? [String: Any] ?? [:]
             switch opcode {
             case 10:
                 heartbeatInterval = (payload["heartbeat_interval"] as? Double ?? 41250) / 1000
@@ -325,7 +347,7 @@ actor DiscordGateway {
             case 7:
                 throw KimiError.http(0, "Gateway requested reconnect.")
             case 9:
-                let resumable = payload["d"] as? Bool ?? false
+                let resumable = rawPayload as? Bool ?? false
                 if !resumable {
                     sessionID = nil
                     sequence = nil
