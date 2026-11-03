@@ -11,6 +11,28 @@ enum KimiUI {
     static func row(_ components: [[String: Any]]) -> [String: Any] {
         ["type": 1, "components": Array(components.prefix(5))]
     }
+    static func buttonRows(_ buttons: [[String: Any]], perRow: Int = 5) -> [[String: Any]] {
+        let width = max(1, min(5, perRow))
+        return stride(from: 0, to: buttons.count, by: width).map { start in
+            row(Array(buttons[start..<min(start + width, buttons.count)]))
+        }
+    }
+    static func validateMessageComponents(_ rows: [[String: Any]]) throws {
+        guard rows.count <= 5 else {
+            throw KimiError.configuration("This panel has more than Discord's 5 action-row limit.")
+        }
+        for row in rows {
+            guard (row["type"] as? Int) == 1,
+                let items = row["components"] as? [[String: Any]],
+                !items.isEmpty, items.count <= 5
+            else {
+                throw KimiError.configuration("This panel contains an invalid Discord action row.")
+            }
+            if items.contains(where: { ($0["type"] as? Int) != 2 }) && items.count != 1 {
+                throw KimiError.configuration("Select menus and text inputs must occupy their own action row.")
+            }
+        }
+    }
     static func stringSelect(
         id: String, placeholder: String, options: [[String: Any]], minimum: Int = 0, maximum: Int = 1
     ) -> [String: Any] {
