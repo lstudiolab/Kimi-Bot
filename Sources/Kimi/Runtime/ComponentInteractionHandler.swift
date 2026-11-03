@@ -12,8 +12,15 @@ extension KimiRuntime {
         let actorID = actor["id"] as? String ?? ""
         let username = actor["username"] as? String ?? "member"
         let custom = data["custom_id"] as? String ?? ""
+        // A failed initial acknowledgement is terminal. Never try to edit an
+        // interaction response after Discord has invalidated its token.
         do {
             try await rest.deferKimiInteraction(id, token)
+        } catch {
+            await logger.log("WARN", "Component acknowledgement failed: " + error.localizedDescription)
+            return true
+        }
+        do {
             if let appName = ComponentRouter.app(for: custom) {
                 let installed = await AppManager(store: store).installed(guildID: guild)
                 guard installed.contains(appName.rawValue) else {
