@@ -265,58 +265,6 @@ actor DiscordGateway {
         self.logger = logger
         self.onEvent = onEvent
     }
-    // Extract one balanced top-level JSON object from a byte stream. The scan
-    // respects quoted strings and escapes, so braces inside event content do
-    // not terminate the frame early.
-    private static func takeJSONFrame(from buffer: inout Data) -> Data? {
-        let bytes = [UInt8](buffer)
-        var start: Int?
-        var depth = 0
-        var inString = false
-        var escaped = false
-
-        for index in bytes.indices {
-            let byte = bytes[index]
-            if start == nil {
-                if byte == 0x20 || byte == 0x09 || byte == 0x0A || byte == 0x0D {
-                    continue
-                }
-                guard byte == 0x7B else {
-                    // Discard leading noise until the next possible JSON object.
-                    buffer.removeFirst(index + 1)
-                    return nil
-                }
-                start = index
-                depth = 1
-                continue
-            }
-
-            if inString {
-                if escaped {
-                    escaped = false
-                } else if byte == 0x5C {
-                    escaped = true
-                } else if byte == 0x22 {
-                    inString = false
-                }
-                continue
-            }
-
-            if byte == 0x22 {
-                inString = true
-            } else if byte == 0x7B {
-                depth += 1
-            } else if byte == 0x7D {
-                depth -= 1
-                if depth == 0, let start {
-                    let frame = Data(bytes[start...index])
-                    buffer.removeFirst(index + 1)
-                    return frame
-                }
-            }
-        }
-        return nil
-    }
 
     func run() async {
         while !Task.isCancelled {
@@ -362,10 +310,7 @@ actor DiscordGateway {
                 continue
             }
 
-            guard let frame = Self.takeJSONFrame(from: &incomingBuffer) else {
-                continue
-            }
-
+            while let frame = GatewayJSONFramer.takeFrame(from: &incomingBuffer) {
             let packet: [String: Any]
             do {
                 guard
@@ -437,7 +382,11 @@ actor DiscordGateway {
                     resumeURL = payload["resume_gateway_url"] as? String
                 }
                 if name == "RESUMED" { await logger.log("INFO", "Discord Gateway session resumed.") }
-                await onEvent(["name": name, "data": payload])
+                // Keep application work off the Gateway receive loop. Slow commands
+                // must not delay receipt of later events or their three-second ACK.
+                let handler = onEvent
+                Task { await handler(["name": name, "data": payload]) }
+            }
             }
         }
     }
