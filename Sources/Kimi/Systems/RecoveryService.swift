@@ -37,7 +37,11 @@ actor RecoveryService {
             all[guild] = Dictionary(
                 uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(1000))
         }
-        try? await store.set(all, key: "recovery.channels")
+        do {
+            try await store.setGuild(all, key: "recovery.channels", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Recovery channel snapshot was not persisted: " + error.localizedDescription)
+        }
     }
     func captureMessage(
         _ guild: String, _ channel: String, _ message: String, _ author: String, _ content: String,
@@ -59,7 +63,11 @@ actor RecoveryService {
             bytes -= encodedSize(rows.removeFirst())
         }
         all[guild] = rows
-        try? await store.set(all, key: "recovery.messages")
+        do {
+            try await store.setGuild(all, key: "recovery.messages", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Recovery message snapshot was not persisted: " + error.localizedDescription)
+        }
     }
     func savedMessage(_ guild: String, _ channel: String, _ message: String) async -> Message? {
         let rows = await store.get("recovery.messages", as: [String: [Message]].self) ?? [:]
@@ -76,7 +84,11 @@ actor RecoveryService {
         var values = all[guild] ?? []
         if !values.contains(channel) { values.append(channel) }
         all[guild] = Array(values.suffix(100))
-        try? await store.set(all, key: "recovery.pending-channels")
+        do {
+            try await store.setGuild(all, key: "recovery.pending-channels", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Deleted-channel recovery queue was not persisted: " + error.localizedDescription)
+        }
     }
     func restorePendingChannels(_ guild: String) async {
         let all = await store.get("recovery.pending-channels", as: [String: [String]].self) ?? [:]
@@ -90,16 +102,26 @@ actor RecoveryService {
             if aCategory != bCategory { return aCategory }
             return (a?["position"] as? Int ?? 0) < (b?["position"] as? Int ?? 0)
         }
-        for channel in ordered { await restoreChannel(guild, channel) }
+        var remaining: [String] = []
+        for channel in ordered {
+            if !(await restoreChannel(guild, channel)) {
+                remaining.append(channel)
+            }
+        }
         var updated = all
-        updated[guild] = []
-        try? await store.set(updated, key: "recovery.pending-channels")
+        updated[guild] = remaining
+        do {
+            try await store.setGuild(updated, key: "recovery.pending-channels", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Recovery queue update failed: " + error.localizedDescription)
+        }
     }
-    func restoreChannel(_ guild: String, _ channelID: String) async {
+    @discardableResult
+    func restoreChannel(_ guild: String, _ channelID: String) async -> Bool {
         let all = await store.get("recovery.channels", as: [String: [String: Data]].self) ?? [:]
         guard let data = all[guild]?[channelID],
             let source = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
+        else { return false }
         let allowed = [
             "name", "type", "topic", "nsfw", "rate_limit_per_user", "parent_id", "permission_overwrites", "bitrate",
             "user_limit", "position",
@@ -112,8 +134,10 @@ actor RecoveryService {
             let restored = (created as? [String: Any])?["id"] as? String ?? "unknown"
             await logger.log(
                 "WARN", "Kimi Lock restored deleted channel " + channelID + " as " + restored + " in guild " + guild)
+            return true
         } catch {
             await logger.log("ERROR", "Channel recovery failed for " + channelID + ": " + error.localizedDescription)
+            return false
         }
     }
     func restoreMessage(_ guild: String, _ channel: String, _ message: String) async {
