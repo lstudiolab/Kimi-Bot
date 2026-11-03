@@ -22,14 +22,13 @@ extension KimiRuntime {
             }
             if custom == "settings:apps" {
                 let installed = await AppManager(store: store).installed(guildID: guild)
-                let rows = CommandCatalog.appNames().map { appName in
-                    KimiUI.row([
-                        KimiUI.button(
-                            id: "settings:app:" + appName,
-                            label: appName + " · " + (installed.contains(appName) ? "Remove" : "Install"),
-                            style: installed.contains(appName) ? 2 : 1)
-                    ])
+                let buttons = CommandCatalog.appNames().map { appName in
+                    KimiUI.button(
+                        id: "settings:app:" + appName,
+                        label: appName + " · " + (installed.contains(appName) ? "Remove" : "Install"),
+                        style: installed.contains(appName) ? 2 : 1)
                 }
+                let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, "App Store · Manage Kimi apps for this server.", rows)
             } else if custom.hasPrefix("settings:app:") {
                 let appName = String(custom.dropFirst("settings:app:".count))
@@ -46,14 +45,13 @@ extension KimiRuntime {
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let updated = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(app, guildID: guild, installed: updated)
-                let rows = CommandCatalog.appNames().map { value in
-                    KimiUI.row([
-                        KimiUI.button(
-                            id: "settings:app:" + value,
-                            label: value + " · " + (updated.contains(value) ? "Remove" : "Install"),
-                            style: updated.contains(value) ? 2 : 1)
-                    ])
+                let buttons = CommandCatalog.appNames().map { value in
+                    KimiUI.button(
+                        id: "settings:app:" + value,
+                        label: value + " · " + (updated.contains(value) ? "Remove" : "Install"),
+                        style: updated.contains(value) ? 2 : 1)
                 }
+                let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, appName + " updated.", rows)
             } else if custom == "settings:status" {
                 let installed = await AppManager(store: store).installed(guildID: guild)
