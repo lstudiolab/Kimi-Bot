@@ -374,7 +374,7 @@ actor DiscordGateway {
             } catch {
                 await logger.log(
                     "WARN",
-                    "Discord Gateway ignored an invalid JSON message (\\(frame.count) bytes; prefix hex "
+                    "Discord Gateway ignored an invalid JSON message (\(frame.count) bytes; prefix hex "
                         + frame.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
                 )
                 continue
