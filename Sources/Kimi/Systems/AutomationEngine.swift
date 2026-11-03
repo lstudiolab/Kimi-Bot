@@ -80,7 +80,7 @@ actor AutomationEngine {
         var values = await store.get("automation.rules", as: [Rule].self) ?? []
         guard let i = values.firstIndex(where: { $0.id == id && $0.guildID == guildID }) else { return false }
         values[i].enabled = enabled
-        try await store.set(values, key: "automation.rules")
+        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
         return true
     }
     func remove(id: String, guildID: String) async throws -> Bool {
@@ -88,7 +88,7 @@ actor AutomationEngine {
         let before = values.count
         values.removeAll { $0.id == id && $0.guildID == guildID }
         guard values.count != before else { return false }
-        try await store.set(values, key: "automation.rules")
+        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
         return true
     }
     func matching(guildID: String, trigger: String, content: String = "") async -> [Rule] {
