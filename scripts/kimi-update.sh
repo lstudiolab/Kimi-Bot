@@ -11,6 +11,8 @@ readonly API="https://api.github.com/repos/$REPOSITORY"
 readonly TMP_BASE="\${TMPDIR:-\${PREFIX:-/tmp}/tmp}"
 WORKTREE=""
 TMP_DIR=""
+NEXT_BIN=""
+STATE_TMP=""
 LOCKED=0
 fail() { printf 'Kimi updater: %s\n' "$*" >&2; exit 1; }
 info() { printf '\n[Kimi] %s\n' "$*"; }
@@ -34,6 +36,8 @@ cleanup() {
   if [[ -n "$WORKTREE" && -d "$WORKTREE" ]]; then
     git -C "$ROOT" worktree remove --force "$WORKTREE" >/dev/null 2>&1 || true
   fi
+  [[ -z "$NEXT_BIN" ]] || rm -f -- "$NEXT_BIN"
+  [[ -z "$STATE_TMP" ]] || rm -f -- "$STATE_TMP"
   [[ -z "$TMP_DIR" ]] || rm -rf -- "$TMP_DIR"
   if (( LOCKED )); then rmdir "$LOCK_DIR" >/dev/null 2>&1 || true; fi
   exit "$status"
@@ -95,7 +99,7 @@ case "$CHANNEL" in
     TARGET_SHA="$beta_sha"; TARGET_LABEL="beta-\${beta_sha:0:12}" ;;
 esac
 [[ "$TARGET_SHA" != "$current_sha" ]] || { info "Already at $TARGET_LABEL. No build needed."; exit 0; }
-mkdir -p "$BACKUP_DIR"
+mkdir -p "$BACKUP_DIR" "$TMP_BASE"
 TMP_DIR="$(mktemp -d "$TMP_BASE/kimi-update.XXXXXXXX")" || fail "Could not create temporary build directory."
 WORKTREE="$TMP_DIR/source"
 BUILD_LOG="$TMP_DIR/build.log"
