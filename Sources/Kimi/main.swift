@@ -297,14 +297,15 @@ actor DiscordGateway {
             // failures can be identified without dumping an entire event or token.
             let packet: [String: Any]
             do {
-                guard let decoded = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
-                    as? [String: Any]
+                guard
+                    let decoded = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+                        as? [String: Any]
                 else {
                     await logger.log(
                         "WARN",
                         "Discord Gateway ignored a non-object frame (\\(data.count) bytes; prefix hex "
                             + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
-)
+                    )
                     continue
                 }
                 packet = decoded
@@ -313,7 +314,7 @@ actor DiscordGateway {
                     "WARN",
                     "Discord Gateway ignored an invalid JSON frame (\\(data.count) bytes; prefix hex "
                         + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
-)
+                )
                 continue
             }
             if let value = packet["s"] as? Int { sequence = value }
