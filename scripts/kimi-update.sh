@@ -28,24 +28,31 @@ for tool in git swift curl jq install; do command -v "$tool" >/dev/null || fail 
 git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "Run this inside a Kimi Git checkout."
 git -C "$ROOT" remote get-url origin >/dev/null 2>&1 || fail "The origin Git remote is not configured."
 git -C "$ROOT" status --porcelain | grep -q . && fail "The working tree has uncommitted changes. Commit or safely stash them first."
-release_json="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+release_json=""
+stable_tag=""
+stable_sha=""
+if release_json="$(curl --fail --silent --show-error --location --retry 2 --retry-delay 2 \
   -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
-  "$API/releases/latest")" || fail "Could not retrieve the latest stable release. Publish a stable release first."
-stable_tag="$(jq -er '.tag_name | select(type == "string" and length > 0)' <<<"$release_json")" \
-  || fail "The stable release response has no valid tag."
-git -C "$ROOT" fetch --quiet --tags origin "$stable_tag" || fail "Could not fetch stable tag $stable_tag."
+  "$API/releases/latest" 2>/dev/null)"; then
+  stable_tag="$(jq -er '.tag_name | select(type == "string" and length > 0)' <<<"$release_json" 2>/dev/null || true)"
+  if [[ -n "$stable_tag" ]]; then
+    git -C "$ROOT" fetch --quiet --tags origin "$stable_tag" || fail "Could not fetch stable tag $stable_tag."
+    stable_sha="$(git -C "$ROOT" rev-parse "$stable_tag^{commit}")" || fail "Stable tag does not resolve to a commit."
+  fi
+fi
 git -C "$ROOT" fetch --quiet origin main || fail "Could not fetch beta branch main."
 beta_sha="$(git -C "$ROOT" rev-parse FETCH_HEAD^{commit})" || fail "Could not resolve beta commit."
-stable_sha="$(git -C "$ROOT" rev-parse "$stable_tag^{commit}")" || fail "Stable tag does not resolve to a commit."
 current_sha="$(git -C "$ROOT" rev-parse HEAD)"
-printf 'Current checkout: %s\nStable release:  %s (%s)\nBeta main:       %s\n' "$current_sha" "$stable_tag" "$stable_sha" "$beta_sha"
+printf 'Current checkout: %s\n' "$current_sha"
+if [[ -n "$stable_tag" ]]; then printf 'Stable release:  %s (%s)\n' "$stable_tag" "$stable_sha"; else printf 'Stable release:  none published\n'; fi
+printf 'Beta main:       %s\n' "$beta_sha"
 if [[ "$CHANNEL" == "check" ]]; then
-  [[ "$current_sha" == "$stable_sha" ]] && printf 'Stable source matches current checkout.\n' || printf 'A stable release is available; nothing was installed.\n'
+  if [[ -z "$stable_sha" ]]; then printf 'No stable release has been published yet.\n'; elif [[ "$current_sha" == "$stable_sha" ]]; then printf 'Stable source matches current checkout.\n'; else printf 'A stable release is available; nothing was installed.\n'; fi
   [[ "$current_sha" == "$beta_sha" ]] && printf 'Current checkout matches beta main.\n' || printf 'A beta build is available; nothing was installed.\n'
   exit 0
 fi
 case "$CHANNEL" in
-  stable) TARGET_SHA="$stable_sha"; TARGET_LABEL="$stable_tag" ;;
+  stable) [[ -n "$stable_sha" ]] || fail "No published stable release is available yet."; TARGET_SHA="$stable_sha"; TARGET_LABEL="$stable_tag" ;;
   beta) TARGET_SHA="$beta_sha"; TARGET_LABEL="beta-$(printf %.12s "$beta_sha")" ;;
   *) usage; fail "Unknown update channel: $CHANNEL" ;;
 esac
