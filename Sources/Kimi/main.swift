@@ -363,10 +363,12 @@ actor DiscordGateway {
 
             let packet: [String: Any]
             do {
-                guard let decoded = try JSONSerialization.jsonObject(
-                    with: frame,
-                    options: [.fragmentsAllowed]
-                ) as? [String: Any] else {
+                guard
+                    let decoded = try JSONSerialization.jsonObject(
+                        with: frame,
+                        options: [.fragmentsAllowed]
+                    ) as? [String: Any]
+                else {
                     await logger.log("WARN", "Discord Gateway ignored a non-object JSON message.")
                     continue
                 }
