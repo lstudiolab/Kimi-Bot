@@ -56,11 +56,12 @@ enum CommandCatalog {
                             text("name", "Rule name", true),
                             text(
                                 "trigger", "Trigger: message_create, message_contains, member_join or member_leave",
-                                true), text("condition", "Required text when trigger is message_contains"),
+                                true),
                             text(
                                 "action",
                                 "Action type: delete_message, send_message, timeout, add_role, or remove_role.",
                                 true),
+                            text("condition", "Required text when trigger is message_contains"),
                         ],
                     ],
                     [
