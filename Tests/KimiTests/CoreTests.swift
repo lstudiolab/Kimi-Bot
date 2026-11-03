@@ -36,7 +36,7 @@ final class CoreTests: XCTestCase {
     }
 
     func testGatewayJSONFramerHandlesMultiplePacketsAndEscapedBraces() throws {
-        var buffer = Data("{\\"op\\":10,\\"d\\":{\\"text\\":\\"brace } and quote \\\\" safely\\"}}{\\"op\\":11,\\"d\\":null}".utf8)
+        var buffer = Data(#"{"op":10,"d":{"text":"brace } and quote \" safely"}}{"op":11,"d":null}"#.utf8)
         let first = GatewayJSONFramer.takeFrame(from: &buffer)
         XCTAssertNotNil(first)
         let firstObject = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(first)) as? [String: Any])
@@ -49,9 +49,9 @@ final class CoreTests: XCTestCase {
     }
 
     func testGatewayJSONFramerWaitsForIncompleteObject() {
-        var buffer = Data("{\\"op\\":10,\\"d\\":{".utf8)
+        var buffer = Data(#"{"op":10,"d":{"#.utf8)
         XCTAssertNil(GatewayJSONFramer.takeFrame(from: &buffer))
-        buffer.append(Data("\\"heartbeat_interval\\":41250}}".utf8))
+        buffer.append(Data(#""heartbeat_interval":41250}}"#.utf8))
         let frame = GatewayJSONFramer.takeFrame(from: &buffer)
         XCTAssertNotNil(frame)
         XCTAssertTrue(buffer.isEmpty)
