@@ -302,16 +302,18 @@ actor DiscordGateway {
                 else {
                     await logger.log(
                         "WARN",
-                        "Discord Gateway ignored a non-object frame (\\(data.count) bytes): "
-                            + String(decoding: data.prefix(160), as: UTF8.self))
+                        "Discord Gateway ignored a non-object frame (\\(data.count) bytes; prefix hex "
+                            + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
+)
                     continue
                 }
                 packet = decoded
             } catch {
                 await logger.log(
                     "WARN",
-                    "Discord Gateway ignored an invalid JSON frame (\\(data.count) bytes): "
-                        + String(decoding: data.prefix(160), as: UTF8.self))
+                    "Discord Gateway ignored an invalid JSON frame (\\(data.count) bytes; prefix hex "
+                        + data.prefix(24).map { String(format: "%02x", $0) }.joined() + ")"
+)
                 continue
             }
             if let value = packet["s"] as? Int { sequence = value }
