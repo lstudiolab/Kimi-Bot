@@ -73,7 +73,7 @@ actor AutomationEngine {
             id: UUID().uuidString, guildID: guildID, name: String(name.prefix(80)), trigger: trigger,
             condition: condition.map { String($0.prefix(200)) }, action: action, enabled: true, createdAt: Date())
         values.append(rule)
-        try await store.set(values, key: "automation.rules")
+        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
         return rule
     }
     func setEnabled(_ enabled: Bool, id: String, guildID: String) async throws -> Bool {
@@ -105,7 +105,7 @@ actor AutomationEngine {
         var values = await store.get("automation.executions", as: [Execution].self) ?? []
         values.append(execution)
         values = Array(values.suffix(1000))
-        try? await store.set(values, key: "automation.executions")
+        try? await store.setGuild(values, key: "automation.executions", guildID: execution.guildID)
     }
     func executions(guildID: String) async -> [Execution] {
         (await store.get("automation.executions", as: [Execution].self) ?? []).filter { $0.guildID == guildID }
