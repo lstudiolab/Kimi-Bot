@@ -2,6 +2,13 @@ import Foundation
 
 extension KimiRuntime {
     private func markModerationDeleted(_ messageID: String) async {
+        let now = Date()
+        moderationDeletedMessageIDs[messageID] = now
+        if moderationDeletedMessageIDs.count > 5000 {
+            moderationDeletedMessageIDs = moderationDeletedMessageIDs.filter {
+                now.timeIntervalSince($0.value) >= 0 && now.timeIntervalSince($0.value) < 7 * 86400
+            }
+        }
         do {
             _ = try await store.update("moderation.deleted", as: [String: Date].self) { stored in
                 let now = Date()
@@ -21,6 +28,9 @@ extension KimiRuntime {
     }
 
     private func wasModerationDeleted(_ messageID: String) async -> Bool {
+        if let date = moderationDeletedMessageIDs[messageID] {
+            return Date().timeIntervalSince(date) >= 0 && Date().timeIntervalSince(date) < 7 * 86400
+        }
         let entries = await store.get("moderation.deleted", as: [String: Date].self) ?? [:]
         if let date = entries[messageID] {
             return Date().timeIntervalSince(date) >= 0 && Date().timeIntervalSince(date) < 7 * 86400
