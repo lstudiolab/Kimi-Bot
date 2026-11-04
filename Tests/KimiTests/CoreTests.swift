@@ -371,19 +371,23 @@ final class CoreTests: XCTestCase {
         let store = try PersistentStore(directory: directory)
         let guild = "123456789012345678"
         let user = "223456789012345678"
-        var policy = await ModerationEngine(store: store).policy(guildID: guild)
-        policy.messagesPerMinute = 2
-        try await ModerationEngine(store: store).configure(policy, guildID: guild)
+        let engine = ModerationEngine(store: store)
+        var policy = await engine.policy(guildID: guild)
+        policy.messagesPerMinute = 5
+        try await engine.configure(policy, guildID: guild)
         let now = Date()
-        _ = await ModerationEngine(store: store).evaluate(
-            guildID: guild, userID: user, messageID: "323456789012345678",
-            content: "first", channelID: "423456789012345678", now: now)
-        _ = await ModerationEngine(store: store).evaluate(
+        for index in 0..<5 {
+            _ = await engine.evaluate(
+                guildID: guild, userID: user,
+                messageID: "32345678901234567" + String(index),
+                content: "message " + String(index), channelID: "423456789012345678",
+                now: now.addingTimeInterval(Double(index)))
+        }
+        // Rate history is checkpointed every five messages; a new engine must load that checkpoint.
+        let restartedEngine = ModerationEngine(store: store)
+        let finding = await restartedEngine.evaluate(
             guildID: guild, userID: user, messageID: "323456789012345679",
-            content: "second", channelID: "423456789012345678", now: now.addingTimeInterval(1))
-        let finding = await ModerationEngine(store: store).evaluate(
-            guildID: guild, userID: user, messageID: "323456789012345680",
-            content: "third", channelID: "423456789012345678", now: now.addingTimeInterval(2))
+            content: "sixth message", channelID: "423456789012345678", now: now.addingTimeInterval(5))
         XCTAssertTrue(finding?.reason.contains("High-velocity message flood") == true)
     }
 
