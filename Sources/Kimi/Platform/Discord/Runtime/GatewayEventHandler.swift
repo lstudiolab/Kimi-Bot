@@ -374,7 +374,7 @@ extension KimiRuntime {
                     guildID: guild, actorID: actor, action: String(action))
                 {
                     await logger.log("WARN", "Kimi Lock incident: " + incident.reason)
-                    if ["12", "32", "50", "22", "20", "30", "10", "1"].contains(incident.action) {
+                    if ["12", "13", "14", "15", "20", "22", "25", "30", "31", "32", "50", "51", "52"].contains(incident.action) {
                         _ = try await KimiGuardService(store: store, rest: rest, logger: logger).contain(
                             guild: guild, actor: actor, action: incident.action)
                     }
