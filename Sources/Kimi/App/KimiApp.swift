@@ -438,7 +438,7 @@ actor GatewayEventDispatcher {
             let handler = self.handler
             Task {
                 await handler(event)
-                await self.completed(isInteraction: true)
+                self.completed(isInteraction: true)
             }
         }
         while activeEvents < maximumConcurrentEvents && !events.isEmpty {
@@ -447,7 +447,7 @@ actor GatewayEventDispatcher {
             let handler = self.handler
             Task {
                 await handler(event)
-                await self.completed(isInteraction: false)
+                self.completed(isInteraction: false)
             }
         }
     }
