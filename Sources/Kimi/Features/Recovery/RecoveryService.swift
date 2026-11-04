@@ -109,8 +109,12 @@ actor RecoveryService {
                 restoredIDs.insert(roleID)
                 var roleMappings = await store.get("recovery.role-map." + guild, as: [String: String].self) ?? [:]
                 roleMappings[roleID] = restored
-                try await store.setGuild(
-                    roleMappings, key: "recovery.role-map." + guild, guildID: guild)
+                do {
+                    try await store.setGuild(
+                        roleMappings, key: "recovery.role-map." + guild, guildID: guild)
+                } catch {
+                    await logger.log("ERROR", "Restored role mapping could not be saved: " + error.localizedDescription)
+                }
                 await logger.log(
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
