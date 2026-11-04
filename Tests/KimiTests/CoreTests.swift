@@ -364,6 +364,30 @@ final class CoreTests: XCTestCase {
         XCTAssertNotNil(second)
     }
 
+    func testTicketCooldownReservationIsAtomicAndPerGuild() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-ticket-cooldown-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let guild = "123456789012345678"
+        let now = Date()
+        let key = "support.ticket-cooldowns." + guild
+
+        let first = try await store.claimGuildCooldown(
+            key, subject: "223456789012345678", guildID: guild, interval: 60, now: now)
+        let duplicate = try await store.claimGuildCooldown(
+            key, subject: "223456789012345678", guildID: guild, interval: 60,
+            now: now.addingTimeInterval(1))
+        let afterCooldown = try await store.claimGuildCooldown(
+            key, subject: "223456789012345678", guildID: guild, interval: 60,
+            now: now.addingTimeInterval(61))
+
+        XCTAssertTrue(first)
+        XCTAssertFalse(duplicate)
+        XCTAssertTrue(afterCooldown)
+    }
+
     func testModerationDetectsDiscordInviteLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "kimi-moderation-test-" + UUID().uuidString, isDirectory: true)
