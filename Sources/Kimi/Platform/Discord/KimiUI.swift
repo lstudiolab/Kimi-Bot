@@ -74,7 +74,7 @@ enum KimiUI {
     static func channelSelect(id: String, placeholder: String, channelTypes: [Int] = [0]) -> [String: Any] {
         [
             "type": 8,
-            "custom_id": id,
+            "custom_id": DiscordText.prefixUTF16(id, limit: 100),
             "placeholder": DiscordText.prefixUTF16(placeholder, limit: 150),
             "channel_types": channelTypes,
             "min_values": 0,
