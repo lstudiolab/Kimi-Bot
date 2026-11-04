@@ -129,6 +129,41 @@ actor PersistentStore {
         }
         try persist(candidate)
     }
+    func update<T: Codable & Sendable>(
+        _ key: String, as type: T.Type, transform: @Sendable (T?) throws -> T
+    ) throws -> T {
+        let current: T?
+        if let data = values[key] {
+            current = try JSONDecoder().decode(T.self, from: data)
+        } else {
+            current = nil
+        }
+        let updated = try transform(current)
+        var candidate = values
+        candidate[key] = try JSONEncoder().encode(updated)
+        try persist(candidate)
+        return updated
+    }
+
+    func updateGuild<T: Codable & Sendable>(
+        _ key: String, guildID: String, as type: T.Type, transform: @Sendable (T?) throws -> T
+    ) throws -> T {
+        let current: T?
+        if let data = values[key] {
+            current = try JSONDecoder().decode(T.self, from: data)
+        } else {
+            current = nil
+        }
+        let updated = try transform(current)
+        var candidate = values
+        candidate[key] = try JSONEncoder().encode(updated)
+        guard guildUsage(guildID, source: candidate) <= StorageQuota.freeLimit else {
+            throw KimiError.configuration("This server has reached its storage allowance.")
+        }
+        try persist(candidate)
+        return updated
+    }
+
     func setGuildBatch(_ updates: [String: Data], guildID: String) throws {
         guard !updates.isEmpty else { return }
         var candidate = values
