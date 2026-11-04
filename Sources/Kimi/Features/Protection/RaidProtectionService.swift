@@ -12,6 +12,7 @@ actor RaidProtectionService {
     private struct Join: Codable, Sendable {
         let user: String
         let date: Date
+        let createdAt: Date?
     }
     private let store: PersistentStore
     private let rest: DiscordREST
@@ -27,30 +28,36 @@ actor RaidProtectionService {
         var recent = (await store.get(key, as: [Join].self) ?? []).filter {
             now.timeIntervalSince($0.date) <= 10 && now >= $0.date
         }
-        recent.append(Join(user: userID, date: now))
-        try? await store.set(recent, key: key)
+        recent.append(Join(user: userID, date: now, createdAt: createdAt))
+        try? await store.setGuild(recent, key: key, guildID: guild)
         guard recent.count >= 8 else { return }
         let cooldownKey = "security.raid-cooldown." + guild
         let last = await store.get(cooldownKey, as: Date.self)
         guard last.map({ now.timeIntervalSince($0) > 300 }) ?? true else { return }
-        try? await store.set(now, key: cooldownKey)
+        try? await store.setGuild(now, key: cooldownKey, guildID: guild)
         let age = max(0, Int(now.timeIntervalSince(createdAt) / 86400))
         var action = "Raid burst detected; alert only."
         var quarantined: String? = nil
-        if age < 7 {
-            let owner = (try? await rest.ownerID(guild)) ?? ""
-            if userID != owner {
-                do {
-                    try await rest.timeoutKimiMember(
-                        guild, userID, 10, "Kimi Lock raid protection: newly created account joined during a join burst"
-                    )
-                    action = "New account temporarily timed out for 10 minutes."
-                    quarantined = userID
-                } catch {
-                    await logger.log(
-                        "WARN", "Raid protection could not timeout new member: " + error.localizedDescription)
-                }
+        let owner = (try? await rest.ownerID(guild)) ?? ""
+        let recentNewAccounts = Set(recent.compactMap { join -> String? in
+            guard let createdAt = join.createdAt else { return nil }
+            return max(0, Int(now.timeIntervalSince(createdAt) / 86400)) < 7 ? join.user : nil
+        })
+        var quarantinedUsers: [String] = []
+        for candidate in recentNewAccounts where candidate != owner {
+            do {
+                try await rest.timeoutKimiMember(
+                    guild, candidate, 10,
+                    "Kimi Lock raid protection: newly created account joined during a coordinated join burst"
+                )
+                quarantinedUsers.append(candidate)
+            } catch {
+                await logger.log("WARN", "Raid protection could not timeout " + candidate + ": " + error.localizedDescription)
             }
+        }
+        if !quarantinedUsers.isEmpty {
+            action = String(quarantinedUsers.count) + " newly created accounts temporarily timed out for 10 minutes."
+            quarantined = quarantinedUsers.first
         }
         let incident = Incident(
             guildID: guild, joinedAt: now, joinCount: recent.count, quarantinedUserID: quarantined, accountAgeDays: age,
