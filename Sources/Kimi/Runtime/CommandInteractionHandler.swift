@@ -38,7 +38,7 @@ extension KimiRuntime {
             case "kimi":
                 let installed = await AppManager(store: store).installed(guildID: guild)
                 reply =
-                    "Kimi server control centre\nInstalled apps: "
+                    "Kimi server control centre\nInstalled plugins: "
                     + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
                 responseComponents = [
                     KimiUI.row([
@@ -73,7 +73,7 @@ extension KimiRuntime {
                 try await rest.registerGuildCommands(app, guildID: guild, installed: installed)
                 reply =
                     appName
-                    + (name == "install"
+                    + (name == "plugin-install"
                         ? " installed. Its commands are available in this server."
                         : " removed. Saved settings were preserved.")
             case "setup":
