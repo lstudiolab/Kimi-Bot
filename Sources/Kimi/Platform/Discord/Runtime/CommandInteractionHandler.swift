@@ -95,7 +95,7 @@ extension KimiRuntime {
                     ]),
                 ]
             case "kimi-lock-screen":
-                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                let policy = await moderation.policy(guildID: guild)
                 reply = "Kimi Lock\nStatus: " + (policy.enabled ? "Enabled" : "Disabled")
                     + "\nMessages per minute: " + String(policy.messagesPerMinute)
                     + "\nTimeout: " + String(policy.timeoutMinutes) + " minutes"
@@ -233,9 +233,9 @@ extension KimiRuntime {
                 }
                 try await store.set(logs, key: "foundation.logs." + guild)
                 try await store.set(confirmations, key: "foundation.confirmations." + guild)
-                var policy = await ModerationEngine(store: store).policy(guildID: guild)
+                var policy = await moderation.policy(guildID: guild)
                 policy.logChannelID = logs
-                try await ModerationEngine(store: store).configure(policy, guildID: guild)
+                try await moderation.configure(policy, guildID: guild)
                 reply =
                     "Foundation setup complete.\nPrivate logs: <#" + logs + ">\nPrivate confirmations: <#"
                     + confirmations + ">\nSupport category: <#" + ticket + ">"
@@ -261,7 +261,7 @@ extension KimiRuntime {
                 try await engine.configure(guildID: guild, settings)
                 reply = settings.autoRole == nil ? "Automatic role assignment disabled." : "Automatic role saved."
             case "moderation", "configure-kimi-lock":
-                let engine = ModerationEngine(store: store)
+                let engine = moderation
                 var policy = await engine.policy(guildID: guild)
                 if let enabled = options.first(where: { ($0["name"] as? String) == "enabled" })?["value"] as? Bool {
                     policy.enabled = enabled
@@ -299,7 +299,7 @@ extension KimiRuntime {
                     + "\nMass mention blocking: " + (policy.blockMassMentions ? "On" : "Off") + "\nExcessive caps: "
                     + (policy.blockExcessiveCaps ? "On" : "Off")
             case "filter":
-                let engine = ModerationEngine(store: store)
+                let engine = moderation
                 var policy = await engine.policy(guildID: guild)
                 let sub = options.first?["name"] as? String ?? "list"
                 let phrase = value("phrase") ?? ""
