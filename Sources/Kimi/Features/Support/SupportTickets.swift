@@ -20,7 +20,7 @@ actor SupportTickets {
         let ticket = Ticket(
             id: UUID().uuidString, guildID: guildID, userID: userID, channelID: channelID, openedAt: Date(),
             closedAt: nil, priority: "normal", staffThreadID: nil)
-        _ = try await store.update("support.tickets", as: [Ticket].self) { stored in
+        _ = try await store.updateGuild("support.tickets", guildID: guildID, as: [Ticket].self) { stored in
             var tickets = stored ?? []
             guard !tickets.contains(where: { $0.guildID == guildID && $0.userID == userID && $0.isOpen }) else {
                 throw TicketError.alreadyOpen
@@ -32,7 +32,7 @@ actor SupportTickets {
     }
 
     func setStaffThread(id: String, guildID: String, threadID: String) async throws -> Ticket {
-        let tickets = try await store.update("support.tickets", as: [Ticket].self) { stored in
+        let tickets = try await store.updateGuild("support.tickets", guildID: guildID, as: [Ticket].self) { stored in
             var values = stored ?? []
             guard let index = values.firstIndex(where: { $0.id == id && $0.guildID == guildID }) else {
                 throw TicketError.notFound
@@ -50,7 +50,7 @@ actor SupportTickets {
         guard ["low", "normal", "high", "urgent"].contains(priority) else {
             throw KimiError.configuration("Choose low, normal, high or urgent priority.")
         }
-        let tickets = try await store.update("support.tickets", as: [Ticket].self) { stored in
+        let tickets = try await store.updateGuild("support.tickets", guildID: guildID, as: [Ticket].self) { stored in
             var values = stored ?? []
             guard let index = values.firstIndex(where: { $0.id == id && $0.guildID == guildID }) else {
                 throw TicketError.notFound
@@ -66,7 +66,7 @@ actor SupportTickets {
     }
 
     func close(id: String, guildID: String) async throws -> Ticket {
-        let tickets = try await store.update("support.tickets", as: [Ticket].self) { stored in
+        let tickets = try await store.updateGuild("support.tickets", guildID: guildID, as: [Ticket].self) { stored in
             var values = stored ?? []
             guard let index = values.firstIndex(where: { $0.id == id && $0.guildID == guildID }) else {
                 throw TicketError.notFound
