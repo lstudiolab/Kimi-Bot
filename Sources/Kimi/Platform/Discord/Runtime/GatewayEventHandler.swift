@@ -341,8 +341,9 @@ extension KimiRuntime {
                 let policy = await moderation.policy(guildID: guild)
                 try? await store.set(true, key: "moderation.deleted." + message)
                 try? await rest.deleteKimiMessage(channel, message)
+                let effectiveSanction = finding.score >= 80 ? policy.sanction : "delete"
                 do {
-                    switch policy.sanction {
+                    switch effectiveSanction {
                     case "timeout": try await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
                     case "kick": _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + user, body: nil)
                     case "ban":
@@ -367,7 +368,7 @@ extension KimiRuntime {
                         ])
                 }
                 await AnalyticsService(store: store).record(guild: guild, event: "moderation")
-                await logger.log("WARN", "Kimi Lock moderation: " + finding.reason + "; sanction: " + policy.sanction)
+                await logger.log("WARN", "Kimi Lock moderation: " + finding.reason + "; sanction: " + effectiveSanction)
             }
         case "MESSAGE_UPDATE":
             guard let guild = data["guild_id"] as? String, let channel = data["channel_id"] as? String,
