@@ -226,10 +226,11 @@ actor ModerationEngine {
         if attachmentsBlocked { add("Executable or script attachment", 95) }
         if duplicate { add("Repeated message burst", 55) }
 
-        let infractionKey = "moderation.infractions." + guildID + "." + userID
-        let previous = await store.get(infractionKey, as: Int.self) ?? 0
-        let total = min(10000, previous + 1)
-        try? await store.setGuild(total, key: infractionKey, guildID: guildID)
+        let infractionKey = "moderation.infractions." + guildID
+        var infractions = await store.get(infractionKey, as: [String: Int].self) ?? [:]
+        let total = min(10000, (infractions[userID] ?? 0) + 1)
+        infractions[userID] = total
+        try? await store.setGuild(infractions, key: infractionKey, guildID: guildID)
         if total >= 3 {
             score += min(30, (total - 2) * 5)
             reasons.append("Cumulative infractions: " + String(total))
