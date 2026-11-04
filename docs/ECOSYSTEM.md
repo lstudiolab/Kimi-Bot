@@ -1,6 +1,6 @@
-# Kimi apps
+# Kimi plugins
 
-Kimi is organized around six first-party apps. The **App Store** is the owner-facing place to add or remove them. Older plugin names and saved installation records remain supported for compatibility.
+Kimi is organized around six first-party plugins. The **Plugin Store** is the owner-facing place to add or remove them. Existing installation records remain compatible.
 
 - **Welcome** — welcome and departure messages.
 - **Auto Role** — automatic assignment of one configured role to new members.
@@ -9,9 +9,9 @@ Kimi is organized around six first-party apps. The **App Store** is the owner-fa
 - **Kimi Lock** — anti-spam, AutoMod, raid and join protection, anti-nuke containment, verification, sanctions, security review, and recovery.
 - **Support** — private tickets, staff handoff, priority, transcripts, and support activity.
 
-Apps are installed per server. Each app owns one focused system, except Kimi Lock which groups security and moderation controls. Shared private-channel setup is a core Kimi service, not an installable app. Systems can be enabled or disabled independently, and removing an app preserves its saved configuration. The shared runtime uses a bounded background queue for non-critical work, in-flight task deduplication, backpressure, and a short-lived LRU cache for permission diagnostics. Enforcement remains synchronous where delay could increase harm.
+Plugins are installed per server. Each plugin owns one focused system, except Kimi Lock which groups security and moderation controls. Shared private-channel setup is a core Kimi service, not an installable plugin. Systems can be enabled or disabled independently, and removing a plugin preserves its saved configuration. The shared runtime uses a bounded background queue for non-critical work, in-flight task deduplication, backpressure, and a short-lived LRU cache for permission diagnostics. Enforcement remains synchronous where delay could increase harm.
 
-The App Store currently presents Kimi's built-in apps. Downloaded third-party package code is not activated by the runtime; package validation and installation remain separate from app activation.
+The Plugin Store currently presents Kimi's built-in plugins. Downloaded third-party package code is not activated by the runtime; package validation and installation remain separate from plugin activation.
 
 ## Kimi Guard activity control
 
