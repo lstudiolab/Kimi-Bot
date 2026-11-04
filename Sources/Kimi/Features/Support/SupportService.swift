@@ -77,8 +77,8 @@ actor SupportService {
                 _ = try await rest.call(
                     "PATCH", "channels/\(channel)/messages/\(message)", body: panelBody(value))
                 return
-            } catch {
-                await logger.log("WARN", "Existing ticket panel could not be edited; publishing a replacement: " + error.localizedDescription)
+            } catch KimiError.http(404, _) {
+                await logger.log("WARN", "Existing ticket panel no longer exists; publishing a replacement.")
                 value.panelMessageID = nil
             }
         }
