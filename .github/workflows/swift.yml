@@ -35,3 +35,6 @@ jobs:
 
       - name: Run tests
         run: swift test
+
+      - name: Run tests
+        run: swift test
