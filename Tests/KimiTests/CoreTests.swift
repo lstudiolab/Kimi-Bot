@@ -697,4 +697,16 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(record.failures, 1)
     }
 
+    func testDiscordTextLimitsCountUTF16CodeUnits() {
+        let value = "A😀B"
+        XCTAssertEqual(DiscordText.prefixUTF16(value, limit: 2), "A")
+        XCTAssertEqual(DiscordText.prefixUTF16(value, limit: 3), "A😀")
+
+        let longID = String(repeating: "😀", count: 60)
+        let channelMenu = KimiUI.channelSelect(id: longID, placeholder: "Channel")
+        let roleMenu = KimiUI.roleSelect(id: longID, placeholder: "Role")
+        XCTAssertLessThanOrEqual((channelMenu["custom_id"] as? String ?? "").utf16.count, 100)
+        XCTAssertLessThanOrEqual((roleMenu["custom_id"] as? String ?? "").utf16.count, 100)
+    }
+
 }
