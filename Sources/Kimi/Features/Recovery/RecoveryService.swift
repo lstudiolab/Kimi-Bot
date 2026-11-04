@@ -43,6 +43,72 @@ actor RecoveryService {
             await logger.log("ERROR", "Recovery channel snapshot was not persisted: " + error.localizedDescription)
         }
     }
+    func captureRole(_ guild: String, _ role: [String: Any]) async {
+        guard let id = role["id"] as? String, id != guild,
+            let data = try? JSONSerialization.data(withJSONObject: role, options: [.fragmentsAllowed])
+        else { return }
+        var all = await store.get("recovery.roles", as: [String: [String: Data]].self) ?? [:]
+        all[guild, default: [:]][id] = data
+        if all[guild, default: [:]].count > 500 {
+            all[guild] = Dictionary(
+                uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(500))
+        }
+        do {
+            try await store.setGuild(all, key: "recovery.roles", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Recovery role snapshot was not persisted: " + error.localizedDescription)
+        }
+    }
+    func queueDeletedRole(_ guild: String, _ role: String) async {
+        guard role != guild else { return }
+        var all = await store.get("recovery.pending-roles", as: [String: [String]].self) ?? [:]
+        var pending = all[guild] ?? []
+        if !pending.contains(role) { pending.append(role) }
+        all[guild] = Array(pending.suffix(100))
+        do {
+            try await store.setGuild(all, key: "recovery.pending-roles", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Deleted-role recovery queue was not persisted: " + error.localizedDescription)
+        }
+    }
+    func restorePendingRoles(_ guild: String) async {
+        let pending = await store.get("recovery.pending-roles", as: [String: [String]].self) ?? [:]
+        let snapshots = await store.get("recovery.roles", as: [String: [String: Data]].self) ?? [:]
+        var remaining: [String] = []
+        for roleID in pending[guild] ?? [] {
+            guard let data = snapshots[guild]?[roleID],
+                let source = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { continue }
+            let original = UInt64(source["permissions"] as? String ?? "") ?? 0
+            var safePermissions = original
+            for bit in SecurityPolicy.privilegedPermissionBits { safePermissions &= ~bit }
+            var body: [String: Any] = [
+                "name": String((source["name"] as? String ?? "restored-role").prefix(100)),
+                "permissions": String(safePermissions),
+                "color": source["color"] as? Int ?? 0,
+                "hoist": source["hoist"] as? Bool ?? false,
+                "mentionable": source["mentionable"] as? Bool ?? false,
+            ]
+            if let unicode = source["unicode_emoji"] as? String { body["unicode_emoji"] = unicode }
+            do {
+                let created = try await rest.call("POST", "guilds/" + guild + "/roles", body: body)
+                let restored = (created as? [String: Any])?["id"] as? String ?? "unknown"
+                await logger.log(
+                    "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
+                        + " with elevated permissions stripped.")
+            } catch {
+                remaining.append(roleID)
+                await logger.log("ERROR", "Role recovery failed for " + roleID + ": " + error.localizedDescription)
+            }
+        }
+        var updated = pending
+        updated[guild] = remaining
+        do {
+            try await store.setGuild(updated, key: "recovery.pending-roles", guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Role recovery queue update failed: " + error.localizedDescription)
+        }
+    }
     func captureMessage(
         _ guild: String, _ channel: String, _ message: String, _ author: String, _ content: String,
         attachments: [Attachment] = [], authorName: String? = nil
