@@ -22,13 +22,13 @@ extension KimiRuntime {
         }
         do {
             if let appName = ComponentRouter.app(for: custom) {
-                let installed = await AppManager(store: store).installed(guildID: guild)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
                 guard installed.contains(appName.rawValue) else {
                     throw KimiError.configuration(appName.rawValue + " is not installed in this server.")
                 }
             }
             if custom == "settings:plugins" || custom == "settings:apps" {
-                let installed = await AppManager(store: store).installed(guildID: guild)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
                 let buttons = CommandCatalog.pluginNames().map { appName in
                     KimiUI.button(
                         id: "settings:plugin:" + appName,
@@ -44,7 +44,7 @@ extension KimiRuntime {
                 guard owner == actorID else {
                     throw KimiError.configuration("Only the server owner can install or remove plugins.")
                 }
-                let manager = AppManager(store: store)
+                let manager = PluginManager(store: store)
                 let installed = await manager.installed(guildID: guild)
                 let result =
                     installed.contains(appName)
@@ -62,7 +62,7 @@ extension KimiRuntime {
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, appName + " updated.", rows)
             } else if custom == "settings:status" {
-                let installed = await AppManager(store: store).installed(guildID: guild)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
                 let open = await SupportTickets(store: store).all().filter { $0.guildID == guild && $0.isOpen }.count
                 let report = await AnalyticsService(store: store).report(guild: guild)
