@@ -110,7 +110,7 @@ actor ModerationEngine {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
-            guard let r = Range(match.range, in: content) else { return nil }
+            return String(content[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,!?)]}>"))
             return String(content[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,!?)]}>'\\""))
         }
         let loggerDomains: Set<String> = ["grabify.link", "iplogger.org", "iplogger.com", "2no.co", "yip.su", "ps3cfw.com", "blasze.com", "leancoding.co", "stopify.co"]
