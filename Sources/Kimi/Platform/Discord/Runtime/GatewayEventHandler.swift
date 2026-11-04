@@ -334,7 +334,7 @@ extension KimiRuntime {
                 memberRoles.contains(role["id"] as? String ?? "")
                     && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & (1 << 17)) != 0
             }
-            if user != owner,
+            if let owner, user != owner,
                 let finding = await moderation.evaluate(
                     guildID: guild,
                     userID: user,
@@ -402,7 +402,7 @@ extension KimiRuntime {
                     roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
                     userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
                 )
-                if let finding, (try? await rest.ownerID(guild)) != user {
+                if let owner = try? await rest.ownerID(guild), owner != user, let finding {
                     let policy = await moderation.policy(guildID: guild)
                     try? await store.set(true, key: "moderation.deleted." + message)
                     try? await rest.deleteKimiMessage(channel, message)
