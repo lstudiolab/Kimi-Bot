@@ -16,12 +16,14 @@ actor AuditProtection {
         -> Incident?
     {
         let key = "\(guildID):\(actorID):\(action)"
-        var events = (await store.get("security.activity." + key, as: [Date].self) ?? []).filter {
-            now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 20
+        let activityKey = "security.activity." + key
+        let events = try await store.updateGuild(activityKey, guildID: guildID, as: [Date].self) { stored in
+            var recent = (stored ?? []).filter {
+                now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 20
+            }
+            recent.append(now)
+            return Array(recent.suffix(30))
         }
-        events.append(now)
-        if events.count > 30 { events = Array(events.suffix(30)) }
-        try await store.setGuild(events, key: "security.activity." + key, guildID: guildID)
         let sensitiveThreshold: Int
         switch action {
         case "12", "13", "14", "15", "32", "50", "51", "52": sensitiveThreshold = 2
@@ -33,11 +35,10 @@ actor AuditProtection {
         let item = Incident(
             id: UUID().uuidString, guildID: guildID, actorID: actorID, action: action, count: events.count,
             reason: "Repeated privileged audit action exceeded the rolling threshold.", createdAt: now)
-        var all = await store.get("security.incidents", as: [Incident].self) ?? []
-        all.append(item)
-        all = Array(all.suffix(1000))
-        try await store.set(all, key: "security.incidents")
-        try await store.setGuild([Date](), key: "security.activity." + key, guildID: guildID)
+        _ = try await store.update("security.incidents", as: [Incident].self) { stored in
+            Array(((stored ?? []) + [item]).suffix(1000))
+        }
+        try await store.setGuild([], key: activityKey, guildID: guildID)
         return item
     }
 }
