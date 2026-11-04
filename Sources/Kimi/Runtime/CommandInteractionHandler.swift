@@ -36,7 +36,7 @@ extension KimiRuntime {
         do {
             switch name {
             case "kimi":
-                let installed = await AppManager(store: store).installed(guildID: guild)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
                 reply =
                     "Kimi server control centre\nInstalled plugins: "
                     + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
@@ -51,7 +51,7 @@ extension KimiRuntime {
                     ]),
                 ]
             case "plugins", "plugin-store":
-                let installed = await AppManager(store: store).installed(guildID: guild)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
                 reply =
                     "Kimi Plugins\n"
                     + CommandCatalog.pluginNames().map {
@@ -63,7 +63,7 @@ extension KimiRuntime {
                     throw KimiError.configuration("Only the server owner can install or remove plugins.")
                 }
                 guard let appName = value("plugin") else { throw KimiError.configuration("Choose a plugin.") }
-                let manager = AppManager(store: store)
+                let manager = PluginManager(store: store)
                 let result =
                     name == "plugin-install"
                     ? try await manager.install(appName, guildID: guild)
@@ -130,10 +130,10 @@ extension KimiRuntime {
                     "Foundation setup complete.\nPrivate logs: <#" + logs + ">\nPrivate confirmations: <#"
                     + confirmations + ">\nSupport category: <#" + ticket + ">"
             case "plan":
-                let stored = await store.get("apps.installed", as: [String: [String]].self) ?? [:]
+                let stored = await PluginManager(store: store).installed(guildID: guild)
                 let bytes = (try? JSONEncoder().encode(stored).count) ?? 0
                 reply =
-                    "Kimi Free\nAll built-in apps are free.\nConfiguration footprint: " + StorageQuota.format(bytes)
+                    "Kimi Free\nAll built-in plugins are free.\nConfiguration footprint: " + StorageQuota.format(bytes)
                     + "\nStorage allowance: " + StorageQuota.format(StorageQuota.freeLimit)
             case "welcome", "configure-welcome", "configure-foundation":
                 let engine = FoundationEngine(store: store, rest: rest, logger: logger)
