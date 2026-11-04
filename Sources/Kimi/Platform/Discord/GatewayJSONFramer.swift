@@ -21,8 +21,12 @@ enum GatewayJSONFramer {
                     continue
                 }
                 guard byte == 0x7B else {
-                    // Discard leading noise until the next possible JSON object.
-                    buffer.removeFirst(index + 1)
+                    // Skip a corrupt prefix and continue immediately if another frame is already buffered.
+                    if let nextObject = bytes[(index + 1)...].firstIndex(of: 0x7B) {
+                        buffer.removeFirst(nextObject)
+                        return takeFrame(from: &buffer)
+                    }
+                    buffer.removeAll(keepingCapacity: true)
                     return nil
                 }
                 start = index
