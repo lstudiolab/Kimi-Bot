@@ -52,11 +52,11 @@ struct EmbedValidator {
         }
         let total = embed.title.utf16.count + embed.description.utf16.count
             + embed.fields.reduce(0) { $0 + $1.name.utf16.count + $1.value.utf16.count }
-            + (embed.author?.count ?? 0) + (embed.footer?.count ?? 0)
+            + (embed.author?.utf16.count ?? 0) + (embed.footer?.utf16.count ?? 0)
         if total > 6000 { errors.append("Combined embed content exceeds Discord's 6000 character limit.") }
 
         for candidate in [embed.url, embed.imageURL].compactMap({ $0 }) {
-            guard let url = URLComponents(string: candidate), url.scheme == "https", url.host != nil else {
+            guard let url = URLComponents(string: candidate), url.scheme == "https", url.host != nil, url.user == nil, url.password == nil else {
                 errors.append("Embed URLs must be valid HTTPS URLs.")
                 continue
             }
