@@ -103,6 +103,12 @@ final class CoreTests: XCTestCase {
         let secondObject = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(second)) as? [String: Any])
         XCTAssertEqual(secondObject["op"] as? Int, 11)
         XCTAssertTrue(buffer.isEmpty)
+
+        var prefixed = Data("corrupt-prefix{\\"op\\":12}".utf8)
+        let recovered = try XCTUnwrap(GatewayJSONFramer.takeFrame(from: &prefixed))
+        let recoveredObject = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: recovered) as? [String: Any])
+        XCTAssertEqual(recoveredObject["op"] as? Int, 12)
     }
 
     func testGatewayJSONFramerWaitsForIncompleteObject() {
