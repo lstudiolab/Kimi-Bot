@@ -1,6 +1,33 @@
 import Foundation
 
 extension KimiRuntime {
+    private func markModerationDeleted(_ messageID: String) async {
+        do {
+            _ = try await store.update("moderation.deleted", as: [String: Date].self) { stored in
+                let now = Date()
+                var entries = (stored ?? [:]).filter {
+                    now.timeIntervalSince($0.value) >= 0 && now.timeIntervalSince($0.value) < 7 * 86400
+                }
+                entries[messageID] = now
+                if entries.count > 5000 {
+                    let oldest = entries.sorted { $0.value < $1.value }.prefix(entries.count - 5000)
+                    for entry in oldest { entries.removeValue(forKey: entry.key) }
+                }
+                return entries
+            }
+        } catch {
+            await logger.log("WARN", "Moderation deletion marker could not be saved: " + error.localizedDescription)
+        }
+    }
+
+    private func wasModerationDeleted(_ messageID: String) async -> Bool {
+        let entries = await store.get("moderation.deleted", as: [String: Date].self) ?? [:]
+        if let date = entries[messageID] {
+            return Date().timeIntervalSince(date) >= 0 && Date().timeIntervalSince(date) < 7 * 86400
+        }
+        return await store.get("moderation.deleted." + messageID, as: Bool.self) == true
+    }
+
     func migratedModuleEnabled(_ module: String, guild: String) async -> Bool {
         let current = await store.get("plugins.modules." + guild, as: [String: Bool].self) ?? [:]
         if let enabled = current[module] { return enabled }
@@ -412,7 +439,7 @@ extension KimiRuntime {
                 )
             {
                 let policy = await moderation.policy(guildID: guild)
-                try? await store.set(true, key: "moderation.deleted." + message)
+                await markModerationDeleted(message)
                 try? await rest.deleteKimiMessage(channel, message)
                 let effectiveSanction = finding.score >= 80 ? policy.sanction : "delete"
                 do {
@@ -475,7 +502,7 @@ extension KimiRuntime {
                 )
                 if let owner = await cachedGuildOwnerID(guild), owner != user, let finding {
                     let policy = await moderation.policy(guildID: guild)
-                    try? await store.set(true, key: "moderation.deleted." + message)
+                    await markModerationDeleted(message)
                     try? await rest.deleteKimiMessage(channel, message)
                     let sanction = finding.score >= 80 ? policy.sanction : "delete"
                     do {
@@ -520,7 +547,7 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String, let channel = data["channel_id"] as? String,
                 let message = data["id"] as? String
             else { return }
-            if await store.get("moderation.deleted." + message, as: Bool.self) == true { return }
+            if await wasModerationDeleted(message) { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 await RecoveryService(store: store, logger: logger, rest: rest).restoreMessage(guild, channel, message)
