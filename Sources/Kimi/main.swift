@@ -85,11 +85,11 @@ actor PersistentStore {
             {
                 values = decoded
             }
-            if values["plugins.installed"] == nil, values["apps.installed"] == nil,
+            if values["apps.installed"] == nil,
                 let installed = legacy["installed_plugins"],
                 let bytes = try? JSONSerialization.data(withJSONObject: installed)
             {
-                values["plugins.installed"] = bytes
+                values["apps.installed"] = bytes
             }
         }
     }
