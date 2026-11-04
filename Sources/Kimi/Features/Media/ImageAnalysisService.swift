@@ -352,7 +352,7 @@ actor ImageAnalysisService {
             {
                 return String(first)
             }
-            return "unavailable"
+            return UUID().uuidString
         #endif
     }
     private func ocrText(_ file: String) -> String {
