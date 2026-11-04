@@ -606,6 +606,7 @@ actor KimiRuntime {
     let clientID: String
     let performance: PerformanceMonitor
     let moderation: ModerationEngine
+    let imageAnalysis: ImageAnalysisService
     init(
         rest: DiscordREST, store: PersistentStore, logger: Logger, clientID: String,
         performance: PerformanceMonitor = PerformanceMonitor()
@@ -616,6 +617,7 @@ actor KimiRuntime {
         self.clientID = clientID
         self.performance = performance
         self.moderation = ModerationEngine(store: store)
+        self.imageAnalysis = ImageAnalysisService(store: store, rest: rest, logger: logger)
     }
     func handle(_ event: [String: Any]) async { _ = await handleMigratedCommand(event) }
 
