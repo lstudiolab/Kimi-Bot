@@ -396,6 +396,59 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(afterCooldown)
     }
 
+    func testModerationDetectsHiddenAndSingleCharacterKeywordObfuscation() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-obfuscation-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        var policy = await engine.policy(guildID: "123456789012345678")
+        policy.blockedPhrases = ["badword"]
+        try await engine.configure(policy, guildID: "123456789012345678")
+
+        let hidden = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345678", content: "b\\u{200B}a\\u{200D}dword")
+        XCTAssertTrue(hidden?.reason.contains("Custom blocked keyword") == true)
+
+        let spaced = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345679", content: "b a d w o r d")
+        XCTAssertTrue(spaced?.reason.contains("Custom blocked keyword") == true)
+    }
+
+    func testModerationDetectsTrackingAndRawIPAddressLinks() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-url-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        let tracking = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345678", content: "Open https://grabify.link/example")
+        XCTAssertTrue(tracking?.reason.contains("Suspicious or tracking URL") == true)
+        let rawIP = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345679", content: "Visit 192.168.1.20:8080/path")
+        XCTAssertTrue(rawIP?.reason.contains("Suspicious or tracking URL") == true)
+    }
+
+    func testModerationDetectsUnsolicitedSelfAdvertising() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-advertising-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        let finding = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345678",
+            content: "Join my server at https://example.com")
+        XCTAssertTrue(finding?.reason.contains("Unsolicited self-advertising") == true)
+    }
+
     func testModerationDetectsDiscordInviteLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "kimi-moderation-test-" + UUID().uuidString, isDirectory: true)
