@@ -168,8 +168,6 @@ actor ModerationEngine {
         }
         events.append(now)
         if events.count > 120 { events = Array(events.suffix(120)) }
-        try? await store.setGuild(events, key: rateKey, guildID: guildID)
-
         let normalizedContent = normalized(content)
         let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard"]
         let wordTokens = content.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
@@ -250,8 +248,13 @@ actor ModerationEngine {
         }
         repeated.append(DuplicateEvent(content: normalizedContent, timestamp: now))
         if repeated.count > 30 { repeated = Array(repeated.suffix(30)) }
-        try? await store.setGuild(repeated, key: duplicateKey, guildID: guildID)
         let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
+        if let rateData = try? JSONEncoder().encode(events),
+            let duplicateData = try? JSONEncoder().encode(repeated)
+        {
+            try? await store.setGuildBatch(
+                [rateKey: rateData, duplicateKey: duplicateData], guildID: guildID)
+        }
         let triggered = customTerm != nil || profanity || spam || excessive || caps || formattingWall
             || emojiSpam || massMention || invite || suspiciousLink || selfAdvertising || attachmentsBlocked || duplicate
         guard triggered else { return nil }
