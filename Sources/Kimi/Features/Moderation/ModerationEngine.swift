@@ -131,23 +131,4 @@ actor ModerationEngine {
         policies[guildID] = value
     }
 
-
-
-        let loggerDomains: Set<String> = ["grabify.link", "iplogger.org", "iplogger.com", "2no.co", "yip.su", "ps3cfw.com", "blasze.com", "leancoding.co", "stopify.co"]
-        let shorteners: Set<String> = ["bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "rb.gy"]
-        return urls.contains { raw in
-            let candidate = raw.hasPrefix("http://") || raw.hasPrefix("https://") ? raw : "https://" + raw
-            guard let parts = URLComponents(string: candidate), let host = parts.host?.lowercased() else { return true }
-            if parts.user != nil || parts.password != nil || host.hasPrefix("xn--") || host.contains(".xn--") { return true }
-            let matchesKnownDomain = { (domains: Set<String>) in
-                domains.contains { host == $0 || host.hasSuffix("." + $0) }
-            }
-            if matchesKnownDomain(loggerDomains) || matchesKnownDomain(shorteners) { return true }
-            return host.range(of: #"^\d{1,3}(?:\.\d{1,3}){3}$"#, options: .regularExpression) != nil
-        }
-    }
-
-
-
-
 }
