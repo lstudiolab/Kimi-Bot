@@ -6,15 +6,16 @@ enum KimiUI {
         ["color": grey, "title": String(title.prefix(256)), "description": String(description.prefix(4096))]
     }
     static func button(id: String, label: String, style: Int = 2, disabled: Bool = false) -> [String: Any] {
-        ["type": 2, "style": style, "custom_id": id, "label": String(label.prefix(80)), "disabled": disabled]
+        ["type": 2, "style": max(1, min(5, style)), "custom_id": String(id.prefix(100)), "label": String(label.prefix(80)), "disabled": disabled]
     }
     static func row(_ components: [[String: Any]]) -> [String: Any] {
         ["type": 1, "components": Array(components.prefix(5))]
     }
     static func buttonRows(_ buttons: [[String: Any]], perRow: Int = 5) -> [[String: Any]] {
         let width = max(1, min(5, perRow))
-        return stride(from: 0, to: buttons.count, by: width).map { start in
-            row(Array(buttons[start..<min(start + width, buttons.count)]))
+        let safeButtons = Array(buttons.prefix(25))
+        return stride(from: 0, to: safeButtons.count, by: width).map { start in
+            row(Array(safeButtons[start..<min(start + width, safeButtons.count)]))
         }
     }
     static func validateMessageComponents(_ rows: [[String: Any]]) throws {
@@ -81,10 +82,11 @@ enum KimiUI {
         id: String, label: String, value: String = "", style: Int = 1, required: Bool = true, maximum: Int = 1000
     ) -> [String: Any] {
         var item: [String: Any] = [
-            "type": 4, "custom_id": id, "label": String(label.prefix(45)), "style": style, "required": required,
+            "type": 4, "custom_id": String(id.prefix(100)), "label": String(label.prefix(45)),
+            "style": max(1, min(2, style)), "required": required,
             "max_length": max(1, min(4000, maximum)),
         ]
-        if !value.isEmpty { item["value"] = String(value.prefix(maximum)) }
+        if !value.isEmpty { item["value"] = String(value.prefix(max(1, min(4000, maximum)))) }
         return item
     }
     static func modal(id: String, title: String, inputs: [[String: Any]]) -> [String: Any] {
