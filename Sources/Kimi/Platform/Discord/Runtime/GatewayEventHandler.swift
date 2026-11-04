@@ -465,6 +465,14 @@ extension KimiRuntime {
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("protection", guild: guild) else {
                 return
             }
+            let recovery = RecoveryService(store: store, logger: logger, rest: rest)
+            if action == 32, let target = data["target_id"] as? String {
+                await recovery.queueDeletedRole(guild, target)
+            }
+            if action == 30 || action == 31 {
+                let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+                for role in roles { await recovery.captureRole(guild, role) }
+            }
             do {
                 if let incident = try await AuditProtection(store: store).record(
                     guildID: guild, actorID: actor, action: String(action))
@@ -476,6 +484,9 @@ extension KimiRuntime {
                     }
                     if incident.action == "12" {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingChannels(guild)
+                    }
+                    if incident.action == "32" {
+                        await RecoveryService(store: store, logger: logger, rest: rest).restorePendingRoles(guild)
                     }
                 }
             } catch { await logger.log("ERROR", "Audit incident containment failed: " + error.localizedDescription) }
