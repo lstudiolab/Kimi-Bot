@@ -613,7 +613,7 @@ final class CoreTests: XCTestCase {
                         messageID: "3234567890123456" + String(format: "%02d", index),
                         content: "unique message " + String(index),
                         channelID: "423456789012345678",
-                        now: now.addingTimeInterval(Double(index)))
+                        now: now)
                 }
             }
             var values: [ModerationEngine.Finding?] = []
