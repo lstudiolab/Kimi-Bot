@@ -38,7 +38,7 @@ actor AuditProtection {
         _ = try await store.update("security.incidents", as: [Incident].self) { stored in
             Array(((stored ?? []) + [item]).suffix(1000))
         }
-        try await store.setGuild([], key: activityKey, guildID: guildID)
+        try await store.setGuild([Date](), key: activityKey, guildID: guildID)
         return item
     }
 }
