@@ -60,8 +60,6 @@ actor VerificationService {
             try? await rest.editKimiInteraction(applicationID, interactionToken, "You have already been verified.")
             return
         }
-        _ = try? await records.attempt(guildID: guild, userID: userID)
-        let record = await records.record(guildID: guild, userID: userID)
         let value = await settings(guild)
         if let required = value.requiredRoleID {
             let member =
@@ -73,6 +71,15 @@ actor VerificationService {
                 return
             }
         }
+        do {
+            _ = try await records.attempt(guildID: guild, userID: userID)
+        } catch {
+            await logger.log("ERROR", "Verification attempt could not be persisted: " + error.localizedDescription)
+            try? await rest.editKimiInteraction(
+                applicationID, interactionToken, "Verification is temporarily unavailable. Please try again later.")
+            return
+        }
+        let record = await records.record(guildID: guild, userID: userID)
         let snowflake = Int64(userID) ?? 0
         let created = Date(timeIntervalSince1970: Double((snowflake >> 22) + 1_420_070_400_000) / 1000)
         let profile = (try? await rest.call("GET", "users/" + userID)) as? [String: Any] ?? [:]
