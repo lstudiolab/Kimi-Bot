@@ -83,7 +83,7 @@ actor FoundationEngine {
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(channel)/messages",
-                    body: ["content": String(body.prefix(1900)), "allowed_mentions": ["users": [userID], "parse": []]])
+                    body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["users": [userID], "parse": []]])
             } catch { await logger.log("WARN", "Welcome message failed: \(error.localizedDescription)") }
         }
     }
@@ -96,7 +96,7 @@ actor FoundationEngine {
         do {
             _ = try await rest.call(
                 "POST", "channels/\(channel)/messages",
-                body: ["content": String(body.prefix(1900)), "allowed_mentions": ["parse": []]])
+                body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["parse": []]])
         } catch { await logger.log("WARN", "Goodbye message failed: \(error.localizedDescription)") }
     }
 }
