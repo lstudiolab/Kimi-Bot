@@ -145,7 +145,11 @@ extension KimiRuntime {
                     if let description = modalValue("panel-description") {
                         settings.panelDescription = String(description.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
                     }
-                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                    let service = SupportService(store: store, rest: rest, logger: logger)
+                    try await service.configure(settings, guild: guild)
+                    if let panelChannel = settings.panelChannelID {
+                        try await service.publishPanel(guild: guild, channel: panelChannel)
+                    }
                 } else if custom == "screen:welcome:save-messages" {
                     let engine = FoundationEngine(store: store, rest: rest, logger: logger)
                     var settings = await engine.settings(guildID: guild)
