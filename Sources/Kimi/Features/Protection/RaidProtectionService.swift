@@ -25,24 +25,31 @@ actor RaidProtectionService {
     func memberJoined(guild: String, userID: String, createdAt: Date, isBot: Bool, now: Date = Date()) async {
         guard !isBot else { return }
         let key = "security.raid-joins." + guild
-        var recent = (await store.get(key, as: [Join].self) ?? []).filter {
-            now.timeIntervalSince($0.date) <= 10 && now >= $0.date
+        let recent: [Join]
+        do {
+            recent = try await store.updateGuild(key, guildID: guild, as: [Join].self) { stored in
+                var events = (stored ?? []).filter {
+                    now.timeIntervalSince($0.date) <= 10 && now >= $0.date
+                }
+                events.append(Join(user: userID, date: now, createdAt: createdAt))
+                return Array(events.suffix(1000))
+            }
+        } catch {
+            await logger.log("ERROR", "Raid join history could not be persisted: " + error.localizedDescription)
+            return
         }
-        recent.append(Join(user: userID, date: now, createdAt: createdAt))
-        if recent.count > 1000 { recent = Array(recent.suffix(1000)) }
-        try? await store.setGuild(recent, key: key, guildID: guild)
         guard recent.count >= 8 else { return }
         let cooldownKey = "security.raid-cooldown." + guild
-        let last = await store.get(cooldownKey, as: Date.self)
-        guard last.map({ now.timeIntervalSince($0) > 300 }) ?? true else { return }
         guard let owner = try? await rest.ownerID(guild) else {
             await logger.log("WARN", "Raid protection could not resolve the guild owner; retrying on the next join.")
             return
         }
         do {
-            try await store.setGuild(now, key: cooldownKey, guildID: guild)
+            guard try await store.claimGuildCooldown(
+                cooldownKey, subject: "raid", guildID: guild, interval: 300, now: now)
+            else { return }
         } catch {
-            await logger.log("ERROR", "Raid protection could not persist its cooldown: " + error.localizedDescription)
+            await logger.log("ERROR", "Raid protection could not reserve its cooldown: " + error.localizedDescription)
             return
         }
         let age = max(0, Int(now.timeIntervalSince(createdAt) / 86400))
