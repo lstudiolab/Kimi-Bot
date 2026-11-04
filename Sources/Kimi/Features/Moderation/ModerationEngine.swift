@@ -63,6 +63,8 @@ actor ModerationEngine {
     }
     private let store: PersistentStore
     private var policies: [String: Policy] = [:]
+    private var rateHistory: [String: [Date]] = [:]
+    private var duplicateHistory: [String: [DuplicateEvent]] = [:]
     private var evaluationInProgress = false
     private var evaluationWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -191,6 +193,7 @@ actor ModerationEngine {
         }
         events.append(now)
         if events.count > 120 { events = Array(events.suffix(120)) }
+        rateHistory[rateKey] = events
         let normalizedContent = normalized(content)
         let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard"]
         let wordTokens = content.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
@@ -266,11 +269,21 @@ actor ModerationEngine {
                 || dangerousTypes.contains(contentType)
         }
         let duplicateKey = "moderation.duplicates." + guildID + "." + channelID + "." + userID
-        var repeated = (await store.get(duplicateKey, as: [DuplicateEvent].self) ?? []).filter {
+        let storedDuplicates: [DuplicateEvent]
+        if let cached = duplicateHistory[duplicateKey] { storedDuplicates = cached }
+        else { storedDuplicates = await store.get(duplicateKey, as: [DuplicateEvent].self) ?? [] }
+        var repeated = storedDuplicates.filter {
             now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) <= 10
         }
         repeated.append(DuplicateEvent(content: normalizedContent, timestamp: now))
         if repeated.count > 30 { repeated = Array(repeated.suffix(30)) }
+        duplicateHistory[duplicateKey] = repeated
+        if rateHistory.count > 5000 {
+            rateHistory = rateHistory.filter { $0.value.last.map { now.timeIntervalSince($0) < 60 } ?? false }
+        }
+        if duplicateHistory.count > 5000 {
+            duplicateHistory = duplicateHistory.filter { $0.value.last.map { now.timeIntervalSince($0.timestamp) < 30 } ?? false }
+        }
         let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
         if let rateData = try? JSONEncoder().encode(events),
             let duplicateData = try? JSONEncoder().encode(repeated)
