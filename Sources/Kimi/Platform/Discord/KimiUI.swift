@@ -50,7 +50,7 @@ enum KimiUI {
         id: String, placeholder: String, options: [[String: Any]], minimum: Int = 0, maximum: Int = 1
     ) -> [String: Any] {
         let safeOptions = Array(options.prefix(25))
-        let maximumValues = max(1, min(safeOptions.count, maximum, 25))
+        let maximumValues = max(1, min(25, min(safeOptions.count, maximum)))
         let minimumValues = max(0, min(minimum, maximumValues))
         return [
             "type": 3, "custom_id": String(id.prefix(100)),
