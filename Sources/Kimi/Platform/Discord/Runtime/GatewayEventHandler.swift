@@ -2,8 +2,10 @@ import Foundation
 
 extension KimiRuntime {
     func migratedModuleEnabled(_ module: String, guild: String) async -> Bool {
-        let modules = await store.getLegacy("modules", as: [String: [String: Bool]].self) ?? [:]
-        return modules[guild]?[module] != false
+        let current = await store.get("plugins.modules." + guild, as: [String: Bool].self) ?? [:]
+        if let enabled = current[module] { return enabled }
+        let legacy = await store.getLegacy("modules", as: [String: [String: Bool]].self) ?? [:]
+        return legacy[guild]?[module] != false
     }
     func cachedRolePermissions(_ guild: String) async -> [String: String] {
         let cacheKey = "security.role-permissions." + guild
