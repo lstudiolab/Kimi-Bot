@@ -302,14 +302,24 @@ extension KimiRuntime {
             let member = data["member"] as? [String: Any] ?? [:]
             let memberRoles = Set(member["roles"] as? [String] ?? [])
             let guildRoles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
-            let protectedMask = UInt64((1 << 3) | (1 << 5) | (1 << 28) | (1 << 29) | (1 << 30) | (1 << 31) | (1 << 32))
-            let privileged = guildRoles.contains { role in
+            let canMentionEveryone = guildRoles.contains { role in
                 memberRoles.contains(role["id"] as? String ?? "")
-                    && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & protectedMask) != 0
+                    && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & (1 << 17)) != 0
             }
-            if user != owner && !privileged,
+            if user != owner,
                 let finding = await ModerationEngine(store: store).evaluate(
-                    guildID: guild, userID: user, messageID: message, content: content, channelID: channel, attachments: attachments, stickerCount: (data["sticker_items"] as? [Any] ?? []).count, mentionEveryone: data["mention_everyone"] as? Bool ?? false, roleMentionCount: (data["mention_roles"] as? [String] ?? []).count, userMentionCount: mentionedUsers.count)
+                    guildID: guild,
+                    userID: user,
+                    messageID: message,
+                    content: content,
+                    channelID: channel,
+                    attachments: attachments,
+                    stickerCount: (data["sticker_items"] as? [Any] ?? []).count,
+                    mentionEveryone: data["mention_everyone"] as? Bool ?? false,
+                    allowMassMentions: canMentionEveryone,
+                    roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
+                    userMentionCount: mentionedUsers.count
+                )
             {
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
                 try? await store.set(true, key: "moderation.deleted." + message)
