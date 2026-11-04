@@ -47,7 +47,7 @@ actor RolePickerService {
         let menu = Menu(id: safeName, name: name, guildID: guild, channelID: channel, roles: values)
         var menus = await store.get("rolepicker.menus." + guild, as: [String: Menu].self) ?? [:]
         menus[safeName] = menu
-        try await store.set(menus, key: "rolepicker.menus." + guild)
+        try await store.setGuild(menus, key: "rolepicker.menus." + guild, guildID: guild)
         let options = values.map { ["label": String($0.name.prefix(100)), "value": $0.id] }
         let customID = "rolepicker:select:" + safeName
         let components =
