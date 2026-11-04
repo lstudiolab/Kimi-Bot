@@ -481,13 +481,26 @@ actor GatewayEventDispatcher {
     func enqueue(_ event: [String: Any], isInteraction: Bool) async {
         if queuedCount >= maximumQueued {
             if isInteraction, eventHead < events.count {
+                // Interactions are latency-sensitive; evict a lower-priority dispatch event first.
                 _ = popEvent()
+            } else if isInteraction, interactionHead < interactions.count {
+                // Keep the queue strictly bounded during interaction-only bursts.
+                // Oldest queued interactions are closest to token expiry, so retain newer work.
+                _ = popInteraction()
             } else {
                 if Date().timeIntervalSince(lastOverflowLog) >= 10 {
                     lastOverflowLog = Date()
-                    await logger.log("ERROR", "Gateway event queue is saturated; incoming event was dropped.")
+                    await logger.log(
+                        "ERROR",
+                        "Gateway event queue reached its hard limit; the incoming event was dropped.")
                 }
                 return
+            }
+            if Date().timeIntervalSince(lastOverflowLog) >= 10 {
+                lastOverflowLog = Date()
+                await logger.log(
+                    "WARN",
+                    "Gateway event queue reached capacity; lower-priority or oldest queued work was evicted.")
             }
         }
         if isInteraction {
