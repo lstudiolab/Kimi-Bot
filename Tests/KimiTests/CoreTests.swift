@@ -510,4 +510,34 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(current.messagesPerMinute, 20)
     }
 
+    func testEmbedValidatorEnforcesDiscordCombinedCharacterAndColorLimits() {
+        let validator = EmbedValidator()
+        let valid = EmbedValidator.Definition(
+            title: String(repeating: "t", count: 256),
+            description: String(repeating: "d", count: 4096),
+            fields: [.init(name: String(repeating: "n", count: 256), value: String(repeating: "v", count: 1024))],
+            color: 0x808080,
+            author: String(repeating: "a", count: 256),
+            footer: String(repeating: "f", count: 112),
+            url: nil,
+            imageURL: nil
+        )
+        XCTAssertTrue(validator.validate(valid).isEmpty)
+        let invalid = EmbedValidator.Definition(
+            title: valid.title, description: valid.description, fields: valid.fields,
+            color: 0x1000000, author: valid.author, footer: valid.footer + "x",
+            url: "javascript:alert(1)", imageURL: nil
+        )
+        XCTAssertFalse(validator.validate(invalid).isEmpty)
+    }
+
+    func testStringSelectClampsSelectionToAvailableOptions() throws {
+        let menu = KimiUI.stringSelect(
+            id: "roles", placeholder: "Choose roles",
+            options: [["label": "A", "value": "a"], ["label": "B", "value": "b"]],
+            minimum: 0, maximum: 10)
+        XCTAssertEqual(menu["max_values"] as? Int, 2)
+        XCTAssertNoThrow(try KimiUI.validateMessageComponents([KimiUI.row([menu])]))
+    }
+
 }
