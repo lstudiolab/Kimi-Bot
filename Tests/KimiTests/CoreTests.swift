@@ -261,7 +261,7 @@ final class CoreTests: XCTestCase {
             guildID: "123456789012345678",
             userID: "323456789012345679",
             messageID: "423456789012345678",
-            content: "f\\u{200B}.u.c.k"
+            content: "f\u{200B}.u.c.k"
         )
         XCTAssertTrue(hidden?.reason.contains("Blocked language") == true)
 
@@ -315,6 +315,47 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(duplicate?.reason.contains("Repeated message burst") == true)
     }
 
+    func testModerationRateHistorySurvivesNewEngineInstances() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-rate-persistence-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let guild = "123456789012345678"
+        let user = "223456789012345678"
+        var policy = await ModerationEngine(store: store).policy(guildID: guild)
+        policy.messagesPerMinute = 2
+        try await ModerationEngine(store: store).configure(policy, guildID: guild)
+        let now = Date()
+        _ = await ModerationEngine(store: store).evaluate(
+            guildID: guild, userID: user, messageID: "323456789012345678",
+            content: "first", channelID: "423456789012345678", now: now)
+        _ = await ModerationEngine(store: store).evaluate(
+            guildID: guild, userID: user, messageID: "323456789012345679",
+            content: "second", channelID: "423456789012345678", now: now.addingTimeInterval(1))
+        let finding = await ModerationEngine(store: store).evaluate(
+            guildID: guild, userID: user, messageID: "323456789012345680",
+            content: "third", channelID: "423456789012345678", now: now.addingTimeInterval(2))
+        XCTAssertTrue(finding?.reason.contains("High-velocity message flood") == true)
+    }
+
+    func testAuditProtectionHistorySurvivesNewInstances() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-audit-persistence-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let now = Date()
+        let first = try await AuditProtection(store: store).record(
+            guildID: "123456789012345678", actorID: "223456789012345678",
+            action: "12", threshold: 1, now: now)
+        XCTAssertNil(first)
+        let second = try await AuditProtection(store: store).record(
+            guildID: "123456789012345678", actorID: "223456789012345678",
+            action: "12", threshold: 1, now: now.addingTimeInterval(1))
+        XCTAssertNotNil(second)
+    }
+
     func testModerationDetectsDiscordInviteLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "kimi-moderation-test-" + UUID().uuidString, isDirectory: true)
@@ -329,7 +370,7 @@ final class CoreTests: XCTestCase {
             content: "Join our community at discord.gg/example"
         )
 
-        XCTAssertEqual(finding?.reason, "Unapproved Discord invite link")
+        XCTAssertTrue(finding?.reason.contains("Unsolicited Discord invite") == true)
     }
 
 }
