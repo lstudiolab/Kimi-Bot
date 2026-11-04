@@ -384,7 +384,7 @@ extension KimiRuntime {
             let mentionedUsers = (data["mentions"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
             let reference = (data["message_reference"] as? [String: Any])?["message_id"] as? String
             if moderationEnabled {
-                await ImageAnalysisService(store: store, rest: rest, logger: logger).inspect(
+                await imageAnalysis.inspect(
                     guild: guild, channel: channel, messageID: message, content: content, attachments: attachments,
                     userID: user, mentionedUserIDs: mentionedUsers, referenceMessageID: reference)
             }
