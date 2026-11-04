@@ -50,7 +50,7 @@ extension DiscordREST {
         _ = try await call(
             "PATCH", "webhooks/\(app)/\(token)/messages/@original",
             body: [
-                "content": String(content.prefix(1900)), "components": components, "allowed_mentions": ["parse": []],
+                "content": DiscordText.prefixUTF16(content, limit: 1900), "components": components, "allowed_mentions": ["parse": []],
             ])
     }
     func deleteKimiMessage(_ channel: String, _ message: String) async throws {
