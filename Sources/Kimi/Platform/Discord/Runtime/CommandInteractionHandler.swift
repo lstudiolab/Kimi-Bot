@@ -251,11 +251,12 @@ extension KimiRuntime {
                     "Foundation setup complete.\nPrivate logs: <#" + logs + ">\nPrivate confirmations: <#"
                     + confirmations + ">\nSupport category: <#" + ticket + ">"
             case "plan":
-                let stored = await PluginManager(store: store).installed(guildID: guild)
-                let bytes = (try? JSONEncoder().encode(stored).count) ?? 0
+                let usage = StorageQuota.usage(bytes: await store.guildStorageUsage(guildID: guild))
+                let remaining = max(0, usage.limit - usage.used)
                 reply =
-                    "Kimi Free\nAll built-in plugins are free.\nConfiguration footprint: " + StorageQuota.format(bytes)
-                    + "\nStorage allowance: " + StorageQuota.format(StorageQuota.freeLimit)
+                    "Kimi Free\nAll built-in plugins are free.\nServer storage: "
+                    + StorageQuota.format(usage.used) + " / " + StorageQuota.format(usage.limit)
+                    + " (" + String(usage.percent) + "% used)\nRemaining: " + StorageQuota.format(remaining)
             case "welcome", "configure-welcome", "configure-foundation":
                 let engine = FoundationEngine(store: store, rest: rest, logger: logger)
                 var settings = await engine.settings(guildID: guild)
