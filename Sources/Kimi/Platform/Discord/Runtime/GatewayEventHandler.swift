@@ -25,6 +25,13 @@ extension KimiRuntime {
         try? await store.setGuild(Date(), key: dateKey, guildID: guild)
         return values
     }
+    func cachedGuildOwnerID(_ guild: String) async -> String? {
+        let key = "runtime.guild-owner." + guild
+        if let cached = await store.get(key, as: String.self) { return cached }
+        guard let owner = await cachedGuildOwnerID(guild) else { return nil }
+        try? await store.set(owner, key: key)
+        return owner
+    }
     func captureGuildStructure(_ guild: String) async {
         let installed = await PluginManager(store: store).installed(guildID: guild)
         guard installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) else { return }
@@ -56,6 +63,9 @@ extension KimiRuntime {
             }
         case "GUILD_CREATE":
             guard let guild = data["id"] as? String else { return }
+            if let owner = data["owner_id"] as? String {
+                try? await store.set(owner, key: "runtime.guild-owner." + guild)
+            }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
             await captureGuildStructure(guild)
@@ -435,7 +445,7 @@ extension KimiRuntime {
                     roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
                     userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
                 )
-                if let owner = try? await rest.ownerID(guild), owner != user, let finding {
+                if let owner = await cachedGuildOwnerID(guild), owner != user, let finding {
                     let policy = await moderation.policy(guildID: guild)
                     try? await store.set(true, key: "moderation.deleted." + message)
                     try? await rest.deleteKimiMessage(channel, message)
@@ -525,7 +535,7 @@ extension KimiRuntime {
                 try? await store.setGuild(permissions, key: "security.role-permissions." + guild, guildID: guild)
                 try? await store.setGuild(Date(), key: "security.role-permissions-updated." + guild, guildID: guild)
             }
-            guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
+            guard let owner = await cachedGuildOwnerID(guild), actor != owner else { return }
             let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
             guard actor != botID else { return }
             let target = data["target_id"] as? String
