@@ -307,7 +307,7 @@ extension KimiRuntime {
                     && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & (1 << 17)) != 0
             }
             if user != owner,
-                let finding = await ModerationEngine(store: store).evaluate(
+                let finding = await moderation.evaluate(
                     guildID: guild,
                     userID: user,
                     messageID: message,
@@ -321,7 +321,7 @@ extension KimiRuntime {
                     userMentionCount: mentionedUsers.count
                 )
             {
-                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                let policy = await moderation.policy(guildID: guild)
                 try? await store.set(true, key: "moderation.deleted." + message)
                 try? await rest.deleteKimiMessage(channel, message)
                 do {
@@ -361,7 +361,7 @@ extension KimiRuntime {
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
                 let editedContent = data["content"] as? String
             {
-                let finding = await ModerationEngine(store: store).evaluate(
+                let finding = await moderation.evaluate(
                     guildID: guild,
                     userID: user,
                     messageID: message,
@@ -374,7 +374,7 @@ extension KimiRuntime {
                     userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
                 )
                 if let finding, (try? await rest.ownerID(guild)) != user {
-                    let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                    let policy = await moderation.policy(guildID: guild)
                     try? await store.set(true, key: "moderation.deleted." + message)
                     try? await rest.deleteKimiMessage(channel, message)
                     if policy.sanction == "timeout" {
