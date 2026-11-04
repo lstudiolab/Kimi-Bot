@@ -232,6 +232,16 @@ extension KimiRuntime {
                         guild, "kimi-confirmation", owner, bot, category)
                 }
                 for privateChannel in [logs, confirmations] {
+                    let channelState = try await rest.call(
+                        "GET", "channels/" + privateChannel) as? [String: Any] ?? [:]
+                    let existingOverwrites = channelState["permission_overwrites"] as? [[String: Any]] ?? []
+                    for overwrite in existingOverwrites {
+                        guard let target = overwrite["id"] as? String,
+                            target != guild, target != owner, target != bot
+                        else { continue }
+                        _ = try await rest.call(
+                            "DELETE", "channels/" + privateChannel + "/permissions/" + target)
+                    }
                     _ = try await rest.call(
                         "PUT", "channels/" + privateChannel + "/permissions/" + guild,
                         body: ["type": 0, "deny": "1024", "allow": "0"])
