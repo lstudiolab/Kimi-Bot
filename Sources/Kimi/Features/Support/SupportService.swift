@@ -82,7 +82,13 @@ actor SupportService {
             "POST", "guilds/\(guild)/channels",
             body: ["name": name, "type": 0, "parent_id": category, "permission_overwrites": overwrites])
         guard let channel = (created as? [String: Any])?["id"] as? String else { throw KimiError.invalidResponse }
-        let ticket = try await SupportTickets(store: store).open(guildID: guild, userID: user, channelID: channel)
+        let ticket: SupportTickets.Ticket
+        do {
+            ticket = try await SupportTickets(store: store).open(guildID: guild, userID: user, channelID: channel)
+        } catch {
+            _ = try? await rest.call("DELETE", "channels/" + channel)
+            throw error
+        }
         let controls =
             [
                 [
@@ -144,61 +150,77 @@ actor SupportService {
         return ticket
     }
     func close(guild: String, ticketID: String) async throws -> SupportTickets.Ticket {
-        let ticket = try await SupportTickets(store: store).close(id: ticketID, guildID: guild)
-        _ = try await rest.call(
-            "PATCH", "channels/\(ticket.channelID)",
-            body: ["name": SecurityPolicy.channelName("closed-" + String(ticket.id.prefix(8)))])
-        if let thread = ticket.staffThreadID {
-            _ = try? await rest.call("PATCH", "channels/" + thread, body: ["archived": true, "locked": true])
+        let tickets = SupportTickets(store: store)
+        guard let ticket = await tickets.all().first(where: { $0.id == ticketID && $0.guildID == guild }) else {
+            throw TicketError.notFound
         }
-        _ = try? await rest.call(
-            "PUT", "channels/\(ticket.channelID)/permissions/\(ticket.userID)",
-            body: ["type": 1, "deny": "1024", "allow": "0"])
+        guard ticket.isOpen else { throw TicketError.alreadyClosed }
+
         var history: [[String: Any]] = []
         var before: String? = nil
         for _ in 0..<10 {
             let suffix = before.map { "&before=" + $0 } ?? ""
-            let page =
-                try await rest.call("GET", "channels/\(ticket.channelID)/messages?limit=100" + suffix)
-                as? [[String: Any]] ?? []
+            let page = try await rest.call(
+                "GET", "channels/\(ticket.channelID)/messages?limit=100" + suffix) as? [[String: Any]] ?? []
             if page.isEmpty { break }
             history.append(contentsOf: page)
             before = page.last?["id"] as? String
             if page.count < 100 { break }
         }
+
         let transcript = history.reversed().map { item -> String in
             let author = (item["author"] as? [String: Any])?["username"] as? String ?? "Unknown"
             let body = item["content"] as? String ?? ""
-            let files = (item["attachments"] as? [[String: Any]] ?? []).compactMap { $0["url"] as? String }.joined(
-                separator: " ")
+            let files = (item["attachments"] as? [[String: Any]] ?? [])
+                .compactMap { $0["url"] as? String }.joined(separator: " ")
             return author + ": " + body + (files.isEmpty ? "" : " [attachments: " + files + "]")
         }.joined(separator: "\n")
         try await store.set(String(transcript.suffix(100_000)), key: "support.transcript." + ticketID)
+
+        _ = try await rest.call(
+            "PATCH", "channels/\(ticket.channelID)",
+            body: ["name": SecurityPolicy.channelName("closed-" + String(ticket.id.prefix(8)))])
+        try await rest.call(
+            "PUT", "channels/\(ticket.channelID)/permissions/\(ticket.userID)",
+            body: ["type": 1, "deny": "1024", "allow": "0"])
+        if let thread = ticket.staffThreadID {
+            do {
+                _ = try await rest.call("PATCH", "channels/" + thread, body: ["archived": true, "locked": true])
+            } catch {
+                await logger.log("WARN", "Ticket closed but staff thread archival failed: " + error.localizedDescription)
+            }
+        }
+
+        let closed = try await tickets.close(id: ticketID, guildID: guild)
         let settings = await self.settings(guild)
         if let destination = settings.transcriptChannelID {
-            let summary =
-                "Ticket transcript for " + ticketID + ". Messages captured: " + String(history.count)
+            let summary = "Ticket transcript for " + ticketID + ". Messages captured: " + String(history.count)
                 + ". Full transcript is retained in local Kimi storage; exported text is capped to 18,000 characters."
-            _ = try? await rest.call(
-                "POST", "channels/\(destination)/messages",
-                body: ["content": summary, "allowed_mentions": ["parse": []]])
-            let exported = String(transcript.suffix(18_000))
-            var cursor = exported.startIndex
-            var part = 1
-            while cursor < exported.endIndex {
-                let next = exported.index(cursor, offsetBy: 1750, limitedBy: exported.endIndex) ?? exported.endIndex
-                let chunk = String(exported[cursor..<next])
-                _ = try? await rest.call(
+            do {
+                _ = try await rest.call(
                     "POST", "channels/\(destination)/messages",
-                    body: [
-                        "content": "Transcript part " + String(part) + "\n" + chunk, "allowed_mentions": ["parse": []],
-                    ])
-                cursor = next
-                part += 1
+                    body: ["content": summary, "allowed_mentions": ["parse": []]])
+                let exported = String(transcript.suffix(18_000))
+                var cursor = exported.startIndex
+                var part = 1
+                while cursor < exported.endIndex {
+                    let next = exported.index(cursor, offsetBy: 1750, limitedBy: exported.endIndex) ?? exported.endIndex
+                    let chunk = String(exported[cursor..<next])
+                    _ = try await rest.call(
+                        "POST", "channels/\(destination)/messages",
+                        body: [
+                            "content": "Transcript part " + String(part) + "\n" + chunk,
+                            "allowed_mentions": ["parse": []],
+                        ])
+                    cursor = next
+                    part += 1
+                }
+            } catch {
+                await logger.log("ERROR", "Ticket closed, but transcript export failed: " + error.localizedDescription)
             }
         }
         await logger.log(
             "INFO", "Support ticket closed: " + ticketID + "; archived " + String(history.count) + " messages.")
-        return ticket
+        return closed
     }
 }
