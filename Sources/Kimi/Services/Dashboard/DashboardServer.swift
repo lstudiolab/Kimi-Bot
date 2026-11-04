@@ -40,6 +40,7 @@ final class DashboardServer: @unchecked Sendable {
     private let store: PersistentStore
     private let logger: Logger
     private let lock = NSLock()
+    private let connectionSlots = DispatchSemaphore(value: 32)
     private var sessions: [String: Session] = [:]
     private var states: [String: Date] = [:]
     private var listener: Int32 = -1
@@ -99,11 +100,22 @@ final class DashboardServer: @unchecked Sendable {
                 let fd = Darwin.accept(listener, nil, nil)
             #endif
             if fd < 0 { continue }
-            Task.detached { await self.handle(fd) }
+            connectionSlots.wait()
+            Task.detached {
+                defer { self.connectionSlots.signal() }
+                await self.handle(fd)
+            }
         }
     }
     private func handle(_ fd: Int32) async {
         defer { closeSocket(fd) }
+        var timeout = timeval(tv_sec: 5, tv_usec: 0)
+        _ = withUnsafePointer(to: &timeout) {
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
+        }
+        _ = withUnsafePointer(to: &timeout) {
+            setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
+        }
         guard let request = readRequest(fd) else {
             write(fd, 400, "Bad Request", "text/plain")
             return
