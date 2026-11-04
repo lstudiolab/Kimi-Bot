@@ -81,6 +81,7 @@ actor RecoveryService {
         let pending = await store.get("recovery.pending-roles", as: [String: [String]].self) ?? [:]
         let snapshots = await store.get("recovery.roles", as: [String: [String: Data]].self) ?? [:]
         var remaining: [String] = []
+        var restoredIDs = Set<String>()
         for roleID in pending[guild] ?? [] {
             guard let data = snapshots[guild]?[roleID],
                 let source = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -105,6 +106,7 @@ actor RecoveryService {
                 guard let restored = (created as? [String: Any])?["id"] as? String else {
                     throw KimiError.invalidResponse
                 }
+                restoredIDs.insert(roleID)
                 await logger.log(
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
@@ -113,10 +115,13 @@ actor RecoveryService {
                 await logger.log("ERROR", "Role recovery failed for " + roleID + ": " + error.localizedDescription)
             }
         }
-        var updated = pending
-        updated[guild] = remaining
         do {
-            try await store.setGuild(updated, key: "recovery.pending-roles", guildID: guild)
+            try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
+                var updated = stored ?? [:]
+                let current = updated[guild] ?? []
+                updated[guild] = current.filter { !restoredIDs.contains($0) }
+                return updated
+            }
         } catch {
             await logger.log("ERROR", "Role recovery queue update failed: " + error.localizedDescription)
         }
@@ -187,15 +192,21 @@ actor RecoveryService {
             return (a?["position"] as? Int ?? 0) < (b?["position"] as? Int ?? 0)
         }
         var remaining: [String] = []
+        var restoredIDs = Set<String>()
         for channel in ordered {
-            if !(await restoreChannel(guild, channel)) {
+            if await restoreChannel(guild, channel) {
+                restoredIDs.insert(channel)
+            } else {
                 remaining.append(channel)
             }
         }
-        var updated = all
-        updated[guild] = remaining
         do {
-            try await store.setGuild(updated, key: "recovery.pending-channels", guildID: guild)
+            try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
+                var updated = stored ?? [:]
+                let current = updated[guild] ?? []
+                updated[guild] = current.filter { !restoredIDs.contains($0) }
+                return updated
+            }
         } catch {
             await logger.log("ERROR", "Recovery queue update failed: " + error.localizedDescription)
         }
