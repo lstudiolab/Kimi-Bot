@@ -111,12 +111,16 @@ actor SupportService {
                     ],
                 ]
             ] as [[String: Any]]
-        _ = try await rest.call(
-            "POST", "channels/\(channel)/messages",
-            body: [
-                "content": "Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal",
-                "components": controls, "allowed_mentions": ["users": [user], "parse": []],
-            ])
+        do {
+            _ = try await rest.call(
+                "POST", "channels/\(channel)/messages",
+                body: [
+                    "content": "Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal",
+                    "components": controls, "allowed_mentions": ["users": [user], "parse": []],
+                ])
+            } catch {
+            await logger.log("ERROR", "Ticket channel was created but its opening message failed: " + error.localizedDescription)
+        }
         if let threadResponse = try? await rest.call(
             "POST", "channels/" + channel + "/threads",
             body: ["name": "staff-handoff", "type": 11, "auto_archive_duration": 1440]),
