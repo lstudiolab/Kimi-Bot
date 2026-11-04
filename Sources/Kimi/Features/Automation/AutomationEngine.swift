@@ -136,7 +136,7 @@ actor AutomationEngine {
                 switch kind {
                 case "send_message":
                     guard parts.count == 3 else { throw KimiError.configuration("Invalid send_message rule.") }
-                    let destination = try await rest.call("GET", "channels/\\(parts[1])") as? [String: Any] ?? [:]
+                    let destination = try await rest.call("GET", "channels/\(parts[1])") as? [String: Any] ?? [:]
                     guard destination["guild_id"] as? String == guild else {
                         throw KimiError.configuration("Automation messages must target a channel in the same server.")
                     }
@@ -179,7 +179,7 @@ actor AutomationEngine {
                         throw KimiError.configuration("Configured role no longer exists.")
                     }
                     let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
-                    let bot = try await rest.call("GET", "guilds/\\(guild)/members/@me") as? [String: Any] ?? [:]
+                    let bot = try await rest.call("GET", "guilds/\(guild)/members/@me") as? [String: Any] ?? [:]
                     let botRoleIDs = Set(bot["roles"] as? [String] ?? [])
                     let botRoles = roles.filter { botRoleIDs.contains($0["id"] as? String ?? "") }
                     let highest = botRoles.map { $0["position"] as? Int ?? 0 }.max() ?? 0
