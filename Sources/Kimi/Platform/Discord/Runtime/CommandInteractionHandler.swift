@@ -96,6 +96,9 @@ extension KimiRuntime {
                 ]
             case "kimi-lock-screen":
                 let policy = await moderation.policy(guildID: guild)
+                let verificationEnabled = await migratedModuleEnabled("verification", guild: guild)
+                let protectionEnabled = await migratedModuleEnabled("protection", guild: guild)
+                let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
                 reply = "Kimi Lock\nStatus: " + (policy.enabled ? "Enabled" : "Disabled")
                     + "\nMessages per minute: " + String(policy.messagesPerMinute)
                     + "\nTimeout: " + String(policy.timeoutMinutes) + " minutes"
@@ -103,6 +106,9 @@ extension KimiRuntime {
                     + "\nInvite blocking: " + (policy.blockInvites ? "On" : "Off")
                     + "\nMass mention blocking: " + (policy.blockMassMentions ? "On" : "Off")
                     + "\nCapital flood blocking: " + (policy.blockExcessiveCaps ? "On" : "Off")
+                    + "\nVerification: " + (verificationEnabled ? "On" : "Off")
+                    + "\nAnti-nuke and raid protection: " + (protectionEnabled ? "On" : "Off")
+                    + "\nRecovery: " + (recoveryEnabled ? "On" : "Off")
                 responseComponents = [
                     KimiUI.row([
                         KimiUI.button(id: "screen:lock:toggle", label: policy.enabled ? "Disable" : "Enable", style: policy.enabled ? 4 : 3),
@@ -135,7 +141,11 @@ extension KimiRuntime {
                             ["label": "60 minutes", "value": "60"],
                         ]),
                     ]),
-                    KimiUI.row([KimiUI.button(id: "screen:lock:keywords", label: "Edit blocked keywords")]),
+                    KimiUI.row([
+                        KimiUI.button(id: "screen:lock:verification", label: verificationEnabled ? "Disable verification" : "Enable verification", style: verificationEnabled ? 4 : 3),
+                        KimiUI.button(id: "screen:lock:protection", label: protectionEnabled ? "Disable anti-nuke" : "Enable anti-nuke", style: protectionEnabled ? 4 : 3),
+                        KimiUI.button(id: "screen:lock:recovery", label: recoveryEnabled ? "Disable recovery" : "Enable recovery", style: recoveryEnabled ? 4 : 3),
+                    ]),
                 ]
             case "welcome-screen":
                 let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
