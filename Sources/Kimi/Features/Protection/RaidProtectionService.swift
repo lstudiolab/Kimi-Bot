@@ -29,16 +29,25 @@ actor RaidProtectionService {
             now.timeIntervalSince($0.date) <= 10 && now >= $0.date
         }
         recent.append(Join(user: userID, date: now, createdAt: createdAt))
+        if recent.count > 1000 { recent = Array(recent.suffix(1000)) }
         try? await store.setGuild(recent, key: key, guildID: guild)
         guard recent.count >= 8 else { return }
         let cooldownKey = "security.raid-cooldown." + guild
         let last = await store.get(cooldownKey, as: Date.self)
         guard last.map({ now.timeIntervalSince($0) > 300 }) ?? true else { return }
-        try? await store.setGuild(now, key: cooldownKey, guildID: guild)
+        guard let owner = try? await rest.ownerID(guild) else {
+            await logger.log("WARN", "Raid protection could not resolve the guild owner; retrying on the next join.")
+            return
+        }
+        do {
+            try await store.setGuild(now, key: cooldownKey, guildID: guild)
+        } catch {
+            await logger.log("ERROR", "Raid protection could not persist its cooldown: " + error.localizedDescription)
+            return
+        }
         let age = max(0, Int(now.timeIntervalSince(createdAt) / 86400))
         var action = "Raid burst detected; alert only."
         var quarantined: String? = nil
-        guard let owner = try? await rest.ownerID(guild) else { return }
         let recentNewAccounts = Set(recent.compactMap { join -> String? in
             guard let createdAt = join.createdAt else { return nil }
             return max(0, Int(now.timeIntervalSince(createdAt) / 86400)) < 7 ? join.user : nil
@@ -65,7 +74,11 @@ actor RaidProtectionService {
         var records = await store.get("security.raid-incidents", as: [Incident].self) ?? []
         records.append(incident)
         records = Array(records.suffix(500))
-        try? await store.set(records, key: "security.raid-incidents")
+        do {
+            try await store.set(records, key: "security.raid-incidents")
+        } catch {
+            await logger.log("ERROR", "Raid incident could not be persisted: " + error.localizedDescription)
+        }
         await logger.log(
             "WARN",
             "Kimi Lock raid protection: " + String(recent.count) + " members joined within 10 seconds in guild " + guild
