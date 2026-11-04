@@ -465,6 +465,16 @@ final class CoreTests: XCTestCase {
             guildID: "123456789012345678", userID: "223456789012345678",
             messageID: "323456789012345679", content: "Visit 192.168.1.20:8080/path")
         XCTAssertTrue(rawIP?.reason.contains("Suspicious or tracking URL") == true)
+
+        let wwwTracking = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345680", content: "Open www.grabify.link/example")
+        XCTAssertTrue(wwwTracking?.reason.contains("Suspicious or tracking URL") == true)
+
+        let ordinaryURL = await engine.evaluate(
+            guildID: "123456789012345678", userID: "223456789012345678",
+            messageID: "323456789012345681", content: "Read https://example.com and continue with the guide")
+        XCTAssertFalse(ordinaryURL?.reason.contains("Suspicious or tracking URL") == true)
     }
 
     func testModerationDetectsUnsolicitedSelfAdvertising() async throws {
