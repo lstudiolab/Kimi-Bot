@@ -60,6 +60,11 @@ actor VerificationService {
             try? await rest.editKimiInteraction(applicationID, interactionToken, "You have already been verified.")
             return
         }
+        if prior.reviewMessageID != nil {
+            try? await rest.editKimiInteraction(
+                applicationID, interactionToken, "Your verification is already awaiting server-owner review.")
+            return
+        }
         let value = await settings(guild)
         if let required = value.requiredRoleID {
             let member =
@@ -138,8 +143,14 @@ actor VerificationService {
                     let posted = try await rest.call(
                         "POST", "channels/\(review)/messages",
                         body: ["content": body, "components": components, "allowed_mentions": ["parse": []]])
-                    if let messageID = (posted as? [String: Any])?["id"] as? String {
+                    guard let messageID = (posted as? [String: Any])?["id"] as? String, !messageID.isEmpty else {
+                        throw KimiError.invalidResponse
+                    }
+                    do {
                         try await records.setReviewMessage(guildID: guild, userID: userID, messageID: messageID)
+                    } catch {
+                        _ = try? await rest.call("DELETE", "channels/\(review)/messages/\(messageID)")
+                        throw error
                     }
                     queued = true
                 } catch {
@@ -206,8 +217,15 @@ actor VerificationService {
             guard owner == reviewer else {
                 throw KimiError.configuration("Only the server owner can decide this review.")
             }
+            guard decision == "approve" || decision == "reject" else {
+                throw KimiError.configuration("Choose approve or reject.")
+            }
             let value = await settings(guild)
             let records = VerificationRecords(store: store)
+            let pending = await records.record(guildID: guild, userID: userID)
+            guard pending.verifiedAt == nil, pending.reviewMessageID != nil else {
+                throw KimiError.configuration("This verification review is no longer pending.")
+            }
             if decision == "approve" {
                 if let role = value.roleID {
                     let roles = try await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]] ?? []
