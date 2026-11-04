@@ -179,7 +179,13 @@ actor SupportService {
                 .compactMap { $0["url"] as? String }.joined(separator: " ")
             return author + ": " + body + (files.isEmpty ? "" : " [attachments: " + files + "]")
         }.joined(separator: "\n")
-        try await store.set(String(transcript.suffix(100_000)), key: "support.transcript." + ticketID)
+        do {
+            try await store.setGuild(
+                String(transcript.suffix(100_000)),
+                key: "support.transcript." + guild + "." + ticketID, guildID: guild)
+        } catch {
+            await logger.log("WARN", "Ticket transcript exceeded the local storage allowance: " + error.localizedDescription)
+        }
 
         _ = try await rest.call(
             "PATCH", "channels/\(ticket.channelID)",
