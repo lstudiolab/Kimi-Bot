@@ -330,7 +330,12 @@ actor DiscordREST {
         session = URLSession(configuration: configuration)
     }
     func call(_ method: String, _ path: String, body: Any? = nil, auditReason: String? = nil) async throws -> Any {
-        guard let url = URL(string: path, relativeTo: base)?.absoluteURL else { throw KimiError.invalidResponse }
+        guard let url = URL(string: path, relativeTo: base)?.absoluteURL,
+            url.scheme == "https", url.host?.lowercased() == "discord.com",
+            url.user == nil, url.password == nil
+        else {
+            throw KimiError.configuration("Discord REST requests must target the official Discord API host.")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bot " + token, forHTTPHeaderField: "Authorization")
@@ -499,7 +504,13 @@ actor DiscordGateway {
         let endpoint =
             resumeURL.map { $0.contains("?") ? $0 : $0 + "?v=10&encoding=json" }
             ?? "wss://gateway.discord.gg/?v=10&encoding=json"
-        guard let url = URL(string: endpoint) else { throw KimiError.invalidResponse }
+        guard let url = URL(string: endpoint), url.scheme == "wss",
+            let host = url.host?.lowercased(),
+            (host == "discord.gg" || host == "gateway.discord.gg" || host.hasSuffix(".discord.gg")),
+            url.user == nil, url.password == nil
+        else {
+            throw KimiError.configuration("Discord supplied an invalid Gateway resume URL.")
+        }
         let ws = URLSession.shared.webSocketTask(with: url)
         socket = ws
         ws.resume()
@@ -556,7 +567,7 @@ actor DiscordGateway {
                         try await send(["op": 6, "d": ["token": token, "session_id": sessionID, "seq": sequence]])
                         await logger.log("INFO", "Resuming Discord Gateway session.")
                     } else {
-                        let intents = 1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 32768 | 65536
+                        let intents = 1 | 2 | 4 | 32 | 128 | 512 | 1024 | 32768 | 65536
                         try await send([
                             "op": 2,
                             "d": [
