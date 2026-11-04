@@ -19,5 +19,7 @@ jobs:
       - uses: github/codeql-action/init@v4
         with:
           languages: swift
-          build-mode: autobuild
+          build-mode: manual
+      - name: Build Swift package for analysis
+        run: swift build -c release
       - uses: github/codeql-action/analyze@v4
