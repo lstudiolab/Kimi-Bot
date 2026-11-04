@@ -50,7 +50,19 @@ enum KimiUI {
     static func stringSelect(
         id: String, placeholder: String, options: [[String: Any]], minimum: Int = 0, maximum: Int = 1
     ) -> [String: Any] {
-        let safeOptions = Array(options.prefix(25))
+        let safeOptions = Array(options.prefix(25)).map { option -> [String: Any] in
+            var value = option
+            if let label = option["label"] as? String {
+                value["label"] = DiscordText.prefixUTF16(label, limit: 100)
+            }
+            if let optionValue = option["value"] as? String {
+                value["value"] = DiscordText.prefixUTF16(optionValue, limit: 100)
+            }
+            if let description = option["description"] as? String {
+                value["description"] = DiscordText.prefixUTF16(description, limit: 100)
+            }
+            return value
+        }
         let maximumValues = max(1, min(25, min(safeOptions.count, maximum)))
         let minimumValues = max(0, min(minimum, maximumValues))
         return [
@@ -90,7 +102,7 @@ enum KimiUI {
         return item
     }
     static func modal(id: String, title: String, inputs: [[String: Any]]) -> [String: Any] {
-        ["custom_id": id, "title": DiscordText.prefixUTF16(title, limit: 45), "components": inputs.prefix(5).map { row([$0]) }]
+        ["custom_id": DiscordText.prefixUTF16(id, limit: 100), "title": DiscordText.prefixUTF16(title, limit: 45), "components": inputs.prefix(5).map { row([$0]) }]
     }
     static func safeMentions() -> [String: Any] { ["parse": []] }
     static func message(_ content: String, components: [[String: Any]] = []) -> [String: Any] {
