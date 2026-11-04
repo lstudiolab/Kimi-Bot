@@ -228,7 +228,7 @@ final class DashboardServer: @unchecked Sendable {
             } catch { write(fd, 400, page("Settings could not be saved", error.localizedDescription), "text/html") }
             return
         }
-        if request.method == "POST" && path == "/app" {
+        if request.method == "POST" && (path == "/plugin" || path == "/app") {
             guard let session else {
                 redirect(fd, "/login")
                 return
@@ -239,24 +239,24 @@ final class DashboardServer: @unchecked Sendable {
             }
             let form = parseForm(request.body)
             let guild = form["guild"] ?? ""
-            let app = form["app"] ?? ""
+            let plugin = form["plugin"] ?? form["app"] ?? ""
             let action = form["action"] ?? ""
             guard form["csrf"] == session.csrf, let selected = session.guilds.first(where: { $0.id == guild }),
                 selected.owner == true, await botIsPresent(guild)
             else {
-                write(fd, 403, "Only the server owner can manage installed apps.", "text/plain")
+                write(fd, 403, "Only the server owner can manage installed plugins.", "text/plain")
                 return
             }
             do {
-                let manager = AppManager(store: store)
+                let manager = PluginManager(store: store)
                 let result =
                     action == "install"
-                    ? try await manager.install(app, guildID: guild) : try await manager.uninstall(app, guildID: guild)
+                    ? try await manager.install(plugin, guildID: guild) : try await manager.uninstall(plugin, guildID: guild)
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let installed = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(config.clientID, guildID: guild, installed: installed)
                 write(fd, 303, "", "text/plain", ["Location": "/guild?id=" + guild])
-            } catch { write(fd, 400, page("Could not update app", error.localizedDescription), "text/html") }
+            } catch { write(fd, 400, page("Could not update plugin", error.localizedDescription), "text/html") }
             return
         }
         if request.method == "GET" && path == "/logout" {
@@ -374,7 +374,7 @@ final class DashboardServer: @unchecked Sendable {
         }
         return shell(
             "Your servers", "Signed in as " + (session.user.global_name ?? session.user.username),
-            "<section class='panel'><h2>Server workspace</h2><p>Select a server to manage its installed Kimi apps.</p>"
+            "<section class='panel'><h2>Server workspace</h2><p>Select a server to manage its installed Kimi plugins.</p>"
                 + rows
                 + "</section><form method='post' action='/logout'><button class='secondary'>Sign out</button></form>")
     }
@@ -385,17 +385,17 @@ final class DashboardServer: @unchecked Sendable {
             "<option value='" + escape(code) + "'" + (locale == code ? " selected" : "") + ">"
                 + escape(KimiLocalization.names[code] ?? code) + "</option>"
         }.joined()
-        let cards = CommandCatalog.appNames().map { app in
+        let cards = CommandCatalog.pluginNames().map { plugin in
             let active = installed.contains(app)
             let button =
                 owner
                 ? "<form method='post' action='/app'><input type='hidden' name='csrf' value='" + escape(session.csrf)
                     + "'><input type='hidden' name='guild' value='" + escape(guild)
-                    + "'><input type='hidden' name='app' value='" + escape(app)
+                    + "'><input type='hidden' name='plugin' value='" + escape(plugin)
                     + "'><input type='hidden' name='action' value='" + (active ? "uninstall" : "install")
                     + "'><button class='" + (active ? "secondary" : "primary") + "'>" + (active ? "Remove" : "Install")
                     + "</button></form>" : ""
-            return "<article class='app'><div><b>" + escape(app) + "</b><small>" + (active ? "Installed" : "Available")
+            return "<article class='plugin'><div><b>" + escape(plugin) + "</b><small>" + (active ? "Installed" : "Available")
                 + "</small></div>" + button + "</article>"
         }.joined()
         let analytics = await AnalyticsService(store: store).report(guild: guild)
@@ -476,10 +476,10 @@ final class DashboardServer: @unchecked Sendable {
             + "</p></section>"
         return shell(
             name, "Kimi server workspace",
-            "<a class='back' href='/'>← All servers</a>" + overview + "<section class='panel'><h2>App Store</h2><p>"
+            "<a class='back' href='/'>← All servers</a>" + overview + "<section class='panel'><h2>Plugin Store</h2><p>"
                 + (owner
-                    ? "As server owner, you can install or remove apps."
-                    : "Only the server owner can change installed apps.") + "</p>" + cards + "</section>" + settings
+                    ? "As server owner, you can install or remove plugins."
+                    : "Only the server owner can change installed plugins.") + "</p>" + cards + "</section>" + settings
                 + commandHTML + activity)
     }
     private func canManage(_ guild: OAuthGuild) async -> Bool {
