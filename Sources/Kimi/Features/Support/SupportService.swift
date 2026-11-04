@@ -6,6 +6,7 @@ actor SupportService {
         var supportRoleID: String?
         var transcriptChannelID: String?
         var panelChannelID: String?
+        var panelMessageID: String?
         var panelTitle: String = "Contact Support"
         var panelDescription: String = "Open a private ticket with the support team."
     }
@@ -21,7 +22,7 @@ actor SupportService {
         await store.get("support.settings." + guild, as: Settings.self) ?? Settings()
     }
     func configure(_ value: Settings, guild: String) async throws {
-        try await store.set(value, key: "support.settings." + guild)
+        try await store.setGuild(value, key: "support.settings." + guild, guildID: guild)
     }
     func ensureCategory(_ guild: String) async throws -> String {
         let current = await settings(guild)
@@ -42,20 +43,54 @@ actor SupportService {
         try await configure(next, guild: guild)
         return id
     }
-    func publishPanel(guild: String, channel: String) async throws {
+    private func panelComponents() -> [[String: Any]] {
+        [
+            [
+                "type": 1,
+                "components": [
+                    ["type": 2, "style": 1, "label": "Open Ticket", "custom_id": "ticket:open"]
+                ],
+            ]
+        ]
+    }
+
+    private func panelBody(_ settings: Settings) -> [String: Any] {
+        [
+            "content": "**\\(settings.panelTitle)**\n\\(settings.panelDescription)",
+            "components": panelComponents(),
+            "allowed_mentions": ["parse": []],
+        ]
+    }
+
+    func updatePanel(guild: String) async throws -> Bool {
         let value = await settings(guild)
-        let components =
-            [["type": 1, "components": [["type": 2, "style": 1, "label": "Open Ticket", "custom_id": "ticket:open"]]]]
-            as [[String: Any]]
+        guard let channel = value.panelChannelID, let message = value.panelMessageID else { return false }
         _ = try await rest.call(
-            "POST", "channels/\(channel)/messages",
-            body: [
-                "content": "**\(value.panelTitle)**\n\(value.panelDescription)", "components": components,
-                "allowed_mentions": ["parse": []],
-            ])
-        var next = value
-        next.panelChannelID = channel
-        try await configure(next, guild: guild)
+            "PATCH", "channels/\\(channel)/messages/\\(message)", body: panelBody(value))
+        return true
+    }
+
+    func publishPanel(guild: String, channel: String) async throws {
+        var value = await settings(guild)
+        if value.panelChannelID == channel, let message = value.panelMessageID {
+            do {
+                _ = try await rest.call(
+                    "PATCH", "channels/\\(channel)/messages/\\(message)", body: panelBody(value))
+                return
+            } catch {
+                await logger.log("WARN", "Existing ticket panel could not be edited; publishing a replacement: " + error.localizedDescription)
+                value.panelMessageID = nil
+            }
+        }
+
+        let response = try await rest.call(
+            "POST", "channels/\\(channel)/messages", body: panelBody(value)) as? [String: Any] ?? [:]
+        guard let messageID = response["id"] as? String, !messageID.isEmpty else {
+            throw KimiError.invalidResponse
+        }
+        value.panelChannelID = channel
+        value.panelMessageID = messageID
+        try await configure(value, guild: guild)
     }
     func open(guild: String, user: String, username: String, bot: String) async throws -> SupportTickets.Ticket {
         let existing = await SupportTickets(store: store).all()
