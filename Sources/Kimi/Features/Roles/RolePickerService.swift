@@ -144,13 +144,37 @@ actor RolePickerService {
         let key = "rolepicker.selection." + guild + "." + user + "." + (menuID ?? "default")
         let member = try await rest.call("GET", "guilds/\(guild)/members/\(user)") as? [String: Any] ?? [:]
         let currentRoles = Set(member["roles"] as? [String] ?? [])
-        for role in currentRoles.intersection(allowed).subtracting(chosen) {
-            _ = try await rest.call("DELETE", "guilds/\(guild)/members/\(user)/roles/\(role)")
+        let removed = currentRoles.intersection(allowed).subtracting(chosen).sorted()
+        let added = chosen.subtracting(currentRoles).sorted()
+        var appliedRemovals: [String] = []
+        var appliedAdditions: [String] = []
+        do {
+            for role in removed {
+                _ = try await rest.call("DELETE", "guilds/\(guild)/members/\(user)/roles/\(role)")
+                appliedRemovals.append(role)
+            }
+            for role in added {
+                _ = try await rest.call("PUT", "guilds/\(guild)/members/\(user)/roles/\(role)")
+                appliedAdditions.append(role)
+            }
+            try await store.setGuild(chosen.sorted(), key: key, guildID: guild)
+        } catch {
+            for role in appliedAdditions.reversed() {
+                do {
+                    _ = try await rest.call("DELETE", "guilds/\(guild)/members/\(user)/roles/\(role)")
+                } catch {
+                    await logger.log("ERROR", "Role selection rollback could not remove " + role + ": " + error.localizedDescription)
+                }
+            }
+            for role in appliedRemovals.reversed() {
+                do {
+                    _ = try await rest.call("PUT", "guilds/\(guild)/members/\(user)/roles/\(role)")
+                } catch {
+                    await logger.log("ERROR", "Role selection rollback could not restore " + role + ": " + error.localizedDescription)
+                }
+            }
+            throw error
         }
-        for role in chosen.subtracting(currentRoles) {
-            _ = try await rest.call("PUT", "guilds/\(guild)/members/\(user)/roles/\(role)")
-        }
-        try await store.setGuild(Array(chosen), key: key, guildID: guild)
         return chosen.count
     }
 }
