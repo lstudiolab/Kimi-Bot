@@ -395,10 +395,19 @@ extension KimiRuntime {
                     let policy = await moderation.policy(guildID: guild)
                     try? await store.set(true, key: "moderation.deleted." + message)
                     try? await rest.deleteKimiMessage(channel, message)
-                    if policy.sanction == "timeout" {
-                        try? await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
-                    }
-                    await logger.log("WARN", "Kimi Lock removed edited content: " + finding.reason)
+                    let sanction = finding.score >= 80 ? policy.sanction : "delete"
+                    do {
+                        switch sanction {
+                        case "timeout": try await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
+                        case "kick": _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + user, body: nil)
+                        case "ban":
+                            _ = try await rest.call(
+                                "PUT", "guilds/" + guild + "/bans/" + user,
+                                body: ["delete_message_seconds": policy.actionDurationSeconds, "reason": finding.reason])
+                        default: break
+                        }
+                    } catch { await logger.log("ERROR", "Edited-message sanction failed: " + error.localizedDescription) }
+                    await logger.log("WARN", "Kimi Lock removed edited content: " + finding.reason + "; sanction: " + sanction)
                 }
             }
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
