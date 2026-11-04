@@ -38,6 +38,7 @@ actor VerificationRecords {
             var value = values[key] ?? Record(guildID: guildID, userID: userID)
             value.failures += 1
             value.lastReason = String(reason.prefix(300))
+            value.reviewMessageID = nil
             values[key] = value
             return values
         }
