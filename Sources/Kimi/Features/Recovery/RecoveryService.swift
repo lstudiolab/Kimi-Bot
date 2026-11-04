@@ -224,6 +224,10 @@ actor RecoveryService {
         var body: [String: Any] = [:]
         for key in allowed { if let value = source[key] { body[key] = value } }
         body["name"] = SecurityPolicy.channelName(source["name"] as? String ?? "restored-channel")
+        if let parentID = source["parent_id"] as? String {
+            let mappings = await store.get("recovery.channel-map." + guild, as: [String: String].self) ?? [:]
+            body["parent_id"] = mappings[parentID] ?? parentID
+        }
         if let overwrites = source["permission_overwrites"] as? [[String: Any]] {
             let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
             body["permission_overwrites"] = overwrites.compactMap { original -> [String: Any]? in
@@ -245,6 +249,13 @@ actor RecoveryService {
             let created = try await rest.call("POST", "guilds/\(guild)/channels", body: body)
             guard let restored = (created as? [String: Any])?["id"] as? String else {
                 throw KimiError.invalidResponse
+            }
+            var mappings = await store.get("recovery.channel-map." + guild, as: [String: String].self) ?? [:]
+            mappings[channelID] = restored
+            do {
+                try await store.setGuild(mappings, key: "recovery.channel-map." + guild, guildID: guild)
+            } catch {
+                await logger.log("ERROR", "Restored channel mapping could not be saved: " + error.localizedDescription)
             }
             await logger.log(
                 "WARN", "Kimi Lock restored deleted channel " + channelID + " as " + restored + " in guild " + guild)
