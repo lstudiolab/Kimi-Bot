@@ -8,12 +8,25 @@ struct ServerAudit {
     }
 
     private let elevatedPermissions: [(bit: Int, title: String, detail: String)] = [
+        (1, "can kick members", "Restrict Kick Members."),
+        (2, "can ban members", "Restrict Ban Members."),
         (4, "can manage channels", "Restrict Manage Channels."),
+        (7, "can view the audit log", "Restrict View Audit Log."),
         (5, "can manage the server", "Restrict Manage Guild."),
         (28, "can manage roles", "Restrict Manage Roles."),
         (29, "can manage webhooks", "Restrict Manage Webhooks."),
         (40, "can moderate members", "Review who can timeout members."),
         (13, "can manage messages", "Restrict message deletion and pinning."),
+        (17, "can mention everyone", "Restrict mass mentions."),
+        (22, "can mute members", "Restrict voice moderation."),
+        (23, "can deafen members", "Restrict voice moderation."),
+        (24, "can move members", "Restrict voice moderation."),
+        (27, "can manage nicknames", "Restrict nickname management."),
+        (30, "can manage server expressions", "Restrict expression management."),
+        (33, "can manage events", "Restrict event management."),
+        (34, "can manage threads", "Restrict thread management."),
+        (43, "can manage guild expressions", "Restrict expression management."),
+        (44, "can create events", "Restrict event creation."),
     ]
 
     func evaluate(roles: [[String: Any]], everyonePermissions: UInt64) -> [Finding] {
