@@ -47,39 +47,57 @@ extension KimiRuntime {
     func cachedRolePermissions(_ guild: String) async -> [String: String] {
         let cacheKey = "security.role-permissions." + guild
         let dateKey = "security.role-permissions-updated." + guild
+        let cached = await store.get(cacheKey, as: [String: String].self)
         if let updated = await store.get(dateKey, as: Date.self),
             Date().timeIntervalSince(updated) >= 0, Date().timeIntervalSince(updated) < 60,
-            let cached = await store.get(cacheKey, as: [String: String].self)
+            let cached
         {
             return cached
         }
-        let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+        let roles: [[String: Any]]
+        do {
+            roles = try await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]] ?? []
+        } catch {
+            await logger.log("WARN", "Role-permission refresh failed; retaining the last known snapshot: " + error.localizedDescription)
+            return cached ?? [:]
+        }
         let values = Dictionary(uniqueKeysWithValues: roles.compactMap { role -> (String, String)? in
             guard let id = role["id"] as? String else { return nil }
             return (id, role["permissions"] as? String ?? "0")
         })
-        try? await store.setGuild(values, key: cacheKey, guildID: guild)
-        try? await store.setGuild(Date(), key: dateKey, guildID: guild)
+        do {
+            try await store.setGuild(values, key: cacheKey, guildID: guild)
+            try await store.setGuild(Date(), key: dateKey, guildID: guild)
+        } catch {
+            await logger.log("WARN", "Role-permission cache could not be saved: " + error.localizedDescription)
+        }
         return values
     }
     func cachedGuildOwnerID(_ guild: String) async -> String? {
         let key = "runtime.guild-owner." + guild
         let updatedKey = "runtime.guild-owner-updated." + guild
-        if let cached = await store.get(key, as: String.self),
-            let updated = await store.get(updatedKey, as: Date.self),
+        let cached = await store.get(key, as: String.self)
+        if let cached, let updated = await store.get(updatedKey, as: Date.self),
             Date().timeIntervalSince(updated) >= 0,
             Date().timeIntervalSince(updated) < 300
         {
             return cached
         }
 
-        guard let owner = try? await rest.ownerID(guild), !owner.isEmpty else {
-            return nil
+        do {
+            let owner = try await rest.ownerID(guild)
+            guard !owner.isEmpty else { return cached }
+            do {
+                try await store.set(owner, key: key)
+                try await store.set(Date(), key: updatedKey)
+            } catch {
+                await logger.log("WARN", "Guild owner cache could not be saved: " + error.localizedDescription)
+            }
+            return owner
+        } catch {
+            await logger.log("WARN", "Guild owner refresh failed; retaining the last known owner: " + error.localizedDescription)
+            return cached
         }
-
-        try? await store.set(owner, key: key)
-        try? await store.set(Date(), key: updatedKey)
-        return owner
     }
     func captureGuildStructure(_ guild: String) async {
         let installed = await PluginManager(store: store).installed(guildID: guild)
