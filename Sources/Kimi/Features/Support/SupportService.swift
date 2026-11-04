@@ -158,8 +158,18 @@ actor SupportService {
                     "content": "Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal",
                     "components": controls, "allowed_mentions": ["users": [user], "parse": []],
                 ])
+        } catch {
+            do {
+                _ = try await SupportTickets(store: store).close(id: ticket.id, guildID: guild)
             } catch {
-            await logger.log("ERROR", "Ticket channel was created but its opening message failed: " + error.localizedDescription)
+                await logger.log("ERROR", "Failed to roll back the ticket record: " + error.localizedDescription)
+            }
+            do {
+                _ = try await rest.call("DELETE", "channels/" + channel)
+            } catch {
+                await logger.log("ERROR", "Failed to remove an incomplete ticket channel: " + error.localizedDescription)
+            }
+            throw KimiError.configuration("The ticket channel was created, but its opening message could not be sent. No active ticket was kept.")
         }
         if let threadResponse = try? await rest.call(
             "POST", "channels/" + channel + "/threads",
@@ -219,12 +229,14 @@ actor SupportService {
                 .compactMap { $0["url"] as? String }.joined(separator: " ")
             return author + ": " + body + (files.isEmpty ? "" : " [attachments: " + files + "]")
         }.joined(separator: "\n")
+        var transcriptSaved = false
         do {
             try await store.setGuild(
                 String(transcript.suffix(100_000)),
                 key: "support.transcript." + guild + "." + ticketID, guildID: guild)
+            transcriptSaved = true
         } catch {
-            await logger.log("WARN", "Ticket transcript exceeded the local storage allowance: " + error.localizedDescription)
+            await logger.log("WARN", "Ticket transcript could not be retained locally: " + error.localizedDescription)
         }
 
         _ = try await rest.call(
@@ -244,8 +256,11 @@ actor SupportService {
         let closed = try await tickets.close(id: ticketID, guildID: guild)
         let settings = await self.settings(guild)
         if let destination = settings.transcriptChannelID {
+            let retention = transcriptSaved
+                ? "The full transcript is retained in local Kimi storage."
+                : "Local transcript retention failed; only the Discord export may be available."
             let summary = "Ticket transcript for " + ticketID + ". Messages captured: " + String(history.count)
-                + ". Full transcript is retained in local Kimi storage; exported text is capped to 18,000 characters."
+                + ". " + retention + " Exported text is capped to 18,000 characters."
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(destination)/messages",
