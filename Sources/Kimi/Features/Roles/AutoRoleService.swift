@@ -20,12 +20,12 @@ actor AutoRoleService {
                         let canManage = botRoles.contains {
                             (UInt64($0["permissions"] as? String ?? "") ?? 0) & ((1 << 28) | (1 << 3)) != 0
                         }
-                        guard canManage, let target = roles.first(where: { ($0["id"] as? String) == role }) else {
+                        guard canManage, let target = roles.first(where: { ($0["id"] as? String) == roleID }) else {
                             throw KimiError.configuration("Kimi cannot assign the configured automatic role.")
                         }
                         let permissions = UInt64(target["permissions"] as? String ?? "") ?? 0
                         guard SecurityPolicy.isSafeRole(
-                            roleID: role, guildID: guildID, managed: target["managed"] as? Bool ?? false,
+                            roleID: roleID, guildID: guildID, managed: target["managed"] as? Bool ?? false,
                             permissions: permissions), (target["position"] as? Int ?? 0) < highest
                         else {
                             throw KimiError.configuration("The automatic role is unsafe or above Kimi's highest role.")
