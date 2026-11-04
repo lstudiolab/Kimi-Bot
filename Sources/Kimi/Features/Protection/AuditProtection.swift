@@ -37,7 +37,7 @@ actor AuditProtection {
         all.append(item)
         all = Array(all.suffix(1000))
         try await store.set(all, key: "security.incidents")
-        try await store.setGuild([], key: "security.activity." + key, guildID: guildID)
+        try await store.setGuild([Date](), key: "security.activity." + key, guildID: guildID)
         return item
     }
 }
