@@ -37,16 +37,26 @@ enum DiscordText {
 
 actor Logger {
     private var entries: [LogEntry] = []
+    private var entryHead = 0
+    private let dateFormatter = ISO8601DateFormatter()
+
     func log(_ level: String, _ message: String) {
         let now = Date()
         entries.append(LogEntry(date: now, level: level, message: message))
-        if entries.count > 1000 { entries.removeFirst(entries.count - 1000) }
-        let line = "[\(ISO8601DateFormatter().string(from:now))] [\(level)] \(message)\n"
+        if entries.count - entryHead > 1000 { entryHead += entries.count - entryHead - 1000 }
+        if entryHead >= 256 && entryHead * 2 >= entries.count {
+            entries.removeFirst(entryHead)
+            entryHead = 0
+        }
+        let line = "[\(dateFormatter.string(from: now))] [\(level)] \(message)\n"
         FileHandle.standardOutput.write(Data(line.utf8))
     }
-    func recent(limit: Int = 100) -> [LogEntry] { Array(entries.suffix(max(0, limit))) }
-}
 
+    func recent(limit: Int = 100) -> [LogEntry] {
+        guard limit > 0, entryHead < entries.count else { return [] }
+        return Array(entries[entryHead...].suffix(limit))
+    }
+}
 struct Configuration {
     let token: String
     let clientID: String
