@@ -654,4 +654,32 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(findings.contains { $0?.reason.contains("High-velocity message flood") == true })
     }
 
+    func testRecoveryEditsPreserveOriginalRetentionTimestamp() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-recovery-edit-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let guild = "123456789012345678"
+        let messageID = "323456789012345678"
+        let originalDate = Date().addingTimeInterval(-2 * 86400)
+        let original = RecoveryService.Message(
+            id: messageID, channelID: "423456789012345678",
+            authorID: "223456789012345678", content: "before edit",
+            createdAt: originalDate, authorName: "member", attachments: [])
+        try await store.setGuild(
+            [guild: [original]], key: "recovery.messages", guildID: guild)
+
+        let service = RecoveryService(
+            store: store, logger: Logger(), rest: DiscordREST(token: "test"))
+        await service.captureMessage(
+            guild, "423456789012345678", messageID, "223456789012345678",
+            "after edit", authorName: "member")
+
+        let saved = await store.get(
+            "recovery.messages", as: [String: [RecoveryService.Message]].self)
+        XCTAssertEqual(saved?[guild]?.first?.content, "after edit")
+        XCTAssertEqual(saved?[guild]?.first?.createdAt, originalDate)
+    }
+
 }
