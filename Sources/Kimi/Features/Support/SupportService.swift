@@ -211,19 +211,27 @@ actor SupportService {
                     "POST", "channels/\(destination)/messages",
                     body: ["content": summary, "allowed_mentions": ["parse": []]])
                 let exported = String(transcript.suffix(18_000))
-                var cursor = exported.startIndex
-                var part = 1
-                while cursor < exported.endIndex {
-                    let next = exported.index(cursor, offsetBy: 1750, limitedBy: exported.endIndex) ?? exported.endIndex
-                    let chunk = String(exported[cursor..<next])
+                var chunks: [String] = []
+                var current = ""
+                var utf16Count = 0
+                for scalar in exported.unicodeScalars {
+                    let width = scalar.value > 0xFFFF ? 2 : 1
+                    if utf16Count + width > 1700 {
+                        chunks.append(current)
+                        current = ""
+                        utf16Count = 0
+                    }
+                    current.unicodeScalars.append(scalar)
+                    utf16Count += width
+                }
+                if !current.isEmpty { chunks.append(current) }
+                for (index, chunk) in chunks.enumerated() {
                     _ = try await rest.call(
                         "POST", "channels/\(destination)/messages",
                         body: [
-                            "content": "Transcript part " + String(part) + "\n" + chunk,
+                            "content": "Transcript part " + String(index + 1) + "\n" + chunk,
                             "allowed_mentions": ["parse": []],
                         ])
-                    cursor = next
-                    part += 1
                 }
             } catch {
                 await logger.log("ERROR", "Ticket closed, but transcript export failed: " + error.localizedDescription)
