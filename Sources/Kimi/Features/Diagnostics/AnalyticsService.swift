@@ -25,7 +25,7 @@ actor AnalyticsService {
     init(store: PersistentStore) { self.store = store }
     func record(guild: String, event: String, at date: Date = Date()) async {
         do {
-            try await store.updateGuild("analytics.daily", guildID: guild, as: [String: [Day]].self) { stored in
+            _ = try await store.updateGuild("analytics.daily", guildID: guild, as: [String: [Day]].self) { stored in
                 var all = stored ?? [:]
                 let parts = Calendar(identifier: .gregorian).dateComponents(
                     in: TimeZone(secondsFromGMT: 0)!, from: date)
