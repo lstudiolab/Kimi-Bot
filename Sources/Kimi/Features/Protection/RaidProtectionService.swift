@@ -78,11 +78,10 @@ actor RaidProtectionService {
         let incident = Incident(
             guildID: guild, joinedAt: now, joinCount: recent.count, quarantinedUserID: quarantined, accountAgeDays: age,
             action: action)
-        var records = await store.get("security.raid-incidents", as: [Incident].self) ?? []
-        records.append(incident)
-        records = Array(records.suffix(500))
         do {
-            try await store.set(records, key: "security.raid-incidents")
+            _ = try await store.update("security.raid-incidents", as: [Incident].self) { stored in
+                Array(((stored ?? []) + [incident]).suffix(500))
+            }
         } catch {
             await logger.log("ERROR", "Raid incident could not be persisted: " + error.localizedDescription)
         }
