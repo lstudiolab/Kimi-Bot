@@ -119,6 +119,17 @@ actor PersistentStore {
         }
         try persist(candidate)
     }
+    func setGuildBatch(_ updates: [String: Data], guildID: String) throws {
+        guard !updates.isEmpty else { return }
+        var candidate = values
+        for (key, data) in updates {
+            candidate[key] = data
+        }
+        guard guildUsage(guildID, source: candidate) <= StorageQuota.freeLimit else {
+            throw KimiError.configuration("This server has reached its storage allowance.")
+        }
+        try persist(candidate)
+    }
     func claimGuildCooldown(
         _ key: String, subject: String, guildID: String, interval: TimeInterval, now: Date = Date()
     ) throws -> Bool {
