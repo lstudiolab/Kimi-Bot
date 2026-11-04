@@ -644,7 +644,12 @@ final class DashboardServer: @unchecked Sendable {
             guard let base = buffer.baseAddress else { return }
             var offset = 0
             while offset < buffer.count {
-                let sent = send(fd, base.advanced(by: offset), buffer.count - offset, 0)
+                #if canImport(Glibc)
+                    let sent = Glibc.send(
+                        fd, base.advanced(by: offset), buffer.count - offset, Int32(MSG_NOSIGNAL))
+                #else
+                    let sent = Darwin.send(fd, base.advanced(by: offset), buffer.count - offset, 0)
+                #endif
                 if sent < 0 {
                     if errno == EINTR { continue }
                     break
