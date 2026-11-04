@@ -5,6 +5,15 @@ extension KimiRuntime {
         let modules = await store.getLegacy("modules", as: [String: [String: Bool]].self) ?? [:]
         return modules[guild]?[module] != false
     }
+    func captureGuildStructure(_ guild: String) async {
+        let installed = await PluginManager(store: store).installed(guildID: guild)
+        guard installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) else { return }
+        let recovery = RecoveryService(store: store, logger: logger, rest: rest)
+        let channels = (try? await rest.call("GET", "guilds/" + guild + "/channels") as? [[String: Any]]) ?? []
+        for channel in channels { await recovery.captureChannel(guild, channel) }
+        let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+        for role in roles { await recovery.captureRole(guild, role) }
+    }
     func dispatchMigratedEvent(_ name: String, _ data: [String: Any]) async {
         switch name {
         case "READY":
@@ -16,12 +25,14 @@ extension KimiRuntime {
                     guard let guild = item["id"] as? String else { continue }
                     let installed = await PluginManager(store: store).installed(guildID: guild)
                     try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
+                    await captureGuildStructure(guild)
                 }
             }
         case "GUILD_CREATE":
             guard let guild = data["id"] as? String else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
+            await captureGuildStructure(guild)
         case "GUILD_MEMBER_ADD":
             guard let guild = data["guild_id"] as? String, let user = data["user"] as? [String: Any],
                 let id = user["id"] as? String
