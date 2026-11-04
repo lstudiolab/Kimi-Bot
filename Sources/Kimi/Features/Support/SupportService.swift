@@ -67,12 +67,9 @@ actor SupportService {
             throw KimiError.configuration("The support queue is full. Please contact staff through the configured support channel.")
         }
         let cooldownKey = "support.ticket-cooldown." + guild + "." + user
-        let now = Date()
-        if let previous = await store.get(cooldownKey, as: Date.self),
-            now.timeIntervalSince(previous) >= 0, now.timeIntervalSince(previous) < 60 {
+        guard try await store.claimGuildCooldown(cooldownKey, guildID: guild, interval: 60) else {
             throw KimiError.configuration("Please wait before opening another support ticket.")
         }
-        try await store.setGuild(now, key: cooldownKey, guildID: guild)
         let category = try await ensureCategory(guild)
         let value = await settings(guild)
         var overwrites: [[String: Any]] = [
