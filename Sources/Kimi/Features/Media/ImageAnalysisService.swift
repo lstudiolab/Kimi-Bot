@@ -31,10 +31,24 @@ private enum ImageProcess {
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
             if process.isRunning { process.terminate() }
         }
-        let output = pipe.fileHandleForReading.readDataToEndOfFile()
+
+        // Drain the pipe to avoid blocking the child process, but retain only the
+        // configured output budget so OCR/QR tools cannot exhaust memory.
+        var output = Data()
+        output.reserveCapacity(max(0, limit))
+        do {
+            while let chunk = try pipe.fileHandleForReading.read(upToCount: 8192), !chunk.isEmpty {
+                let remaining = max(0, limit - output.count)
+                if remaining > 0 { output.append(contentsOf: chunk.prefix(remaining)) }
+            }
+        } catch {
+            if process.isRunning { process.terminate() }
+            process.waitUntilExit()
+            return nil
+        }
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
-        return Data(output.prefix(limit))
+        return output
     }
     static func first(_ commands: [String], _ arguments: [String], timeout: Double = 15, limit: Int = 262144) -> Data? {
         for command in commands {
