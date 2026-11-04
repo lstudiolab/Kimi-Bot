@@ -17,12 +17,12 @@ Kimi should feel deliberate, quiet, predictable, and dependable.
 
 Kimi is one application with clear internal boundaries. These boundaries organize code; they are not separate deployable products.
 
-1. **Application composition** — loads configuration, constructs shared services, starts the dashboard, synchronizes global commands, and owns the Gateway lifecycle.
+1. **Application composition** — loads configuration, constructs shared services, synchronizes global commands, and owns the Gateway lifecycle.
 2. **Discord transport** — owns Gateway connection, heartbeats, reconnect/resume, REST requests, rate-limit handling, and Discord payload serialization.
 3. **Interaction boundary** — acknowledges interactions once, routes commands and components, enforces authorization, and edits the original response for completion.
 4. **Foundation** — provides shared configuration, persistence, localization, logging, analytics, and performance measurement.
 5. **Domain systems** — implement moderation, security, verification, support, recovery, role selection, embeds, and automation using explicit service boundaries.
-6. **Presentation** — produces consistent Discord messages and server-rendered dashboard pages. Presentation code must not own business rules.
+6. **Presentation** — produces consistent Discord messages and Discord-native interaction views. Presentation code must not own business rules.
 7. **Storage** — owns schema compatibility, atomic persistence, bounded retention, per-server quotas, and migration from legacy records.
 
 Domain systems must depend on narrow service interfaces where practical. Avoid circular dependencies, hidden global state, duplicate policy implementations, and direct filesystem access from feature handlers.
@@ -74,8 +74,8 @@ For Discord interactions, acknowledge before performing network or storage work 
 - Use confidence thresholds and reversible containment before destructive actions when evidence is uncertain.
 - Make every automatic action explainable: signal, policy, action, duration, and outcome.
 - Apply per-user and per-server rate limits to interactive and automated operations.
-- Treat message text, URLs, attachments, dashboard input, and imported app packages as untrusted.
-- Keep secrets out of source control, logs, error messages, and dashboard HTML.
+- Treat message text, URLs, attachments, and imported app packages as untrusted.
+- Keep secrets out of source control, logs, error messages, and .
 
 ## Discord experience
 
@@ -87,7 +87,7 @@ For Discord interactions, acknowledge before performing network or storage work 
 - Use ephemeral responses for private configuration feedback and public messages only when the result is intended for the channel.
 - Do not use emoji as the only status indicator.
 
-## Dashboard experience
+## Discord interaction experience
 
 - Keep navigation shallow and organize settings by task rather than by internal class or service name.
 - Use progressive disclosure: show essential controls first and advanced policy details when requested.
@@ -95,7 +95,7 @@ For Discord interactions, acknowledge before performing network or storage work 
 - Preserve user input after validation errors.
 - Provide loading, empty, success, and failure states for every asynchronous view.
 - Ensure layouts work on narrow mobile screens and remain usable with keyboard and assistive technology.
-- Keep the dashboard server-rendered; browser JavaScript must not become a second business-logic runtime.
+- Keep configuration and workflows inside Discord; do not introduce a separate website control plane.
 
 ## Quality gates
 
@@ -117,6 +117,6 @@ Before production rollout, validate on the actual Termux device and a disposable
 - Ticket open, concurrent open attempts, close confirmation, transcript export, and staff handoff.
 - Automation matching, action failure, retry safety, and execution limits.
 - Storage migration, interrupted writes, quota rejection, retention, and recovery.
-- Dashboard authentication, session expiry, CSRF protection, and mobile layout.
+- Discord interaction acknowledgement, component ownership, expiry, permission checks, and mobile layout.
 
 A failed quality gate blocks release. Do not describe an untested change as production-ready.
