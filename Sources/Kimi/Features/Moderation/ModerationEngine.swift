@@ -110,8 +110,8 @@ actor ModerationEngine {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
+            guard let r = Range(match.range, in: content) else { return nil }
             return String(content[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,!?)]}>"))
-            return String(content[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,!?)]}>'\\""))
         }
         let loggerDomains: Set<String> = ["grabify.link", "iplogger.org", "iplogger.com", "2no.co", "yip.su", "ps3cfw.com", "blasze.com", "leancoding.co", "stopify.co"]
         let shorteners: Set<String> = ["bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "rb.gy"]
@@ -120,7 +120,7 @@ actor ModerationEngine {
             guard let parts = URLComponents(string: candidate), let host = parts.host?.lowercased() else { return true }
             if parts.user != nil || parts.password != nil || host.hasPrefix("xn--") || host.contains(".xn--") { return true }
             if loggerDomains.contains(host) || shorteners.contains(host) { return true }
-            return host.range(of: #"^\\d{1,3}(?:\.\\d{1,3}){3}$"#, options: .regularExpression) != nil
+            return host.range(of: #"^\d{1,3}(?:\.\d{1,3}){3}$"#, options: .regularExpression) != nil
         }
     }
 
