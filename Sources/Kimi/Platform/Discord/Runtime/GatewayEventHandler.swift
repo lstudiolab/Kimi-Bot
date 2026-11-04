@@ -155,6 +155,49 @@ extension KimiRuntime {
                     (name == "GUILD_BAN_ADD" ? "Ban recorded for " : "Unban recorded for ") + user + " in guild "
                         + guild)
             }
+        case "VOICE_STATE_UPDATE":
+            guard let guild = data["guild_id"] as? String,
+                let user = data["user_id"] as? String
+            else { return }
+            let installed = await PluginManager(store: store).installed(guildID: guild)
+            guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
+                return
+            }
+            let channel = data["channel_id"] as? String ?? ""
+            let stateKey = "moderation.voice-state." + guild + "." + user
+            let previous = await store.get(stateKey, as: String.self) ?? ""
+            guard previous != channel else { return }
+            try? await store.set(channel, key: stateKey)
+            let rateKey = "moderation.voice-hops." + guild + "." + user
+            let now = Date()
+            var events = (await store.get(rateKey, as: [Date].self) ?? []).filter {
+                now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) <= 60
+            }
+            if !channel.isEmpty { events.append(now) }
+            try? await store.setGuild(events, key: rateKey, guildID: guild)
+            if events.count >= 12 {
+                try? await rest.timeoutKimiMember(guild, user, 5, "Repeated voice channel hopping")
+                await logger.log("WARN", "Kimi Lock contained repeated voice-channel hopping by " + user)
+            }
+        case "VOICE_CHANNEL_EFFECT_SEND":
+            guard let guild = data["guild_id"] as? String,
+                let user = data["user_id"] as? String
+            else { return }
+            let installed = await PluginManager(store: store).installed(guildID: guild)
+            guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
+                return
+            }
+            let key = "moderation.soundboard." + guild + "." + user
+            let now = Date()
+            var events = (await store.get(key, as: [Date].self) ?? []).filter {
+                now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) <= 10
+            }
+            events.append(now)
+            try? await store.setGuild(events, key: key, guildID: guild)
+            if events.count >= 10 {
+                try? await rest.timeoutKimiMember(guild, user, 5, "Soundboard effect flooding")
+                await logger.log("WARN", "Kimi Lock contained soundboard flooding by " + user)
+            }
         case "MESSAGE_REACTION_ADD":
             guard let guild = data["guild_id"] as? String,
                 let channel = data["channel_id"] as? String,
