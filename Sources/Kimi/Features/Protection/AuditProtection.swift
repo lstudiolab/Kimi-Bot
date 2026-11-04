@@ -11,15 +11,17 @@ actor AuditProtection {
         let createdAt: Date
     }
     private let store: PersistentStore
-    private var activity: [String: [Date]] = [:]
     init(store: PersistentStore) { self.store = store }
     func record(guildID: String, actorID: String, action: String, threshold: Int = 3, now: Date = Date()) async throws
         -> Incident?
     {
         let key = "\(guildID):\(actorID):\(action)"
-        var events = (activity[key] ?? []).filter { now.timeIntervalSince($0) < 20 }
+        var events = (await store.get("security.activity." + key, as: [Date].self) ?? []).filter {
+            now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 20
+        }
         events.append(now)
-        activity[key] = events
+        if events.count > 30 { events = Array(events.suffix(30)) }
+        try await store.setGuild(events, key: "security.activity." + key, guildID: guildID)
         let sensitiveThreshold: Int
         switch action {
         case "12", "13", "14", "15", "32", "50", "51", "52": sensitiveThreshold = 2
@@ -35,7 +37,7 @@ actor AuditProtection {
         all.append(item)
         all = Array(all.suffix(1000))
         try await store.set(all, key: "security.incidents")
-        activity[key] = []
+        try await store.setGuild([], key: "security.activity." + key, guildID: guildID)
         return item
     }
 }
