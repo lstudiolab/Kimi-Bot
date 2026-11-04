@@ -389,7 +389,7 @@ actor DiscordGateway {
                         try await send(["op": 6, "d": ["token": token, "session_id": sessionID, "seq": sequence]])
                         await logger.log("INFO", "Resuming Discord Gateway session.")
                     } else {
-                        let intents = 1 | 2 | 4 | 32 | 128 | 512 | 1024 | 32768 | 65536
+                        let intents = 1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 32768 | 65536
                         try await send([
                             "op": 2,
                             "d": [
