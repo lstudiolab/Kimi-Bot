@@ -49,10 +49,12 @@ actor ModerationEngine {
         var block_excessive_caps: Bool?
         var log_channel_id: String?
     }
+    private struct DuplicateEvent: Codable, Sendable {
+        let content: String
+        let timestamp: Date
+    }
     private let store: PersistentStore
     private var policies: [String: Policy] = [:]
-    private var history: [String: [Date]] = [:]
-    private var duplicateHistory: [String: [(String, Date)]] = [:]
     init(store: PersistentStore) { self.store = store }
     func policy(guildID: String) async -> Policy {
         if let cached = policies[guildID] { return cached }
@@ -132,12 +134,13 @@ actor ModerationEngine {
         let value = await policy(guildID: guildID)
         guard value.enabled else { return nil }
         let key = guildID + ":" + channelID + ":" + userID
-        var events = (history[key] ?? []).filter { now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60 }
-        events.append(now)
-        history[key] = events
-        if history.count > 20000 {
-            history = history.filter { !$0.value.isEmpty && now.timeIntervalSince($0.value.last ?? now) < 120 }
+        let rateKey = "moderation.rate." + guildID + "." + channelID + "." + userID
+        var events = (await store.get(rateKey, as: [Date].self) ?? []).filter {
+            now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60
         }
+        events.append(now)
+        if events.count > 120 { events = Array(events.suffix(120)) }
+        try? await store.setGuild(events, key: rateKey, guildID: guildID)
 
         let normalizedContent = normalized(content)
         let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard"]
@@ -182,15 +185,14 @@ actor ModerationEngine {
             return ["exe", "dll", "com", "scr", "msi", "bat", "cmd", "ps1", "sh", "bash", "vbs", "js", "hta", "jar", "apk", "dmg", "pkg", "py", "pyc", "wasm", "lnk", "reg", "sys"].contains(ext)
                 || dangerousTypes.contains(contentType)
         }
-        var repeated = (duplicateHistory[key] ?? []).filter {
-            now.timeIntervalSince($0.1) >= 0 && now.timeIntervalSince($0.1) <= 10
+        let duplicateKey = "moderation.duplicates." + guildID + "." + channelID + "." + userID
+        var repeated = (await store.get(duplicateKey, as: [DuplicateEvent].self) ?? []).filter {
+            now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) <= 10
         }
-        repeated.append((normalizedContent, now))
-        duplicateHistory[key] = repeated
-        if duplicateHistory.count > 20000 {
-            duplicateHistory = duplicateHistory.filter { !$0.value.isEmpty && now.timeIntervalSince($0.value.last?.1 ?? now) < 30 }
-        }
-        let duplicate = repeated.filter { $0.0 == normalizedContent }.count >= 3 && normalizedContent.count > 3
+        repeated.append(DuplicateEvent(content: normalizedContent, timestamp: now))
+        if repeated.count > 30 { repeated = Array(repeated.suffix(30)) }
+        try? await store.setGuild(repeated, key: duplicateKey, guildID: guildID)
+        let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
         let triggered = customTerm != nil || profanity || spam || excessive || caps || formattingWall
             || emojiSpam || massMention || invite || suspiciousLink || attachmentsBlocked || duplicate
         guard triggered else { return nil }
