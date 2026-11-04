@@ -80,13 +80,11 @@ actor RecoveryService {
     func restorePendingRoles(_ guild: String) async {
         let pending = await store.get("recovery.pending-roles", as: [String: [String]].self) ?? [:]
         let snapshots = await store.get("recovery.roles", as: [String: [String: Data]].self) ?? [:]
-        var remaining: [String] = []
         var restoredIDs = Set<String>()
         for roleID in pending[guild] ?? [] {
             guard let data = snapshots[guild]?[roleID],
                 let source = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else {
-                remaining.append(roleID)
                 await logger.log("WARN", "Role recovery retained an item without a snapshot: " + roleID)
                 continue
             }
@@ -119,7 +117,6 @@ actor RecoveryService {
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
             } catch {
-                remaining.append(roleID)
                 await logger.log("ERROR", "Role recovery failed for " + roleID + ": " + error.localizedDescription)
             }
         }
@@ -199,14 +196,9 @@ actor RecoveryService {
             if aCategory != bCategory { return aCategory }
             return (a?["position"] as? Int ?? 0) < (b?["position"] as? Int ?? 0)
         }
-        var remaining: [String] = []
         var restoredIDs = Set<String>()
         for channel in ordered {
-            if await restoreChannel(guild, channel) {
-                restoredIDs.insert(channel)
-            } else {
-                remaining.append(channel)
-            }
+            if await restoreChannel(guild, channel) { restoredIDs.insert(channel) }
         }
         do {
             try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
