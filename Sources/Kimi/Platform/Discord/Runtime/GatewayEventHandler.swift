@@ -394,7 +394,7 @@ extension KimiRuntime {
             let memberRoles = Set(member["roles"] as? [String] ?? [])
             let rolePermissions = await cachedRolePermissions(guild)
             let canMentionEveryone = memberRoles.contains { roleID in
-                ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & (1 << 17)) != 0
+                ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & ((1 << 17) | (1 << 3))) != 0
             }
             if let owner, user != owner,
                 let finding = await moderation.evaluate(
@@ -458,7 +458,7 @@ extension KimiRuntime {
                 let memberRoles = Set(member["roles"] as? [String] ?? [])
                 let rolePermissions = await cachedRolePermissions(guild)
                 let canMentionEveryone = memberRoles.contains { roleID in
-                    ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & (1 << 17)) != 0
+                    ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & ((1 << 17) | (1 << 3))) != 0
                 }
                 let finding = await moderation.evaluate(
                     guildID: guild,
