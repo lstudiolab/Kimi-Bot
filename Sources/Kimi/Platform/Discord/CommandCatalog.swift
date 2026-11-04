@@ -3,7 +3,7 @@ import Foundation
 enum CommandCatalog {
     static let core = [
         "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove",
-        "automations", "guard-review", "web-token", "analytics", "performance",
+        "automations", "guard-review", "analytics", "performance",
     ]
     static let pluginCommands: [String: [String]] = [
         "Welcome": ["welcome-screen"],
@@ -87,7 +87,7 @@ enum CommandCatalog {
                     text(
                         "decision", "Restore or keep restricted", true,
                         [["name": "Restore", "value": "restore"], ["name": "Keep restricted", "value": "keep"]]),
-                ]), "web-token": command("web-token", "Open the Kimi dashboard"),
+                ]),
             "analytics": command("analytics", "View server activity and system statistics"),
             "performance": command("performance", "View Kimi command latency and failure metrics"),
             "welcome-screen": command("welcome-screen", "Configure the Welcome plugin"),
