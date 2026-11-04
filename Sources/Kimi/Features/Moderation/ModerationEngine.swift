@@ -63,6 +63,27 @@ actor ModerationEngine {
     }
     private let store: PersistentStore
     private var policies: [String: Policy] = [:]
+    private var evaluationInProgress = false
+    private var evaluationWaiters: [CheckedContinuation<Void, Never>] = []
+
+    private func acquireEvaluation() async {
+        if !evaluationInProgress {
+            evaluationInProgress = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            evaluationWaiters.append(continuation)
+        }
+    }
+
+    private func releaseEvaluation() {
+        if evaluationWaiters.isEmpty {
+            evaluationInProgress = false
+        } else {
+            evaluationWaiters.removeFirst().resume()
+        }
+    }
+
     init(store: PersistentStore) { self.store = store }
     func policy(guildID: String) async -> Policy {
         if let cached = policies[guildID] { return cached }
@@ -160,6 +181,8 @@ actor ModerationEngine {
         now: Date = Date(), attachments: [[String: Any]] = [], stickerCount: Int = 0,
         mentionEveryone: Bool = false, allowMassMentions: Bool = false, roleMentionCount: Int = 0, userMentionCount: Int = 0
     ) async -> Finding? {
+        await acquireEvaluation()
+        defer { releaseEvaluation() }
         let value = await policy(guildID: guildID)
         guard value.enabled else { return nil }
         let rateKey = "moderation.rate." + guildID + "." + channelID + "." + userID
