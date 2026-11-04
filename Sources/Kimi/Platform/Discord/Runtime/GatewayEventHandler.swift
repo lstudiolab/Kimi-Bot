@@ -432,9 +432,12 @@ extension KimiRuntime {
                     contentType: item["content_type"] as? String, size: item["size"] as? Int)
             }
             if recoveryEnabled {
+                let messageCreatedAt = (data["timestamp"] as? String).flatMap {
+                    ISO8601DateFormatter().date(from: $0)
+                }
                 await recovery.captureMessage(
                     guild, channel, message, user, content, attachments: attachmentRecords,
-                    authorName: author["username"] as? String)
+                    authorName: author["username"] as? String, createdAt: messageCreatedAt)
             }
             let mentionedUsers = (data["mentions"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
             let reference = (data["message_reference"] as? [String: Any])?["message_id"] as? String
@@ -517,9 +520,13 @@ extension KimiRuntime {
                         name: item["filename"] as? String ?? "attachment", url: url,
                         contentType: item["content_type"] as? String, size: item["size"] as? Int)
                 }
+                let messageCreatedAt = (data["timestamp"] as? String).flatMap {
+                    ISO8601DateFormatter().date(from: $0)
+                }
                 await RecoveryService(store: store, logger: logger, rest: rest).captureMessage(
                     guild, channel, message, user, editedContent,
-                    attachments: attachments, authorName: author["username"] as? String)
+                    attachments: attachments, authorName: author["username"] as? String,
+                    createdAt: messageCreatedAt)
             }
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
                 let editedContent = data["content"] as? String
