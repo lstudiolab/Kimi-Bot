@@ -151,11 +151,32 @@ extension KimiRuntime {
                     KimiUI.row([KimiUI.button(id: "screen:auto-role:disable", label: "Disable automatic role", style: 4)]),
                 ]
             case "role-picker-screen":
-                reply = "Role Picker configuration\nUse this screen to manage the role menu system. Menu creation and publishing controls will appear here as the next screen controls are enabled."
-                responseComponents = [KimiUI.row([KimiUI.button(id: "screen:role-picker:refresh", label: "Refresh")])]
+                let menus = await store.get("rolepicker.menus." + guild, as: [String: RolePickerService.Menu].self) ?? [:]
+                reply = "Role Picker configuration\nSaved menus: "
+                    + (menus.isEmpty ? "None" : menus.keys.sorted().joined(separator: ", "))
+                    + "\nSelect a channel and publish or refresh the default role menu."
+                responseComponents = [
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:role-picker:channel", placeholder: "Role menu channel")]),
+                    KimiUI.row([KimiUI.button(id: "screen:role-picker:publish", label: "Publish role menu", style: 1)]),
+                ]
             case "embeds-screen":
-                reply = "Embeds configuration\nManage reusable embeds and their placements from this plugin screen."
-                responseComponents = [KimiUI.row([KimiUI.button(id: "screen:embeds:refresh", label: "Refresh")])]
+                let saved = await EmbedService(store: store, rest: rest).all(guild: guild)
+                let options = saved.prefix(25).map { ["label": String($0.name.prefix(100)), "value": $0.name] }
+                reply = "Embeds configuration\nSaved embeds: "
+                    + (saved.isEmpty ? "None" : saved.map(\.name).joined(separator: ", "))
+                    + "\nSelect an embed and destination channel to publish it."
+                responseComponents = []
+                if !options.isEmpty {
+                    responseComponents.append(KimiUI.row([
+                        KimiUI.stringSelect(id: "screen:embeds:select", placeholder: "Choose saved embed", options: options),
+                    ]))
+                }
+                responseComponents.append(KimiUI.row([
+                    KimiUI.channelSelect(id: "screen:embeds:channel", placeholder: "Embed destination"),
+                ]))
+                responseComponents.append(KimiUI.row([
+                    KimiUI.button(id: "screen:embeds:publish", label: "Publish selected embed", style: 1, disabled: options.isEmpty),
+                ]))
             case "setup":
                 let owner = try await rest.ownerID(guild)
                 let me = try await rest.call("GET", "users/@me")
