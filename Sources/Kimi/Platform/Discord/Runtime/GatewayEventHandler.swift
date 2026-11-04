@@ -358,6 +358,31 @@ extension KimiRuntime {
                 let user = author["id"] as? String
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
+            if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
+                let editedContent = data["content"] as? String
+            {
+                let finding = await ModerationEngine(store: store).evaluate(
+                    guildID: guild,
+                    userID: user,
+                    messageID: message,
+                    content: editedContent,
+                    channelID: channel,
+                    attachments: data["attachments"] as? [[String: Any]] ?? [],
+                    stickerCount: (data["sticker_items"] as? [Any] ?? []).count,
+                    mentionEveryone: data["mention_everyone"] as? Bool ?? false,
+                    roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
+                    userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
+                )
+                if let finding, (try? await rest.ownerID(guild)) != user {
+                    let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                    try? await store.set(true, key: "moderation.deleted." + message)
+                    try? await rest.deleteKimiMessage(channel, message)
+                    if policy.sanction == "timeout" {
+                        try? await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
+                    }
+                    await logger.log("WARN", "Kimi Lock removed edited content: " + finding.reason)
+                }
+            }
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 let recovery = RecoveryService(store: store, logger: logger, rest: rest)
                 let previous = await recovery.savedMessage(guild, channel, message)
