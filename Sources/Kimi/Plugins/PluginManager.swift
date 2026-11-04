@@ -8,18 +8,13 @@ actor PluginManager {
     }
 
     private let store: PersistentStore
-    private let storageKey = "plugins.installed"
-    private let legacyStorageKey = "apps.installed"
+    // Persisted key is retained to preserve existing guild installations.
+    private let storageKey = "apps.installed"
 
     init(store: PersistentStore) { self.store = store }
 
     private func loadInstallations() async -> [String: [String]] {
-        var current = await store.get(storageKey, as: [String: [String]].self) ?? [:]
-        let legacy = await store.get(legacyStorageKey, as: [String: [String]].self) ?? [:]
-        for (guildID, plugins) in legacy where current[guildID] == nil {
-            current[guildID] = plugins
-        }
-        return current
+        await store.get(storageKey, as: [String: [String]].self) ?? [:]
     }
 
     func installed(guildID: String) async -> [String] {
