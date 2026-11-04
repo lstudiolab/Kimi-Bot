@@ -134,6 +134,27 @@ final class CoreTests: XCTestCase {
         XCTAssertThrowsError(try KimiUI.validateMessageComponents(oversized))
     }
 
+    func testDiscordTextUsesUTF16Boundaries() {
+        XCTAssertEqual(DiscordText.prefixUTF16("😀😀A", limit: 3), "😀A")
+        XCTAssertEqual(DiscordText.prefixUTF16("😀A", limit: 1), "")
+        XCTAssertEqual(DiscordText.prefixUTF16("abc", limit: 2), "ab")
+    }
+
+    func testComponentLabelsAndIdentifiersRespectUTF16Limits() {
+        let button = KimiUI.button(
+            id: String(repeating: "😀", count: 60),
+            label: String(repeating: "😀", count: 50))
+        XCTAssertLessThanOrEqual((button["custom_id"] as? String)?.utf16.count ?? 0, 100)
+        XCTAssertLessThanOrEqual((button["label"] as? String)?.utf16.count ?? 0, 80)
+    }
+
+    func testEmbedValidatorCountsUTF16Units() {
+        let validator = EmbedValidator()
+        let invalid = EmbedValidator.Definition(
+            title: String(repeating: "😀", count: 129), description: "", fields: [], color: 0)
+        XCTAssertTrue(validator.validate(invalid).contains { $0.contains("Title exceeds") })
+    }
+
     func testEmbedValidatorEnforcesDiscordLimits() {
         let validator = EmbedValidator()
         let valid = EmbedValidator.Definition(
