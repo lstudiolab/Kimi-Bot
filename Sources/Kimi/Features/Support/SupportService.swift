@@ -10,9 +10,9 @@ actor SupportService {
         var panelTitle: String = "Contact Support"
         var panelDescription: String = "Open a private ticket with the support team."
     }
-    private let store: PersistentStore
-    private let rest: DiscordREST
-    private let logger: Logger
+    let store: PersistentStore
+    let rest: DiscordREST
+    let logger: Logger
     init(store: PersistentStore, rest: DiscordREST, logger: Logger) {
         self.store = store
         self.rest = rest
@@ -47,7 +47,7 @@ actor SupportService {
         try await configure(next, guild: guild)
         return id
     }
-    private func panelComponents() -> [[String: Any]] {
+    func panelComponents() -> [[String: Any]] {
         [
             [
                 "type": 1,
@@ -58,7 +58,7 @@ actor SupportService {
         ]
     }
 
-    private func panelBody(_ settings: Settings) -> [String: Any] {
+    func panelBody(_ settings: Settings) -> [String: Any] {
         [
             "content": DiscordText.prefixUTF16("**\(settings.panelTitle)**\n\(settings.panelDescription)", limit: 1900),
             "components": panelComponents(),
@@ -66,263 +66,10 @@ actor SupportService {
         ]
     }
 
-    func updatePanel(guild: String) async throws -> Bool {
-        let value = await settings(guild)
-        guard let channel = value.panelChannelID, let message = value.panelMessageID else { return false }
-        _ = try await rest.call(
-            "PATCH", "channels/\(channel)/messages/\(message)", body: panelBody(value))
-        return true
-    }
 
-    func publishPanel(guild: String, channel: String) async throws {
-        var value = await settings(guild)
-        if value.panelChannelID == channel, let message = value.panelMessageID {
-            do {
-                _ = try await rest.call(
-                    "PATCH", "channels/\(channel)/messages/\(message)", body: panelBody(value))
-                return
-            } catch KimiError.http(404, _) {
-                await logger.log("WARN", "Existing ticket panel no longer exists; publishing a replacement.")
-                value.panelMessageID = nil
-            }
-        }
 
-        let response = try await rest.call(
-            "POST", "channels/\(channel)/messages", body: panelBody(value)) as? [String: Any] ?? [:]
-        guard let messageID = response["id"] as? String, !messageID.isEmpty else {
-            throw KimiError.invalidResponse
-        }
-        value.panelChannelID = channel
-        value.panelMessageID = messageID
-        do {
-            try await configure(value, guild: guild)
-        } catch {
-            _ = try? await rest.call("DELETE", "channels/\(channel)/messages/\(messageID)")
-            throw error
-        }
-    }
-    func open(guild: String, user: String, username: String, bot: String) async throws -> SupportTickets.Ticket {
-        let existing = await SupportTickets(store: store).all()
-        guard !existing.contains(where: { $0.guildID == guild && $0.userID == user && $0.isOpen }) else {
-            throw TicketError.alreadyOpen
-        }
-        let openCount = existing.filter { $0.guildID == guild && $0.isOpen }.count
-        guard openCount < 100 else {
-            throw KimiError.configuration("The support queue is full. Please contact staff through the configured support channel.")
-        }
-        let cooldownKey = "support.ticket-cooldowns." + guild
-        guard try await store.claimGuildCooldown(cooldownKey, subject: user, guildID: guild, interval: 60) else {
-            throw KimiError.configuration("Please wait before opening another support ticket.")
-        }
-        let category = try await ensureCategory(guild)
-        let value = await settings(guild)
-        var overwrites: [[String: Any]] = [
-            ["id": guild, "type": 0, "deny": "1024"], ["id": user, "type": 1, "allow": "68608"],
-            ["id": bot, "type": 1, "allow": "68608"],
-        ]
-        if let role = value.supportRoleID { overwrites.append(["id": role, "type": 0, "allow": "68608"]) }
-        let name = SecurityPolicy.channelName("ticket-" + username)
-        let created = try await rest.call(
-            "POST", "guilds/\(guild)/channels",
-            body: ["name": name, "type": 0, "parent_id": category, "permission_overwrites": overwrites])
-        guard let channel = (created as? [String: Any])?["id"] as? String else { throw KimiError.invalidResponse }
-        let ticket: SupportTickets.Ticket
-        do {
-            ticket = try await SupportTickets(store: store).open(guildID: guild, userID: user, channelID: channel)
-        } catch {
-            _ = try? await rest.call("DELETE", "channels/" + channel)
-            throw error
-        }
-        let controls =
-            [
-                [
-                    "type": 1,
-                    "components": [
-                        ["type": 2, "style": 2, "label": "Low", "custom_id": "ticket:priority:" + ticket.id + ":low"],
-                        [
-                            "type": 2, "style": 2, "label": "Normal",
-                            "custom_id": "ticket:priority:" + ticket.id + ":normal",
-                        ],
-                        [
-                            "type": 2, "style": 1, "label": "High",
-                            "custom_id": "ticket:priority:" + ticket.id + ":high",
-                        ],
-                        [
-                            "type": 2, "style": 4, "label": "Urgent",
-                            "custom_id": "ticket:priority:" + ticket.id + ":urgent",
-                        ],
-                        ["type": 2, "style": 4, "label": "Close", "custom_id": "ticket:close:" + ticket.id],
-                    ],
-                ]
-            ] as [[String: Any]]
-        do {
-            _ = try await rest.call(
-                "POST", "channels/\(channel)/messages",
-                body: [
-                    "content": "Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal",
-                    "components": controls, "allowed_mentions": ["users": [user], "parse": []],
-                ])
-        } catch {
-            var recordClosed = false
-            do {
-                _ = try await SupportTickets(store: store).close(id: ticket.id, guildID: guild)
-                recordClosed = true
-            } catch {
-                await logger.log("ERROR", "Failed to roll back the ticket record: " + error.localizedDescription)
-            }
-            if recordClosed {
-                do {
-                    _ = try await rest.call("DELETE", "channels/" + channel)
-                } catch {
-                    await logger.log("ERROR", "Failed to remove an incomplete ticket channel: " + error.localizedDescription)
-                }
-            } else {
-                await logger.log(
-                    "ERROR",
-                    "The incomplete ticket channel was retained because its active record could not be rolled back: "
-                        + channel)
-            }
-            throw KimiError.configuration(
-                recordClosed
-                    ? "The ticket channel was created, but its opening message could not be sent. The incomplete ticket was rolled back."
-                    : "The ticket channel was created, but its opening message failed and its record could not be rolled back. Staff should inspect the retained channel.")
-        }
-        if let threadResponse = try? await rest.call(
-            "POST", "channels/" + channel + "/threads",
-            body: ["name": "staff-handoff", "type": 11, "auto_archive_duration": 1440]),
-            let threadID = (threadResponse as? [String: Any])?["id"] as? String
-        {
-            _ = try? await SupportTickets(store: store).setStaffThread(
-                id: ticket.id, guildID: guild, threadID: threadID)
-            let staffNotice = value.supportRoleID.map { "<@&" + $0 + "> " } ?? ""
-            _ = try? await rest.call(
-                "POST", "channels/" + threadID + "/messages",
-                body: [
-                    "content": staffNotice + "Staff handoff for ticket " + ticket.id
-                        + ". Coordinate the response here; the ticket channel remains visible to its opener and support staff.",
-                    "allowed_mentions": ["roles": value.supportRoleID.map { [$0] } ?? [], "parse": []],
-                ])
-        } else {
-            await logger.log(
-                "WARN",
-                "Ticket " + ticket.id
-                    + " opened without a staff handoff thread; check Create Public Threads permission.")
-        }
-        await logger.log("INFO", "Support ticket opened: " + ticket.id + " in guild " + guild)
-        return ticket
-    }
-    func setPriority(guild: String, ticketID: String, priority: String) async throws -> SupportTickets.Ticket {
-        let tickets = SupportTickets(store: store)
-        guard let previous = await tickets.all().first(where: { $0.id == ticketID && $0.guildID == guild }) else {
-            throw TicketError.notFound
-        }
-        guard previous.isOpen else { throw TicketError.alreadyClosed }
-        let updated = try await tickets.setPriority(id: ticketID, guildID: guild, priority: priority)
-        do {
-            _ = try await rest.call(
-                "PATCH", "channels/\(updated.channelID)",
-                body: ["name": SecurityPolicy.channelName(priority + "-ticket-" + String(updated.id.prefix(8)))])
-            return updated
-        } catch {
-            do {
-                _ = try await tickets.setPriority(id: ticketID, guildID: guild, priority: previous.priority)
-            } catch {
-                await logger.log("ERROR", "Ticket priority rollback failed: " + error.localizedDescription)
-            }
-            throw error
-        }
-    }
-    func close(guild: String, ticketID: String) async throws -> SupportTickets.Ticket {
-        let tickets = SupportTickets(store: store)
-        guard let ticket = await tickets.all().first(where: { $0.id == ticketID && $0.guildID == guild }) else {
-            throw TicketError.notFound
-        }
-        guard ticket.isOpen else { throw TicketError.alreadyClosed }
 
-        var history: [[String: Any]] = []
-        var before: String? = nil
-        for _ in 0..<10 {
-            let suffix = before.map { "&before=" + $0 } ?? ""
-            let page = try await rest.call(
-                "GET", "channels/\(ticket.channelID)/messages?limit=100" + suffix) as? [[String: Any]] ?? []
-            if page.isEmpty { break }
-            history.append(contentsOf: page)
-            before = page.last?["id"] as? String
-            if page.count < 100 { break }
-        }
 
-        let transcript = history.reversed().map { item -> String in
-            let author = (item["author"] as? [String: Any])?["username"] as? String ?? "Unknown"
-            let body = item["content"] as? String ?? ""
-            let files = (item["attachments"] as? [[String: Any]] ?? [])
-                .compactMap { $0["url"] as? String }.joined(separator: " ")
-            return author + ": " + body + (files.isEmpty ? "" : " [attachments: " + files + "]")
-        }.joined(separator: "\n")
-        var transcriptSaved = false
-        do {
-            try await store.setGuild(
-                String(transcript.suffix(100_000)),
-                key: "support.transcript." + guild + "." + ticketID, guildID: guild)
-            transcriptSaved = true
-        } catch {
-            await logger.log("WARN", "Ticket transcript could not be retained locally: " + error.localizedDescription)
-        }
 
-        _ = try await rest.call(
-            "PATCH", "channels/\(ticket.channelID)",
-            body: ["name": SecurityPolicy.channelName("closed-" + String(ticket.id.prefix(8)))])
-        try await rest.call(
-            "PUT", "channels/\(ticket.channelID)/permissions/\(ticket.userID)",
-            body: ["type": 1, "deny": "1024", "allow": "0"])
-        if let thread = ticket.staffThreadID {
-            do {
-                _ = try await rest.call("PATCH", "channels/" + thread, body: ["archived": true, "locked": true])
-            } catch {
-                await logger.log("WARN", "Ticket closed but staff thread archival failed: " + error.localizedDescription)
-            }
-        }
 
-        let closed = try await tickets.close(id: ticketID, guildID: guild)
-        let settings = await self.settings(guild)
-        if let destination = settings.transcriptChannelID {
-            let retention = transcriptSaved
-                ? "The full transcript is retained in local Kimi storage."
-                : "Local transcript retention failed; only the Discord export may be available."
-            let summary = "Ticket transcript for " + ticketID + ". Messages captured: " + String(history.count)
-                + ". " + retention + " Exported text is capped to 18,000 characters."
-            do {
-                _ = try await rest.call(
-                    "POST", "channels/\(destination)/messages",
-                    body: ["content": summary, "allowed_mentions": ["parse": []]])
-                let exported = String(transcript.suffix(18_000))
-                var chunks: [String] = []
-                var current = ""
-                var utf16Count = 0
-                for scalar in exported.unicodeScalars {
-                    let width = scalar.value > 0xFFFF ? 2 : 1
-                    if utf16Count + width > 1700 {
-                        chunks.append(current)
-                        current = ""
-                        utf16Count = 0
-                    }
-                    current.unicodeScalars.append(scalar)
-                    utf16Count += width
-                }
-                if !current.isEmpty { chunks.append(current) }
-                for (index, chunk) in chunks.enumerated() {
-                    _ = try await rest.call(
-                        "POST", "channels/\(destination)/messages",
-                        body: [
-                            "content": "Transcript part " + String(index + 1) + "\n" + chunk,
-                            "allowed_mentions": ["parse": []],
-                        ])
-                }
-            } catch {
-                await logger.log("ERROR", "Ticket closed, but transcript export failed: " + error.localizedDescription)
-            }
-        }
-        await logger.log(
-            "INFO", "Support ticket closed: " + ticketID + "; archived " + String(history.count) + " messages.")
-        return closed
-    }
 }
