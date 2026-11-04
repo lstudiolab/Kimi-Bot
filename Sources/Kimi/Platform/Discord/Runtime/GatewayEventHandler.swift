@@ -373,7 +373,7 @@ extension KimiRuntime {
         case "MESSAGE_UPDATE":
             guard let guild = data["guild_id"] as? String, let channel = data["channel_id"] as? String,
                 let message = data["id"] as? String, let author = data["author"] as? [String: Any],
-                let user = author["id"] as? String
+                let user = author["id"] as? String, author["bot"] as? Bool != true
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
