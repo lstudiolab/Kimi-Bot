@@ -319,10 +319,63 @@ actor DiscordREST {
         return id
     }
 }
+actor GatewayEventDispatcher {
+    private let handler: @Sendable ([String: Any]) async -> Void
+    private let logger: Logger
+    private let maximumConcurrent = 16
+    private let maximumQueued = 2048
+    private var active = 0
+    private var interactions: [[String: Any]] = []
+    private var events: [[String: Any]] = []
+    private var lastOverflowLog = Date.distantPast
+
+    init(logger: Logger, handler: @escaping @Sendable ([String: Any]) async -> Void) {
+        self.logger = logger
+        self.handler = handler
+    }
+
+    func enqueue(_ event: [String: Any], isInteraction: Bool) async {
+        if interactions.count + events.count >= maximumQueued {
+            if isInteraction, !events.isEmpty {
+                events.removeFirst()
+            } else {
+                if Date().timeIntervalSince(lastOverflowLog) >= 10 {
+                    lastOverflowLog = Date()
+                    await logger.log("ERROR", "Gateway event queue is saturated; incoming event was dropped.")
+                }
+                return
+            }
+        }
+        if isInteraction {
+            interactions.append(event)
+        } else {
+            events.append(event)
+        }
+        schedule()
+    }
+
+    private func schedule() {
+        while active < maximumConcurrent && (!interactions.isEmpty || !events.isEmpty) {
+            let event = interactions.isEmpty ? events.removeFirst() : interactions.removeFirst()
+            active += 1
+            let handler = self.handler
+            Task {
+                await handler(event)
+                await self.completed()
+            }
+        }
+    }
+
+    private func completed() {
+        active = max(0, active - 1)
+        schedule()
+    }
+}
+
 actor DiscordGateway {
     private let token: String
     private let logger: Logger
-    private let onEvent: @Sendable ([String: Any]) async -> Void
+    private let dispatcher: GatewayEventDispatcher
     private var socket: URLSessionWebSocketTask?
     private var sequence: Int?
     private var sessionID: String?
@@ -334,7 +387,7 @@ actor DiscordGateway {
     init(token: String, logger: Logger, onEvent: @escaping @Sendable ([String: Any]) async -> Void) {
         self.token = token
         self.logger = logger
-        self.onEvent = onEvent
+        dispatcher = GatewayEventDispatcher(logger: logger, handler: onEvent)
     }
 
     func run() async {
@@ -453,10 +506,9 @@ actor DiscordGateway {
                         resumeURL = payload["resume_gateway_url"] as? String
                     }
                     if name == "RESUMED" { await logger.log("INFO", "Discord Gateway session resumed.") }
-                    // Keep application work off the Gateway receive loop. Slow commands
-                    // must not delay receipt of later events or their three-second ACK.
-                    let handler = onEvent
-                    Task { await handler(["name": name, "data": payload]) }
+                    // Keep application work off the receive loop while bounding queued and active work.
+                    await dispatcher.enqueue(
+                        ["name": name, "data": payload], isInteraction: name == "INTERACTION_CREATE")
                 }
             }
         }
