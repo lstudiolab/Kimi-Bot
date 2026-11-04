@@ -347,6 +347,7 @@ actor PersistentStore {
 actor DiscordREST {
     let token: String
     let session: URLSession
+    private var globalRateLimitUntil = Date.distantPast
     let base = URL(string: "https://discord.com/api/v10/")!
     init(token: String) {
         self.token = token
@@ -381,6 +382,10 @@ actor DiscordREST {
         }
         var attempt = 0
         while true {
+            let globalWait = globalRateLimitUntil.timeIntervalSinceNow
+            if globalWait > 0 {
+                try await Task.sleep(nanoseconds: UInt64(min(30, globalWait) * 1_000_000_000))
+            }
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw KimiError.invalidResponse }
             if http.statusCode == 429 && attempt < 4 {
@@ -389,7 +394,14 @@ actor DiscordREST {
                 let delay =
                     object?["retry_after"] as? Double ?? Double(http.value(forHTTPHeaderField: "Retry-After") ?? "1")
                     ?? 1
-                try await Task.sleep(nanoseconds: UInt64(max(0.25, min(30, delay)) * 1_000_000_000))
+                let isGlobal = object?["global"] as? Bool == true
+                    || http.value(forHTTPHeaderField: "X-RateLimit-Global")?.lowercased() == "true"
+                if isGlobal {
+                    globalRateLimitUntil = max(
+                        globalRateLimitUntil, Date().addingTimeInterval(max(0.25, min(30, delay))))
+                } else {
+                    try await Task.sleep(nanoseconds: UInt64(max(0.25, min(30, delay)) * 1_000_000_000))
+                }
                 continue
             }
             // A 5xx response to a non-idempotent request may have happened after Discord
