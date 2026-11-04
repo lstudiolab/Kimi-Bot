@@ -12,6 +12,64 @@ extension KimiRuntime {
         let actorID = actor["id"] as? String ?? ""
         let username = actor["username"] as? String ?? "member"
         let custom = data["custom_id"] as? String ?? ""
+        do {
+            switch custom {
+            case "screen:ticket:edit-panel":
+                let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                try await rest.respondKimiModal(
+                    id, token, customID: "screen:ticket:save-panel", title: "Ticket panel",
+                    inputs: [
+                        KimiUI.textInput(id: "panel-title", label: "Panel title", value: settings.panelTitle),
+                        KimiUI.textInput(
+                            id: "panel-description", label: "Panel description",
+                            value: settings.panelDescription, style: 2, maximum: 1000),
+                    ])
+                return true
+            case "screen:welcome:edit-messages":
+                let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
+                try await rest.respondKimiModal(
+                    id, token, customID: "screen:welcome:save-messages", title: "Welcome messages",
+                    inputs: [
+                        KimiUI.textInput(id: "welcome-message", label: "Welcome message", value: settings.welcomeMessage),
+                        KimiUI.textInput(
+                            id: "goodbye-message", label: "Goodbye message",
+                            value: settings.goodbyeMessage, style: 2, maximum: 1000),
+                    ])
+                return true
+            case "screen:lock:keywords":
+                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                try await rest.respondKimiModal(
+                    id, token, customID: "screen:lock:save-keywords", title: "Blocked keywords",
+                    inputs: [
+                        KimiUI.textInput(
+                            id: "keywords", label: "One keyword or phrase per line",
+                            value: policy.blockedPhrases.joined(separator: "\n"), style: 2,
+                            required: false, maximum: 1000),
+                    ])
+                return true
+            case "screen:role-picker:edit-name":
+                let current = await store.get("screen.role-picker.name." + guild, as: String.self) ?? "roles"
+                try await rest.respondKimiModal(
+                    id, token, customID: "screen:role-picker:save-name", title: "Role menu name",
+                    inputs: [KimiUI.textInput(id: "menu-name", label: "Menu name", value: current, maximum: 24)])
+                return true
+            case "screen:embeds:create":
+                try await rest.respondKimiModal(
+                    id, token, customID: "screen:embeds:save", title: "Create or edit embed",
+                    inputs: [
+                        KimiUI.textInput(id: "embed-name", label: "Name", maximum: 24),
+                        KimiUI.textInput(id: "embed-title", label: "Title", maximum: 256),
+                        KimiUI.textInput(id: "embed-description", label: "Description", style: 2, maximum: 4000),
+                        KimiUI.textInput(id: "embed-color", label: "Color (decimal)", value: "8421504", required: false),
+                    ])
+                return true
+            default:
+                break
+            }
+        } catch {
+            await logger.log("ERROR", "Could not open plugin settings editor: " + error.localizedDescription)
+            return true
+        }
         // A failed initial acknowledgement is terminal. Never try to edit an
         // interaction response after Discord has invalidated its token.
         do {
