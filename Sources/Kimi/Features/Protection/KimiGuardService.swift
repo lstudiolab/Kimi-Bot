@@ -102,9 +102,10 @@ actor KimiGuardService {
         if decision == "keep" {
             var kept = incident
             kept.status = "kept"
+            let reviewedID = incident.id
             _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
                 var values = stored ?? [:]
-                guard values[key]?.id == incident.id else {
+                guard values[key]?.id == reviewedID else {
                     throw KimiError.configuration("This incident changed during review. Reload the review panel.")
                 }
                 values[key] = kept
@@ -158,9 +159,10 @@ actor KimiGuardService {
         }
 
         incident.status = failures.isEmpty ? "released" : "partial_release"
+        let reviewedIncident = incident
         _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
             var values = stored ?? [:]
-            guard values[key]?.id == incident.id else {
+            guard values[key]?.id == reviewedIncident.id else {
                 throw KimiError.configuration("This incident changed during review. Reload the review panel.")
             }
             values[key] = incident
