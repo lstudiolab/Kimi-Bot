@@ -682,4 +682,19 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(saved?[guild]?.first?.createdAt, originalDate)
     }
 
+    func testVerificationFailureInvalidatesOldReviewMessage() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-verification-review-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let records = VerificationRecords(store: try PersistentStore(directory: directory))
+        let guild = "123456789012345678"
+        let user = "223456789012345678"
+        try await records.setReviewMessage(guildID: guild, userID: user, messageID: "323456789012345678")
+        try await records.markFailed(guildID: guild, userID: user, reason: "Rejected by owner")
+        let record = await records.record(guildID: guild, userID: user)
+        XCTAssertNil(record.reviewMessageID)
+        XCTAssertEqual(record.failures, 1)
+    }
+
 }
