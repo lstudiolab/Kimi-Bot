@@ -6,31 +6,51 @@ actor PluginManager {
         let message: String
         let plugin: String?
     }
+
     private let store: PersistentStore
+    private let storageKey = "plugins.installed"
+    private let legacyStorageKey = "apps.installed"
+
     init(store: PersistentStore) { self.store = store }
-    func installed(guildID: String) async -> [String] {
-        let all = await store.get("plugins.installed", as: [String: [String]].self) ?? store.get("apps.installed", as: [String: [String]].self) ?? [:]
-        return all[guildID] ?? []
+
+    private func loadInstallations() async -> [String: [String]] {
+        if let current = await store.get(storageKey, as: [String: [String]].self) {
+            return current
+        }
+        return await store.get(legacyStorageKey, as: [String: [String]].self) ?? [:]
     }
+
+    func installed(guildID: String) async -> [String] {
+        await loadInstallations()[guildID] ?? []
+    }
+
     func install(_ name: String, guildID: String) async throws -> Result {
-        guard CommandCatalog.groups[name] != nil else { return Result(ok: false, message: "Unknown plugin.", plugin: nil) }
-        var all = await store.get("apps.installed", as: [String: [String]].self) ?? [:]
+        guard CommandCatalog.groups[name] != nil else {
+            return Result(ok: false, message: "Unknown plugin.", plugin: nil)
+        }
+
+        var all = await loadInstallations()
         var values = all[guildID] ?? []
         guard !values.contains(name) else {
-            return Result(ok: false, message: "\(name) is already installed.", app: name)
+            return Result(ok: false, message: "\(name) is already installed.", plugin: name)
         }
+
         values.append(name)
         all[guildID] = values
-        try await store.setGuild(all, key: "plugins.installed", guildID: guildID)
-        return Result(ok: true, message: "\(name) installed.", app: name)
+        try await store.setGuild(all, key: storageKey, guildID: guildID)
+        return Result(ok: true, message: "\(name) installed.", plugin: name)
     }
+
     func uninstall(_ name: String, guildID: String) async throws -> Result {
-        var all = await store.get("apps.installed", as: [String: [String]].self) ?? [:]
+        var all = await loadInstallations()
         var values = all[guildID] ?? []
-        guard values.contains(name) else { return Result(ok: false, message: "\(name) is not installed.", app: name) }
+        guard values.contains(name) else {
+            return Result(ok: false, message: "\(name) is not installed.", plugin: name)
+        }
+
         values.removeAll { $0 == name }
         all[guildID] = values
-        try await store.setGuild(all, key: "apps.installed", guildID: guildID)
-        return Result(ok: true, message: "\(name) removed; saved settings were preserved.", app: name)
+        try await store.setGuild(all, key: storageKey, guildID: guildID)
+        return Result(ok: true, message: "\(name) removed; saved settings were preserved.", plugin: name)
     }
 }
