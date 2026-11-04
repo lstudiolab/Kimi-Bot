@@ -89,7 +89,10 @@ extension KimiRuntime {
                     KimiUI.row([KimiUI.roleSelect(id: "screen:ticket:staff-role", placeholder: "Support staff role")]),
                     KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:panel", placeholder: "Ticket panel channel")]),
                     KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:transcript", placeholder: "Transcript channel")]),
-                    KimiUI.row([KimiUI.button(id: "screen:ticket:publish", label: "Publish ticket panel", style: 1)]),
+                    KimiUI.row([
+                        KimiUI.button(id: "screen:ticket:publish", label: "Publish panel", style: 1),
+                        KimiUI.button(id: "screen:ticket:edit-panel", label: "Edit panel text"),
+                    ]),
                 ]
             case "kimi-lock-screen":
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
@@ -131,6 +134,7 @@ extension KimiRuntime {
                             ["label": "60 minutes", "value": "60"],
                         ]),
                     ]),
+                    KimiUI.row([KimiUI.button(id: "screen:lock:keywords", label: "Edit blocked keywords")]),
                 ]
             case "welcome-screen":
                 let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
@@ -141,6 +145,7 @@ extension KimiRuntime {
                 responseComponents = [
                     KimiUI.row([KimiUI.channelSelect(id: "screen:welcome:channel", placeholder: "Welcome channel")]),
                     KimiUI.row([KimiUI.channelSelect(id: "screen:welcome:goodbye", placeholder: "Goodbye channel")]),
+                    KimiUI.row([KimiUI.button(id: "screen:welcome:edit-messages", label: "Edit welcome messages")]),
                 ]
             case "auto-role-screen":
                 let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
@@ -157,7 +162,10 @@ extension KimiRuntime {
                     + "\nSelect a channel and publish or refresh the default role menu."
                 responseComponents = [
                     KimiUI.row([KimiUI.channelSelect(id: "screen:role-picker:channel", placeholder: "Role menu channel")]),
-                    KimiUI.row([KimiUI.button(id: "screen:role-picker:publish", label: "Publish role menu", style: 1)]),
+                    KimiUI.row([
+                        KimiUI.button(id: "screen:role-picker:publish", label: "Publish role menu", style: 1),
+                        KimiUI.button(id: "screen:role-picker:edit-name", label: "Set menu name"),
+                    ]),
                 ]
             case "embeds-screen":
                 let saved = await EmbedService(store: store, rest: rest).all(guild: guild)
@@ -176,6 +184,7 @@ extension KimiRuntime {
                 ]))
                 responseComponents.append(KimiUI.row([
                     KimiUI.button(id: "screen:embeds:publish", label: "Publish selected embed", style: 1, disabled: options.isEmpty),
+                    KimiUI.button(id: "screen:embeds:create", label: "Create or edit embed"),
                 ]))
             case "setup":
                 let owner = try await rest.ownerID(guild)
