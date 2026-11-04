@@ -132,7 +132,7 @@ actor PersistentStore {
         entries = entries.filter { now.timeIntervalSince($0.value) < 7 * 86400 }
         entries[subject] = now
         if entries.count > 10000 {
-            entries = Dictionary(entries.sorted { $0.value > $1.value }.prefix(10000), uniquingKeysWith: { first, _ in first })
+            entries = entries.sorted { $0.value > $1.value }.prefix(10000).reduce(into: [:]) { result, entry in result[entry.key] = entry.value }
         }
         var candidate = values
         candidate[key] = try JSONEncoder().encode(entries)
