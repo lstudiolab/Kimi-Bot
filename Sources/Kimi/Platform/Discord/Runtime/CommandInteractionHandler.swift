@@ -76,6 +76,86 @@ extension KimiRuntime {
                     + (name == "plugin-install"
                         ? " installed. Its commands are available in this server."
                         : " removed. Saved settings were preserved.")
+            case "ticket-screen":
+                let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                let open = await SupportTickets(store: store).all().filter { $0.guildID == guild && $0.isOpen }.count
+                reply = "Support configuration\nOpen tickets: " + String(open)
+                    + "\nCategory: " + (settings.categoryID.map { "<#" + $0 + ">" } ?? "Automatic")
+                    + "\nStaff role: " + (settings.supportRoleID.map { "<@&" + $0 + ">" } ?? "Not set")
+                    + "\nPanel channel: " + (settings.panelChannelID.map { "<#" + $0 + ">" } ?? "Not set")
+                    + "\nTranscript channel: " + (settings.transcriptChannelID.map { "<#" + $0 + ">" } ?? "Not set")
+                responseComponents = [
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:category", placeholder: "Ticket category", channelTypes: [4])]),
+                    KimiUI.row([KimiUI.roleSelect(id: "screen:ticket:staff-role", placeholder: "Support staff role")]),
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:panel", placeholder: "Ticket panel channel")]),
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:transcript", placeholder: "Transcript channel")]),
+                    KimiUI.row([KimiUI.button(id: "screen:ticket:publish", label: "Publish ticket panel", style: 1)]),
+                ]
+            case "kimi-lock-screen":
+                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                reply = "Kimi Lock\nStatus: " + (policy.enabled ? "Enabled" : "Disabled")
+                    + "\nMessages per minute: " + String(policy.messagesPerMinute)
+                    + "\nTimeout: " + String(policy.timeoutMinutes) + " minutes"
+                    + "\nSanction: " + policy.sanction
+                    + "\nInvite blocking: " + (policy.blockInvites ? "On" : "Off")
+                    + "\nMass mention blocking: " + (policy.blockMassMentions ? "On" : "Off")
+                    + "\nCapital flood blocking: " + (policy.blockExcessiveCaps ? "On" : "Off")
+                responseComponents = [
+                    KimiUI.row([
+                        KimiUI.button(id: "screen:lock:toggle", label: policy.enabled ? "Disable" : "Enable", style: policy.enabled ? 4 : 3),
+                        KimiUI.button(id: "screen:lock:invites", label: "Toggle invite filter"),
+                        KimiUI.button(id: "screen:lock:mentions", label: "Toggle mention filter"),
+                        KimiUI.button(id: "screen:lock:caps", label: "Toggle caps filter"),
+                    ]),
+                    KimiUI.row([
+                        KimiUI.stringSelect(id: "screen:lock:sanction", placeholder: "Automatic sanction", options: [
+                            ["label": "Delete only", "value": "delete"],
+                            ["label": "Timeout", "value": "timeout"],
+                            ["label": "Kick", "value": "kick"],
+                            ["label": "Ban", "value": "ban"],
+                        ]),
+                    ]),
+                    KimiUI.row([
+                        KimiUI.stringSelect(id: "screen:lock:rate", placeholder: "Messages per minute", options: [
+                            ["label": "10 messages", "value": "10"],
+                            ["label": "20 messages", "value": "20"],
+                            ["label": "30 messages", "value": "30"],
+                            ["label": "50 messages", "value": "50"],
+                        ]),
+                    ]),
+                    KimiUI.row([
+                        KimiUI.stringSelect(id: "screen:lock:timeout", placeholder: "Timeout duration", options: [
+                            ["label": "5 minutes", "value": "5"],
+                            ["label": "10 minutes", "value": "10"],
+                            ["label": "30 minutes", "value": "30"],
+                            ["label": "60 minutes", "value": "60"],
+                        ]),
+                    ]),
+                ]
+            case "welcome-screen":
+                let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
+                reply = "Welcome configuration\nWelcome channel: " + (settings.welcomeChannel.map { "<#" + $0 + ">" } ?? "Not set")
+                    + "\nGoodbye channel: " + (settings.goodbyeChannel.map { "<#" + $0 + ">" } ?? "Not set")
+                    + "\nWelcome message: " + settings.welcomeMessage
+                    + "\nGoodbye message: " + settings.goodbyeMessage
+                responseComponents = [
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:welcome:channel", placeholder: "Welcome channel")]),
+                    KimiUI.row([KimiUI.channelSelect(id: "screen:welcome:goodbye", placeholder: "Goodbye channel")]),
+                ]
+            case "auto-role-screen":
+                let settings = await FoundationEngine(store: store, rest: rest, logger: logger).settings(guildID: guild)
+                reply = "Auto Role configuration\nAssigned role: "
+                    + (settings.autoRole.map { "<@&" + $0 + ">" } ?? "Disabled")
+                responseComponents = [
+                    KimiUI.row([KimiUI.roleSelect(id: "screen:auto-role:role", placeholder: "Select automatic role")]),
+                    KimiUI.row([KimiUI.button(id: "screen:auto-role:disable", label: "Disable automatic role", style: 4)]),
+                ]
+            case "role-picker-screen":
+                reply = "Role Picker configuration\nUse this screen to manage the role menu system. Menu creation and publishing controls will appear here as the next screen controls are enabled."
+                responseComponents = [KimiUI.row([KimiUI.button(id: "screen:role-picker:refresh", label: "Refresh")])]
+            case "embeds-screen":
+                reply = "Embeds configuration\nManage reusable embeds and their placements from this plugin screen."
+                responseComponents = [KimiUI.row([KimiUI.button(id: "screen:embeds:refresh", label: "Refresh")])]
             case "setup":
                 let owner = try await rest.ownerID(guild)
                 let me = try await rest.call("GET", "users/@me")
