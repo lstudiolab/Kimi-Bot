@@ -379,17 +379,17 @@ final class DashboardServer: @unchecked Sendable {
                 + "</section><form method='post' action='/logout'><button class='secondary'>Sign out</button></form>")
     }
     private func renderGuild(_ session: Session, guild: String, name: String, owner: Bool) async -> String {
-        let installed = await AppManager(store: store).installed(guildID: guild)
+        let installed = await PluginManager(store: store).installed(guildID: guild)
         let locale = (await store.get("languages", as: [String: String].self) ?? [:])[guild] ?? "en-US"
         let languageOptions = KimiLocalization.locales.map { code in
             "<option value='" + escape(code) + "'" + (locale == code ? " selected" : "") + ">"
                 + escape(KimiLocalization.names[code] ?? code) + "</option>"
         }.joined()
         let cards = CommandCatalog.pluginNames().map { plugin in
-            let active = installed.contains(app)
+            let active = installed.contains(plugin)
             let button =
                 owner
-                ? "<form method='post' action='/app'><input type='hidden' name='csrf' value='" + escape(session.csrf)
+                ? "<form method='post' action='/plugin'><input type='hidden' name='csrf' value='" + escape(session.csrf)
                     + "'><input type='hidden' name='guild' value='" + escape(guild)
                     + "'><input type='hidden' name='plugin' value='" + escape(plugin)
                     + "'><input type='hidden' name='action' value='" + (active ? "uninstall" : "install")
