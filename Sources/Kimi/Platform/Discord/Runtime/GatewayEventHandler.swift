@@ -486,7 +486,52 @@ extension KimiRuntime {
                 return
             }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            if action == 32, let target = data["target_id"] as? String {
+            let owner = (try? await rest.ownerID(guild)) ?? ""
+            let target = data["target_id"] as? String
+            let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
+            if actor != owner, (action == 30 || action == 31), let target {
+                let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+                if let role = roles.first(where: { ($0["id"] as? String) == target }) {
+                    let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
+                    let elevated = permissions & privilegedMask
+                    if elevated != 0 {
+                        let safePermissions = permissions & ~privilegedMask
+                        do {
+                            _ = try await rest.call(
+                                "PATCH", "guilds/" + guild + "/roles/" + target,
+                                body: ["permissions": String(safePermissions)],
+                                auditReason: "Kimi Lock removed unauthorized elevated role permissions"
+                            )
+                            await logger.log("WARN", "Kimi Lock stripped elevated permissions from role " + target)
+                        } catch {
+                            await logger.log("ERROR", "Could not strip elevated role permissions: " + error.localizedDescription)
+                        }
+                    }
+                }
+            }
+            if actor != owner, action == 25, let target {
+                let changes = data["changes"] as? [[String: Any]] ?? []
+                let additions = changes.first(where: { ($0["key"] as? String) == "$add" })?["new_value"] as? [[String: Any]] ?? []
+                let addedRoleIDs = additions.compactMap { $0["id"] as? String }
+                if !addedRoleIDs.isEmpty {
+                    let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+                    for roleID in addedRoleIDs {
+                        let permissions = UInt64(roles.first(where: { ($0["id"] as? String) == roleID })?["permissions"] as? String ?? "") ?? 0
+                        if permissions & privilegedMask != 0 {
+                            do {
+                                _ = try await rest.call(
+                                    "DELETE", "guilds/" + guild + "/members/" + target + "/roles/" + roleID,
+                                    auditReason: "Kimi Lock blocked an unauthorized elevated role grant"
+                                )
+                                await logger.log("WARN", "Kimi Lock removed an unauthorized elevated role grant from " + target)
+                            } catch {
+                                await logger.log("ERROR", "Could not remove an elevated role grant: " + error.localizedDescription)
+                            }
+                        }
+                    }
+                }
+            }
+            if action == 32, let target {
                 await recovery.queueDeletedRole(guild, target)
             }
             if action == 30 || action == 31 {
