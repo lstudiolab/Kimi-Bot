@@ -145,7 +145,7 @@ actor AutomationEngine {
                             of: "{server}", with: server)
                     _ = try await rest.call(
                         "POST", "channels/\(parts[1])/messages",
-                        body: ["content": String(text.prefix(1900)), "allowed_mentions": ["parse": []]])
+                        body: ["content": DiscordText.prefixUTF16(text, limit: 1900), "allowed_mentions": ["parse": []]])
                 case "delete_message":
                     guard let messageID, !channel.isEmpty else {
                         throw KimiError.configuration("No triggering message is available to delete.")
