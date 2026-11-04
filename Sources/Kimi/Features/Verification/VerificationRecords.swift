@@ -20,7 +20,7 @@ actor VerificationRecords {
 
     func attempt(guildID: String, userID: String) async throws -> Record {
         let key = guildID + ":" + userID
-        let all = try await store.update("verification.records", as: [String: Record].self) { stored in
+        let all = try await store.updateGuild("verification.records", guildID: guildID, as: [String: Record].self) { stored in
             var values = stored ?? [:]
             var value = values[key] ?? Record(guildID: guildID, userID: userID)
             value.attempts += 1
@@ -33,7 +33,7 @@ actor VerificationRecords {
 
     func markFailed(guildID: String, userID: String, reason: String) async throws {
         let key = guildID + ":" + userID
-        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+        _ = try await store.updateGuild("verification.records", guildID: guildID, as: [String: Record].self) { stored in
             var values = stored ?? [:]
             var value = values[key] ?? Record(guildID: guildID, userID: userID)
             value.failures += 1
@@ -45,7 +45,7 @@ actor VerificationRecords {
 
     func setReviewMessage(guildID: String, userID: String, messageID: String) async throws {
         let key = guildID + ":" + userID
-        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+        _ = try await store.updateGuild("verification.records", guildID: guildID, as: [String: Record].self) { stored in
             var values = stored ?? [:]
             var value = values[key] ?? Record(guildID: guildID, userID: userID)
             value.reviewMessageID = messageID
@@ -56,7 +56,7 @@ actor VerificationRecords {
 
     func markVerified(guildID: String, userID: String) async throws {
         let key = guildID + ":" + userID
-        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+        _ = try await store.updateGuild("verification.records", guildID: guildID, as: [String: Record].self) { stored in
             var values = stored ?? [:]
             var value = values[key] ?? Record(guildID: guildID, userID: userID)
             value.verifiedAt = Date()
