@@ -511,9 +511,11 @@ extension KimiRuntime {
                 return
             }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            if (action == 30 || action == 31), await migratedModuleEnabled("recovery", guild: guild) {
+            if action == 30 || action == 31 {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
-                for role in roles { await recovery.captureRole(guild, role) }
+                if await migratedModuleEnabled("recovery", guild: guild) {
+                    for role in roles { await recovery.captureRole(guild, role) }
+                }
                 let permissions = Dictionary(uniqueKeysWithValues: roles.compactMap { role -> (String, String)? in
                     guard let id = role["id"] as? String else { return nil }
                     return (id, role["permissions"] as? String ?? "0")
