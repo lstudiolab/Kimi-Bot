@@ -67,7 +67,7 @@ extension KimiRuntime {
                 let open = await SupportTickets(store: store).all().filter { $0.guildID == guild && $0.isOpen }.count
                 let report = await AnalyticsService(store: store).report(guild: guild)
                 let message =
-                    "Kimi system status\nApps: " + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
+                    "Kimi system status\nPlugins: " + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
                     + "\nKimi Lock: "
                     + (installed.contains("Kimi Lock")
                         ? (policy.enabled ? "Active" : "Installed · disabled") : "Not installed")
