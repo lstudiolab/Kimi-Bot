@@ -135,16 +135,17 @@ actor RecoveryService {
     }
     func captureMessage(
         _ guild: String, _ channel: String, _ message: String, _ author: String, _ content: String,
-        attachments: [Attachment] = [], authorName: String? = nil
+        attachments: [Attachment] = [], authorName: String? = nil, createdAt: Date? = nil
     ) async {
         let now = Date()
         let cutoff = now.addingTimeInterval(-week)
+        let snapshotDate = createdAt ?? now
         do {
             try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
                 var all = stored ?? [:]
                 let previousRows = all[guild] ?? []
                 let previousIndex = previousRows.firstIndex(where: { $0.id == message })
-                let originalCreatedAt = previousIndex.map { previousRows[$0].createdAt } ?? now
+                let originalCreatedAt = previousIndex.map { previousRows[$0].createdAt } ?? snapshotDate
                 var rows = previousRows.filter { $0.createdAt >= cutoff }
                 // Editing an old message must not refresh its seven-day retention window.
                 if originalCreatedAt >= cutoff {
