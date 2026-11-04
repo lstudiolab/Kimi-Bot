@@ -56,7 +56,7 @@ actor SupportService {
 
     private func panelBody(_ settings: Settings) -> [String: Any] {
         [
-            "content": "**\\(settings.panelTitle)**\n\\(settings.panelDescription)",
+            "content": "**\(settings.panelTitle)**\n\(settings.panelDescription)",
             "components": panelComponents(),
             "allowed_mentions": ["parse": []],
         ]
@@ -66,7 +66,7 @@ actor SupportService {
         let value = await settings(guild)
         guard let channel = value.panelChannelID, let message = value.panelMessageID else { return false }
         _ = try await rest.call(
-            "PATCH", "channels/\\(channel)/messages/\\(message)", body: panelBody(value))
+            "PATCH", "channels/\(channel)/messages/\(message)", body: panelBody(value))
         return true
     }
 
@@ -75,7 +75,7 @@ actor SupportService {
         if value.panelChannelID == channel, let message = value.panelMessageID {
             do {
                 _ = try await rest.call(
-                    "PATCH", "channels/\\(channel)/messages/\\(message)", body: panelBody(value))
+                    "PATCH", "channels/\(channel)/messages/\(message)", body: panelBody(value))
                 return
             } catch {
                 await logger.log("WARN", "Existing ticket panel could not be edited; publishing a replacement: " + error.localizedDescription)
@@ -84,7 +84,7 @@ actor SupportService {
         }
 
         let response = try await rest.call(
-            "POST", "channels/\\(channel)/messages", body: panelBody(value)) as? [String: Any] ?? [:]
+            "POST", "channels/\(channel)/messages", body: panelBody(value)) as? [String: Any] ?? [:]
         guard let messageID = response["id"] as? String, !messageID.isEmpty else {
             throw KimiError.invalidResponse
         }
