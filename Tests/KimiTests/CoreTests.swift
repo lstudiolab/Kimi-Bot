@@ -709,4 +709,21 @@ final class CoreTests: XCTestCase {
         XCTAssertLessThanOrEqual((roleMenu["custom_id"] as? String ?? "").utf16.count, 100)
     }
 
+    func testRecoveryDoesNotReintroduceExpiredMessagesAfterEdits() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-recovery-expired-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let guild = "123456789012345678"
+        let service = RecoveryService(
+            store: store, logger: Logger(), rest: DiscordREST(token: "test"))
+        await service.captureMessage(
+            guild, "423456789012345678", "323456789012345678", "223456789012345678",
+            "edited after retention", createdAt: Date().addingTimeInterval(-8 * 86400))
+        let saved = await store.get(
+            "recovery.messages", as: [String: [RecoveryService.Message]].self)
+        XCTAssertTrue(saved?[guild]?.isEmpty ?? true)
+    }
+
 }
