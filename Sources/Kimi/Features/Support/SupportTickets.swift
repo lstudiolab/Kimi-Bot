@@ -84,4 +84,15 @@ actor SupportTickets {
         return ticket
     }
 }
-enum TicketError: Error { case alreadyOpen, limitReached, notFound, alreadyClosed }
+enum TicketError: LocalizedError {
+    case alreadyOpen, limitReached, notFound, alreadyClosed
+
+    var errorDescription: String? {
+        switch self {
+        case .alreadyOpen: return "You already have an open support ticket."
+        case .limitReached: return "This server has reached its 100 open-ticket limit."
+        case .notFound: return "The support ticket could not be found."
+        case .alreadyClosed: return "This support ticket is already closed."
+        }
+    }
+}
