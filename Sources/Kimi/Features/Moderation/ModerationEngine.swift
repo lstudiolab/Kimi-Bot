@@ -232,15 +232,6 @@ actor ModerationEngine {
         let selfAdvertising = value.blockSelfAdvertising && hasExternalLink
             && advertisingPhrases.contains { normalizedContent.contains(normalized($0)) }
         let suspiciousLink = containsSuspiciousURL(content)
-        let lowerContent = content.lowercased()
-        let promotionPhrases = [
-            "subscribe to my", "follow my", "join my server", "join my discord",
-            "check out my channel", "check out my server", "use my referral",
-            "use my code", "buy from my", "visit my shop", "commissions open",
-        ]
-        let selfAdvertising = value.blockSelfAdvertising
-            && (content.contains("http://") || content.contains("https://") || content.contains("www."))
-            && promotionPhrases.contains { lowerContent.contains($0) }
         let attachmentsBlocked = attachments.contains { item in
             let filename = item["filename"] as? String ?? ""
             let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
@@ -279,7 +270,6 @@ actor ModerationEngine {
         if invite { add("Unsolicited Discord invite", 65) }
         if selfAdvertising { add("Unsolicited self-advertising", 50) }
         if suspiciousLink { add("Suspicious or tracking URL", 90) }
-        if selfAdvertising { add("Unsolicited self-advertising", 55) }
         if attachmentsBlocked { add("Executable or script attachment", 95) }
         if duplicate { add("Repeated message burst", 55) }
 
