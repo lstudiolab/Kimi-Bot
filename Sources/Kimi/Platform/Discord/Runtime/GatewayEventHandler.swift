@@ -144,6 +144,23 @@ extension KimiRuntime {
                 if previous != Set(roles) {
                     await logger.log("INFO", "Member role update recorded for " + user + " in guild " + guild)
                 }
+                let profile = data["user"] as? [String: Any] ?? [:]
+                let nickname = data["nick"] as? String
+                let profileName = nickname ?? profile["global_name"] as? String ?? profile["username"] as? String ?? ""
+                if let violation = await moderation.profileViolation(profileName, guildID: guild) {
+                    if nickname != nil {
+                        do {
+                            _ = try await rest.call(
+                                "PATCH", "guilds/" + guild + "/members/" + user,
+                                body: ["nick": NSNull()],
+                                auditReason: "Kimi Lock: " + violation
+                            )
+                        } catch {
+                            await logger.log("WARN", "Could not remove a violating server nickname: " + error.localizedDescription)
+                        }
+                    }
+                    await logger.log("WARN", "Kimi Lock profile review for " + user + ": " + violation)
+                }
             }
         case "GUILD_BAN_ADD", "GUILD_BAN_REMOVE":
             guard let guild = data["guild_id"] as? String, let user = (data["user"] as? [String: Any])?["id"] as? String
