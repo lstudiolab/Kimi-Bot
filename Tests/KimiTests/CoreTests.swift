@@ -234,6 +234,83 @@ final class CoreTests: XCTestCase {
         XCTAssertNil(value, "Failed disk writes must not mutate in-memory state.")
     }
 
+    func testModerationDetectsObfuscatedTermsAndExecutableAttachments() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-threat-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        var policy = await engine.policy(guildID: "123456789012345678")
+        policy.blockedPhrases = ["badword"]
+        try await engine.configure(policy, guildID: "123456789012345678")
+
+        let obfuscated = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "223456789012345678",
+            messageID: "323456789012345678",
+            content: "b.a.d.w.o.r.d with a hidden character"
+        )
+        XCTAssertTrue(obfuscated?.reason.contains("Custom blocked keyword") == true)
+
+        let hidden = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "323456789012345679",
+            messageID: "423456789012345678",
+            content: "f\\u{200B}.u.c.k"
+        )
+        XCTAssertTrue(hidden?.reason.contains("Blocked language") == true)
+
+        let attachment = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "423456789012345679",
+            messageID: "523456789012345678",
+            content: "Please run this file",
+            attachments: [["filename": "payload.exe"]]
+        )
+        XCTAssertTrue(attachment?.reason.contains("Executable or script attachment") == true)
+    }
+
+    func testModerationDetectsTrackingLinksAndDuplicateBursts() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-threat-rate-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        let link = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "223456789012345678",
+            messageID: "323456789012345678",
+            content: "Check https://grabify.link/abc"
+        )
+        XCTAssertTrue(link?.reason.contains("Suspicious or tracking URL") == true)
+
+        let now = Date()
+        _ = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "323456789012345679",
+            messageID: "423456789012345678",
+            content: "same repeated message",
+            now: now
+        )
+        _ = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "323456789012345679",
+            messageID: "423456789012345679",
+            content: "same repeated message",
+            now: now.addingTimeInterval(1)
+        )
+        let duplicate = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "323456789012345679",
+            messageID: "423456789012345680",
+            content: "same repeated message",
+            now: now.addingTimeInterval(2)
+        )
+        XCTAssertTrue(duplicate?.reason.contains("Repeated message burst") == true)
+    }
+
     func testModerationDetectsDiscordInviteLinks() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "kimi-moderation-test-" + UUID().uuidString, isDirectory: true)
