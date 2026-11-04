@@ -53,6 +53,12 @@ actor ModerationEngine {
         let content: String
         let timestamp: Date
     }
+    private struct GlobalThreat: Codable, Sendable {
+        var guilds: [String]
+        var incidents: Int
+        var reasons: [String]
+        var lastSeen: Date
+    }
     private let store: PersistentStore
     private var policies: [String: Policy] = [:]
     init(store: PersistentStore) { self.store = store }
@@ -234,6 +240,25 @@ actor ModerationEngine {
         if total >= 3 {
             score += min(30, (total - 2) * 5)
             reasons.append("Cumulative infractions: " + String(total))
+        }
+        if suspiciousLink || attachmentsBlocked || invite {
+            let globalKey = "security.global-threats"
+            var profiles = await store.get(globalKey, as: [String: GlobalThreat].self) ?? [:]
+            var profile = profiles[userID] ?? GlobalThreat(guilds: [], incidents: 0, reasons: [], lastSeen: now)
+            if !profile.guilds.contains(guildID) { profile.guilds.append(guildID) }
+            profile.incidents = min(10000, profile.incidents + 1)
+            profile.reasons = Array(Set(profile.reasons + reasons).sorted().prefix(8))
+            profile.lastSeen = now
+            profiles[userID] = profile
+            if profiles.count > 10000 {
+                let stale = profiles.sorted { $0.value.lastSeen < $1.value.lastSeen }
+                for item in stale.prefix(profiles.count - 10000) { profiles.removeValue(forKey: item.key) }
+            }
+            try? await store.set(profiles, key: globalKey)
+            if profile.guilds.count >= 2 {
+                score += 20
+                reasons.append("High-confidence threat observed across multiple servers")
+            }
         }
         return Finding(guildID: guildID, userID: userID, messageID: messageID, reason: reasons.joined(separator: "; "), score: min(200, score))
     }
