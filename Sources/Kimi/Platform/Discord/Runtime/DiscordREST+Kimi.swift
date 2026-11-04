@@ -42,7 +42,7 @@ extension DiscordREST {
     func editKimiInteraction(_ app: String, _ token: String, _ content: String) async throws {
         _ = try await call(
             "PATCH", "webhooks/\(app)/\(token)/messages/@original",
-            body: ["content": String(content.prefix(1900)), "allowed_mentions": ["parse": []]])
+            body: ["content": DiscordText.prefixUTF16(content, limit: 1900), "allowed_mentions": ["parse": []]])
     }
     func editKimiInteraction(_ app: String, _ token: String, _ content: String, _ components: [[String: Any]])
         async throws
@@ -60,6 +60,6 @@ extension DiscordREST {
         let until = ISO8601DateFormatter().string(from: Date().addingTimeInterval(Double(max(1, minutes)) * 60))
         _ = try await call(
             "PATCH", "guilds/\(guild)/members/\(user)", body: ["communication_disabled_until": until],
-            auditReason: String(reason.prefix(400)))
+            auditReason: DiscordText.prefixUTF16(reason, limit: 400))
     }
 }
