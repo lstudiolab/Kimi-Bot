@@ -175,7 +175,15 @@ actor VerificationService {
                 return
             }
         }
-        try? await VerificationRecords(store: store).markVerified(guildID: guild, userID: userID)
+        do {
+            try await VerificationRecords(store: store).markVerified(guildID: guild, userID: userID)
+        } catch {
+            await logger.log("ERROR", "Verified role was assigned but the verification record could not be saved: " + error.localizedDescription)
+            try? await rest.editKimiInteraction(
+                applicationID, interactionToken,
+                "The role was assigned, but verification could not be finalized because its record could not be saved. Contact the server owner.")
+            return
+        }
         try? await rest.editKimiInteraction(
             applicationID, interactionToken, "Verification complete. You now have access to the server.")
     }
