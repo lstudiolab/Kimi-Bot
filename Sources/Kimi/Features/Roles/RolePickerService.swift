@@ -113,7 +113,7 @@ actor RolePickerService {
         for role in chosen.subtracting(previous) {
             _ = try await rest.call("PUT", "guilds/\(guild)/members/\(user)/roles/\(role)")
         }
-        try await store.set(Array(chosen), key: key)
+        try await store.setGuild(Array(chosen), key: key, guildID: guild)
         return chosen.count
     }
 }
