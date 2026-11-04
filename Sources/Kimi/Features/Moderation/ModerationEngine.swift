@@ -222,6 +222,15 @@ actor ModerationEngine {
                 || userMentionCount >= 5 || roleMentionCount >= 3)
         let invite = value.blockInvites && content.range(
             of: #"(?i)(?:discord\.gg/|discord(?:app)?\.com/invite/)"#, options: .regularExpression) != nil
+        let advertisingPhrases = [
+            "join my server", "join our server", "my discord server", "follow my channel",
+            "subscribe to my channel", "check out my channel", "support my stream",
+            "use my referral", "use my promo code", "follow me on twitch", "follow me on tiktok",
+        ]
+        let hasExternalLink = content.range(
+            of: #"(?i)(?:https?://|www\.)"#, options: .regularExpression) != nil
+        let selfAdvertising = value.blockSelfAdvertising && hasExternalLink
+            && advertisingPhrases.contains { normalizedContent.contains(normalized($0)) }
         let suspiciousLink = containsSuspiciousURL(content)
         let lowerContent = content.lowercased()
         let promotionPhrases = [
@@ -268,6 +277,7 @@ actor ModerationEngine {
         if emojiSpam { add("Emoji, emote or sticker spam", 45) }
         if massMention { add("Mass mention abuse", 80) }
         if invite { add("Unsolicited Discord invite", 65) }
+        if selfAdvertising { add("Unsolicited self-advertising", 50) }
         if suspiciousLink { add("Suspicious or tracking URL", 90) }
         if selfAdvertising { add("Unsolicited self-advertising", 55) }
         if attachmentsBlocked { add("Executable or script attachment", 95) }
