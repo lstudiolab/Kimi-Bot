@@ -147,7 +147,7 @@ actor VerificationService {
                     .max() ?? 0
                 let canManage = roles.contains {
                     botIDs.contains($0["id"] as? String ?? "")
-                        && ((UInt64($0["permissions"] as? String ?? "") ?? 0) & (1 << 28) != 0)
+                        && ((UInt64($0["permissions"] as? String ?? "") ?? 0) & ((1 << 28) | (1 << 3)) != 0)
                 }
                 guard let target = roles.first(where: { ($0["id"] as? String) == role }) else {
                     throw KimiError.configuration("The verified role no longer exists.")
