@@ -139,7 +139,7 @@ actor ModerationEngine {
     }
 
     private func containsSuspiciousURL(_ content: String) -> Bool {
-        let pattern = #"(?i)(?:https?://|www\.)[^\s<>]+|(?<![@\w])(?:[a-z0-9-]+\.)+(?:com|net|org|io|gg|co|ru|xyz|top|link|info|biz)(?:/[^\s<>]*)?|(?<![0-9])\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:/[^\s<>]*)?"#
+        let pattern = #"(?i)(?:https?://|www\\.)[^\\s<>]+|(?<![@\\w])(?:[a-z0-9-]+\\.)+[a-z]{2,}(?::\\d+)?(?:/[^\\s<>]*)?|(?<![0-9])\\d{1,3}(?:\\.\\d{1,3}){3}(?::\\d+)?(?:/[^\\s<>]*)?"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
@@ -188,7 +188,13 @@ actor ModerationEngine {
         let value = await policy(guildID: guildID)
         guard value.enabled else { return nil }
         let rateKey = "moderation.rate." + guildID + "." + channelID + "." + userID
-        var events = (await store.get(rateKey, as: [Date].self) ?? []).filter {
+        let previousRateEvents: [Date]
+        if let cached = rateHistory[rateKey] {
+            previousRateEvents = cached
+        } else {
+            previousRateEvents = await store.get(rateKey, as: [Date].self) ?? []
+        }
+        var events = previousRateEvents.filter {
             now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60
         }
         events.append(now)
@@ -279,17 +285,27 @@ actor ModerationEngine {
         if repeated.count > 30 { repeated = Array(repeated.suffix(30)) }
         duplicateHistory[duplicateKey] = repeated
         if rateHistory.count > 5000 {
-            rateHistory = rateHistory.filter { $0.value.last.map { now.timeIntervalSince($0) < 60 } ?? false }
+            rateHistory = rateHistory.filter {
+                $0.value.last.map { now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60 } ?? false
+            }
         }
         if duplicateHistory.count > 5000 {
-            duplicateHistory = duplicateHistory.filter { $0.value.last.map { now.timeIntervalSince($0.timestamp) < 30 } ?? false }
+            duplicateHistory = duplicateHistory.filter {
+                $0.value.last.map { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 30 } ?? false
+            }
         }
         let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
-        if let rateData = try? JSONEncoder().encode(events),
-            let duplicateData = try? JSONEncoder().encode(repeated)
-        {
-            try? await store.setGuildBatch(
-                [rateKey: rateData, duplicateKey: duplicateData], guildID: guildID)
+        if events.count == 1 || events.count.isMultiple(of: 5) || spam || duplicate {
+            if let rateData = try? JSONEncoder().encode(events),
+                let duplicateData = try? JSONEncoder().encode(repeated)
+            {
+                do {
+                    try await store.setGuildBatch(
+                        [rateKey: rateData, duplicateKey: duplicateData], guildID: guildID)
+                } catch {
+                    // The in-memory rolling windows remain authoritative until the next successful checkpoint.
+                }
+            }
         }
         let triggered = customTerm != nil || profanity || spam || excessive || caps || formattingWall
             || emojiSpam || massMention || invite || suspiciousLink || selfAdvertising || attachmentsBlocked || duplicate
