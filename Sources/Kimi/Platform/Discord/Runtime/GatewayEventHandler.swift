@@ -471,12 +471,6 @@ extension KimiRuntime {
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 await RecoveryService(store: store, logger: logger, rest: rest).captureChannel(guild, data)
             }
-        case "CHANNEL_DELETE":
-            guard let guild = data["guild_id"] as? String, let channel = data["id"] as? String else { return }
-            let installed = await PluginManager(store: store).installed(guildID: guild)
-            if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
-                await RecoveryService(store: store, logger: logger, rest: rest).queueDeletedChannel(guild, channel)
-            }
         case "GUILD_AUDIT_LOG_ENTRY_CREATE":
             guard let guild = data["guild_id"] as? String, let actor = data["user_id"] as? String,
                 let action = data["action_type"] as? Int
@@ -488,6 +482,9 @@ extension KimiRuntime {
             guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
             let target = data["target_id"] as? String
+            if action == 12, let target, await migratedModuleEnabled("recovery", guild: guild) {
+                await recovery.queueDeletedChannel(guild, target)
+            }
             let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
             if (action == 30 || action == 31), let target {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
