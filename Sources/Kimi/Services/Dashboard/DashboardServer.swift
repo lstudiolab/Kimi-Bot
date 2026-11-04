@@ -131,6 +131,11 @@ final class DashboardServer: @unchecked Sendable {
             return
         }
         if request.method == "POST" && path == "/logout" {
+            let form = parseForm(request.body)
+            guard let session, sameOrigin(request, host: host), form["csrf"] == session.csrf else {
+                write(fd, 403, "Sign-out request could not be verified.", "text/plain")
+                return
+            }
             if let token { removeSession(token) }
             write(
                 fd, 303, "", "text/plain",
@@ -260,35 +265,69 @@ final class DashboardServer: @unchecked Sendable {
             } catch { write(fd, 400, page("Could not update plugin", error.localizedDescription), "text/html") }
             return
         }
-        if request.method == "GET" && path == "/logout" {
-            if let token { removeSession(token) }
-            redirect(fd, "/login")
-            return
-        }
         redirect(fd, "/login")
     }
     private func readRequest(_ fd: Int32) -> Request? {
-        var bytes = [UInt8](repeating: 0, count: 65536)
-        let capacity = bytes.count
-        let count = bytes.withUnsafeMutableBytes { buffer in recv(fd, buffer.baseAddress, capacity, 0) }
-        guard count > 0 else { return nil }
-        let raw = String(decoding: bytes.prefix(count), as: UTF8.self)
-        let parts = raw.components(separatedBy: "\r\n\r\n")
-        let head = parts.first ?? ""
-        let body = parts.count > 1 ? parts.dropFirst().joined(separator: "\r\n\r\n") : ""
-        let lines = head.components(separatedBy: "\r\n")
-        guard let first = lines.first else { return nil }
-        let firstParts = first.split(separator: " ")
-        guard firstParts.count >= 2 else { return nil }
-        var headers: [String: String] = [:]
-        for line in lines.dropFirst() {
-            let pair = line.split(separator: ":", maxSplits: 1).map(String.init)
-            if pair.count == 2 {
-                headers[pair[0].trimmingCharacters(in: .whitespaces).lowercased()] = pair[1].trimmingCharacters(
-                    in: .whitespaces)
+        let maximumHeaderBytes = 16 * 1024
+        let maximumBodyBytes = 64 * 1024
+        let delimiter = Data([13, 10, 13, 10])
+        var received = Data()
+        var boundary: Range<Data.Index>?
+
+        while boundary == nil {
+            var chunk = [UInt8](repeating: 0, count: 4096)
+            let count = chunk.withUnsafeMutableBytes { buffer in
+                recv(fd, buffer.baseAddress, buffer.count, 0)
+            }
+            guard count > 0 else { return nil }
+            received.append(contentsOf: chunk.prefix(count))
+            guard received.count <= maximumHeaderBytes + maximumBodyBytes,
+                let range = received.range(of: delimiter) ?? (received.count > maximumHeaderBytes ? nil : nil)
+            else { return nil }
+            if range.lowerBound <= maximumHeaderBytes {
+                boundary = range
+            } else {
+                return nil
             }
         }
-        return Request(method: String(firstParts[0]), path: String(firstParts[1]), headers: headers, body: body)
+
+        guard let boundary,
+            let header = String(data: received[..<boundary.lowerBound], encoding: .utf8)
+        else { return nil }
+        let lines = header.components(separatedBy: "\r\n")
+        guard let first = lines.first else { return nil }
+        let requestLine = first.split(separator: " ")
+        guard requestLine.count == 3, requestLine[2].hasPrefix("HTTP/1.") else { return nil }
+
+        var headers: [String: String] = [:]
+        for line in lines.dropFirst() {
+            guard let separator = line.firstIndex(of: ":") else { return nil }
+            let key = String(line[..<separator]).trimmingCharacters(in: .whitespaces).lowercased()
+            let value = String(line[line.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty, headers[key] == nil else { return nil }
+            headers[key] = value
+        }
+        guard headers["transfer-encoding"] == nil else { return nil }
+        let bodyLength: Int
+        if let rawLength = headers["content-length"] {
+            guard let parsed = Int(rawLength), parsed >= 0, parsed <= maximumBodyBytes else { return nil }
+            bodyLength = parsed
+        } else {
+            bodyLength = 0
+        }
+
+        var bodyData = Data(received[boundary.upperBound...])
+        guard bodyData.count <= bodyLength else { return nil }
+        while bodyData.count < bodyLength {
+            var chunk = [UInt8](repeating: 0, count: min(4096, bodyLength - bodyData.count))
+            let count = chunk.withUnsafeMutableBytes { buffer in
+                recv(fd, buffer.baseAddress, buffer.count, 0)
+            }
+            guard count > 0 else { return nil }
+            bodyData.append(contentsOf: chunk.prefix(count))
+        }
+        guard let body = String(data: bodyData, encoding: .utf8) else { return nil }
+        return Request(method: String(requestLine[0]), path: String(requestLine[1]), headers: headers, body: body)
     }
     private func beginOAuth(fd: Int32) {
         let state = UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -324,7 +363,13 @@ final class DashboardServer: @unchecked Sendable {
             ]
             request.httpBody = form.map { urlEncode($0.key) + "=" + urlEncode($0.value) }.joined(separator: "&").data(
                 using: .utf8)
-            let (tokenData, _) = try await URLSession.shared.data(for: request)
+            let (tokenData, tokenResponse) = try await URLSession.shared.data(for: request)
+            guard let tokenHTTP = tokenResponse as? HTTPURLResponse,
+                (200..<300).contains(tokenHTTP.statusCode)
+            else {
+                let status = (tokenResponse as? HTTPURLResponse)?.statusCode ?? 0
+                throw KimiError.http(status, String(data: tokenData.prefix(500), encoding: .utf8) ?? "")
+            }
             guard let tokenObject = try JSONSerialization.jsonObject(with: tokenData) as? [String: Any],
                 let access = tokenObject["access_token"] as? String
             else { throw KimiError.invalidResponse }
@@ -377,7 +422,8 @@ final class DashboardServer: @unchecked Sendable {
             "Your servers", "Signed in as " + (session.user.global_name ?? session.user.username),
             "<section class='panel'><h2>Server workspace</h2><p>Select a server to manage its installed Kimi plugins.</p>"
                 + rows
-                + "</section><form method='post' action='/logout'><button class='secondary'>Sign out</button></form>")
+                + "</section><form method='post' action='/logout'><input type='hidden' name='csrf' value='"
+                + escape(session.csrf) + "'><button class='secondary'>Sign out</button></form>")
     }
     private func renderGuild(_ session: Session, guild: String, name: String, owner: Bool) async -> String {
         let installed = await PluginManager(store: store).installed(guildID: guild)
@@ -533,7 +579,9 @@ final class DashboardServer: @unchecked Sendable {
         return values
     }
     private func urlEncode(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._*")
+        return (value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
+            .replacingOccurrences(of: "%20", with: "+")
     }
     private func urlDecode(_ value: String) -> String {
         value.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? value
