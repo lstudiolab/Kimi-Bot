@@ -326,7 +326,7 @@ extension KimiRuntime {
                     userID: user, mentionedUserIDs: mentionedUsers, referenceMessageID: reference)
             }
             guard moderationEnabled else { return }
-            let owner = (try? await rest.ownerID(guild)) ?? ""
+            let owner = try? await rest.ownerID(guild)
             let member = data["member"] as? [String: Any] ?? [:]
             let memberRoles = Set(member["roles"] as? [String] ?? [])
             let guildRoles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
@@ -489,7 +489,7 @@ extension KimiRuntime {
             let owner = (try? await rest.ownerID(guild)) ?? ""
             let target = data["target_id"] as? String
             let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
-            if actor != owner, (action == 30 || action == 31), let target {
+            if let owner, actor != owner, (action == 30 || action == 31), let target {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
                 if let role = roles.first(where: { ($0["id"] as? String) == target }) {
                     let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
@@ -509,7 +509,7 @@ extension KimiRuntime {
                     }
                 }
             }
-            if actor != owner, action == 25, let target {
+            if let owner, actor != owner, action == 25, let target {
                 let changes = data["changes"] as? [[String: Any]] ?? []
                 let additions = changes.first(where: { ($0["key"] as? String) == "$add" })?["new_value"] as? [[String: Any]] ?? []
                 let addedRoleIDs = additions.compactMap { $0["id"] as? String }
