@@ -132,6 +132,27 @@ actor ModerationEngine {
         }
     }
 
+    func profileViolation(_ name: String, guildID: String) async -> String? {
+        let candidate = normalized(name)
+        guard !candidate.isEmpty else { return nil }
+        let value = await policy(guildID: guildID)
+        let blocked = value.blockedPhrases.contains { phrase in
+            let needle = normalized(phrase)
+            return needle.count >= 2 && candidate.contains(needle)
+        }
+        let offensive = ["fuck", "shit", "bitch", "asshole", "cunt"].contains {
+            candidate.contains(normalized($0))
+        }
+        let impersonationNames = [
+            "discordsupport", "discordstaff", "discordmoderator", "discordsecurity",
+            "discordnitro", "officialdiscord", "discordadmin", "steamadmin",
+        ]
+        let impersonation = impersonationNames.contains { candidate == $0 || candidate.hasPrefix($0) }
+        if blocked || offensive { return "Offensive profile name" }
+        if impersonation { return "Staff or official-service impersonation pattern" }
+        return nil
+    }
+
     func evaluate(
         guildID: String, userID: String, messageID: String, content: String, channelID: String = "",
         now: Date = Date(), attachments: [[String: Any]] = [], stickerCount: Int = 0,
