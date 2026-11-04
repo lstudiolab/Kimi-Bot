@@ -252,9 +252,9 @@ actor VerificationService {
                 try await records.markVerified(guildID: guild, userID: userID)
                 try await rest.editKimiInteraction(applicationID, interactionToken, "Member approved and verified.")
             } else if decision == "reject" {
-                _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + userID)
                 try await records.markFailed(
                     guildID: guild, userID: userID, reason: "Rejected by server owner during verification review.")
+                _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + userID)
                 try await rest.editKimiInteraction(
                     applicationID, interactionToken, "Member rejected and removed from the server.")
             } else {
