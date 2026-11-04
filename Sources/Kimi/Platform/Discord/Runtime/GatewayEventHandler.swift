@@ -187,6 +187,8 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String,
                 let user = data["user_id"] as? String
             else { return }
+            let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
+            guard user != botID else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
                 return
@@ -211,6 +213,8 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String,
                 let user = data["user_id"] as? String
             else { return }
+            let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
+            guard user != botID else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
                 return
@@ -269,6 +273,8 @@ extension KimiRuntime {
                 let thread = data["id"] as? String,
                 let owner = data["owner_id"] as? String
             else { return }
+            let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
+            guard owner != botID else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
                 return
