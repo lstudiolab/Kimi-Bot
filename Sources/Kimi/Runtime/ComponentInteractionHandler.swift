@@ -27,21 +27,21 @@ extension KimiRuntime {
                     throw KimiError.configuration(appName.rawValue + " is not installed in this server.")
                 }
             }
-            if custom == "settings:apps" {
+            if custom == "settings:plugins" {
                 let installed = await AppManager(store: store).installed(guildID: guild)
-                let buttons = CommandCatalog.appNames().map { appName in
+                let buttons = CommandCatalog.pluginNames().map { appName in
                     KimiUI.button(
-                        id: "settings:app:" + appName,
+                        id: "settings:plugin:" + appName,
                         label: appName + " · " + (installed.contains(appName) ? "Remove" : "Install"),
                         style: installed.contains(appName) ? 2 : 1)
                 }
                 let rows = KimiUI.buttonRows(buttons)
-                try await rest.editKimiInteraction(app, token, "App Store · Manage Kimi apps for this server.", rows)
+                try await rest.editKimiInteraction(app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
             } else if custom.hasPrefix("settings:app:") {
                 let appName = String(custom.dropFirst("settings:app:".count))
                 let owner = try await rest.ownerID(guild)
                 guard owner == actorID else {
-                    throw KimiError.configuration("Only the server owner can install or remove apps.")
+                    throw KimiError.configuration("Only the server owner can install or remove plugins.")
                 }
                 let manager = AppManager(store: store)
                 let installed = await manager.installed(guildID: guild)
@@ -73,7 +73,7 @@ extension KimiRuntime {
                     + "\nOpen Support tickets: " + String(open) + "\nMessages recorded: " + String(report.messages)
                 let rows = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:apps", label: "Manage apps"),
+                        KimiUI.button(id: "settings:apps", label: "Manage plugins"),
                         KimiUI.button(id: "settings:home", label: "Home"),
                     ])
                 ]
@@ -108,7 +108,7 @@ extension KimiRuntime {
             } else if custom == "settings:home" {
                 let rows = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:apps", label: "App Store"),
+                        KimiUI.button(id: "settings:apps", label: "Plugin Store"),
                         KimiUI.button(id: "settings:status", label: "System Status"),
                     ]),
                     KimiUI.row([
