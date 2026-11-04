@@ -107,6 +107,10 @@ actor RecoveryService {
                     throw KimiError.invalidResponse
                 }
                 restoredIDs.insert(roleID)
+                var roleMappings = await store.get("recovery.role-map." + guild, as: [String: String].self) ?? [:]
+                roleMappings[roleID] = restored
+                try await store.setGuild(
+                    roleMappings, key: "recovery.role-map." + guild, guildID: guild)
                 await logger.log(
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
@@ -237,8 +241,9 @@ actor RecoveryService {
                 let allow = UInt64(original["allow"] as? String ?? "") ?? 0
                 let deny = UInt64(original["deny"] as? String ?? "") ?? 0
                 let blocked = allow & privilegedMask
+                let roleMappings = await store.get("recovery.role-map." + guild, as: [String: String].self) ?? [:]
                 return [
-                    "id": id,
+                    "id": type == 0 ? (roleMappings[id] ?? id) : id,
                     "type": type,
                     "allow": String(allow & ~privilegedMask),
                     "deny": String(deny | blocked),
