@@ -60,6 +60,12 @@ actor AutomationEngine {
         if kind == "timeout" && (parts.count < 2 || !(1...40320).contains(Int(parts[1]) ?? 0)) {
             throw KimiError.configuration("timeout action format: timeout:MINUTES")
         }
+        if kind == "delete_message" && !["message_create", "message_contains"].contains(trigger) {
+            throw KimiError.configuration("delete_message can only run for message triggers.")
+        }
+        if trigger == "member_leave" && ["timeout", "add_role", "remove_role"].contains(kind) {
+            throw KimiError.configuration("Member actions cannot run after the member has left.")
+        }
         if (kind == "add_role" || kind == "remove_role")
             && (parts.count < 2 || parts[1].range(of: #"^\d{15,22}$"#, options: .regularExpression) == nil)
         {
@@ -123,6 +129,10 @@ actor AutomationEngine {
                 switch kind {
                 case "send_message":
                     guard parts.count == 3 else { throw KimiError.configuration("Invalid send_message rule.") }
+                    let destination = try await rest.call("GET", "channels/\\(parts[1])") as? [String: Any] ?? [:]
+                    guard destination["guild_id"] as? String == guild else {
+                        throw KimiError.configuration("Automation messages must target a channel in the same server.")
+                    }
                     let text = parts[2].replacingOccurrences(of: "{user}", with: user.isEmpty ? "" : "<@" + user + ">")
                         .replacingOccurrences(of: "{username}", with: username).replacingOccurrences(
                             of: "{server}", with: server)
@@ -142,14 +152,14 @@ actor AutomationEngine {
                     }
                     let member = try await rest.call("GET", "guilds/\(guild)/members/\(user)") as? [String: Any] ?? [:]
                     let roles = try await rest.call("GET", "guilds/\(guild)/roles") as? [[String: Any]] ?? []
-                    let ids = Set(member["roles"] as? [String] ?? [])
+                    let memberUser = member["user"] as? [String: Any] ?? [:]
+                    let ids = Set((member["roles"] as? [String] ?? []) + [guild])
+                    let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
                     let elevated = roles.contains { role in
                         ids.contains(role["id"] as? String ?? "")
-                            && ((UInt64(role["permissions"] as? String ?? "") ?? 0)
-                                & ((1 << 3) | (1 << 5) | (1 << 28) | (1 << 29) | (1 << 30) | (1 << 31) | (1 << 32)))
-                                != 0
+                            && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & privilegedMask) != 0
                     }
-                    guard member["user"] != nil, !elevated else {
+                    guard !memberUser.isEmpty, memberUser["bot"] as? Bool != true, !elevated else {
                         throw KimiError.configuration("Automation cannot timeout bots or privileged members.")
                     }
                     try await rest.timeoutKimiMember(guild, user, Int(parts[1]) ?? 10, "Kimi automation: " + rule.name)
@@ -162,11 +172,21 @@ actor AutomationEngine {
                         throw KimiError.configuration("Configured role no longer exists.")
                     }
                     let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
-                    guard
+                    let bot = try await rest.call("GET", "guilds/\\(guild)/members/@me") as? [String: Any] ?? [:]
+                    let botRoleIDs = Set(bot["roles"] as? [String] ?? [])
+                    let botRoles = roles.filter { botRoleIDs.contains($0["id"] as? String ?? "") }
+                    let highest = botRoles.map { $0["position"] as? Int ?? 0 }.max() ?? 0
+                    let canManage = botRoles.contains {
+                        (UInt64($0["permissions"] as? String ?? "") ?? 0) & ((1 << 28) | (1 << 3)) != 0
+                    }
+                    guard canManage,
                         SecurityPolicy.isSafeRole(
                             roleID: parts[1], guildID: guild, managed: role["managed"] as? Bool ?? false,
-                            permissions: permissions)
-                    else { throw KimiError.configuration("Automation role has elevated permissions or is managed.") }
+                            permissions: permissions),
+                        (role["position"] as? Int ?? 0) < highest
+                    else {
+                        throw KimiError.configuration("Automation role is elevated, managed, or outside Kimi's role hierarchy.")
+                    }
                     let method = kind == "add_role" ? "PUT" : "DELETE"
                     _ = try await rest.call(method, "guilds/\(guild)/members/\(user)/roles/\(parts[1])")
                 default: throw KimiError.configuration("Unsupported automation action.")
