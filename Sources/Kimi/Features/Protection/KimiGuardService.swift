@@ -118,8 +118,8 @@ actor KimiGuardService {
             throw KimiError.configuration("Choose restore or keep.")
         }
 
-        let roles = try await rest.call("GET", "guilds/\\(guild)/roles") as? [[String: Any]] ?? []
-        let botMember = try await rest.call("GET", "guilds/\\(guild)/members/@me") as? [String: Any] ?? [:]
+        let roles = try await rest.call("GET", "guilds/\(guild)/roles") as? [[String: Any]] ?? []
+        let botMember = try await rest.call("GET", "guilds/\(guild)/members/@me") as? [String: Any] ?? [:]
         let botRoles = Set(botMember["roles"] as? [String] ?? [])
         let highest = roles.filter { botRoles.contains($0["id"] as? String ?? "") }
             .map { $0["position"] as? Int ?? 0 }.max() ?? 0
@@ -135,27 +135,27 @@ actor KimiGuardService {
         var failures: [String] = []
         for role in safe {
             do {
-                _ = try await rest.call("PUT", "guilds/\\(guild)/members/\\(actor)/roles/\\(role)")
+                _ = try await rest.call("PUT", "guilds/\(guild)/members/\(actor)/roles/\(role)")
             } catch {
-                failures.append("role \\(role): \\(error.localizedDescription)")
+                failures.append("role \(role): \(error.localizedDescription)")
             }
         }
 
         if let expectedTimeout = incident.timeoutUntil {
             do {
                 let current = try await rest.call(
-                    "GET", "guilds/\\(guild)/members/\\(actor)") as? [String: Any] ?? [:]
+                    "GET", "guilds/\(guild)/members/\(actor)") as? [String: Any] ?? [:]
                 if let raw = current["communication_disabled_until"] as? String,
                     let actualTimeout = ISO8601DateFormatter().date(from: raw),
                     abs(actualTimeout.timeIntervalSince(expectedTimeout)) < 120
                 {
                     _ = try await rest.call(
-                        "PATCH", "guilds/\\(guild)/members/\\(actor)",
+                        "PATCH", "guilds/\(guild)/members/\(actor)",
                         body: ["communication_disabled_until": NSNull()],
                         auditReason: "Released after server owner Kimi Guard review")
                 }
             } catch {
-                failures.append("timeout release: \\(error.localizedDescription)")
+                failures.append("timeout release: \(error.localizedDescription)")
             }
         }
 
@@ -171,10 +171,10 @@ actor KimiGuardService {
         }
 
         if failures.isEmpty {
-            return "Incident reviewed. Restored \\(safe.count) safe roles. Elevated roles were not restored."
+            return "Incident reviewed. Restored \(safe.count) safe roles. Elevated roles were not restored."
         }
         let failedRoleCount = failures.filter { $0.hasPrefix("role ") }.count
-        return "Some restrictions could not be released. Restored \\(safe.count - failedRoleCount) safe roles. Retry the review after resolving: "
+        return "Some restrictions could not be released. Restored \(safe.count - failedRoleCount) safe roles. Retry the review after resolving: "
             + failures.joined(separator: "; ")
     }
 }
