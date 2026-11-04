@@ -128,8 +128,30 @@ extension KimiRuntime {
                     var settings = await engine.settings(guildID: guild)
                     settings.autoRole = custom == "screen:auto-role:disable" ? nil : selected
                     try await engine.configure(guildID: guild, settings)
-                } else if custom == "screen:role-picker:refresh" || custom == "screen:embeds:refresh" {
-                    // Read-only refresh controls; editor support is handled by each plugin's service.
+                } else if custom == "screen:role-picker:channel" {
+                    guard let selected else { throw KimiError.configuration("Select a role-menu channel.") }
+                    try await store.setGuild(selected, key: "screen.role-picker.channel." + guild, guildID: guild)
+                } else if custom == "screen:role-picker:publish" {
+                    guard let target = await store.get("screen.role-picker.channel." + guild, as: String.self) else {
+                        throw KimiError.configuration("Select a role-menu channel first.")
+                    }
+                    let count = try await RolePickerService(store: store, rest: rest, logger: logger)
+                        .publish(guild: guild, channel: target)
+                    try await rest.editKimiInteraction(app, token, "Role menu published with " + String(count) + " safe roles.")
+                } else if custom == "screen:embeds:select" {
+                    guard let selected else { throw KimiError.configuration("Choose a saved embed.") }
+                    try await store.setGuild(selected, key: "screen.embeds.selected." + guild, guildID: guild)
+                } else if custom == "screen:embeds:channel" {
+                    guard let selected else { throw KimiError.configuration("Choose a destination channel.") }
+                    try await store.setGuild(selected, key: "screen.embeds.channel." + guild, guildID: guild)
+                } else if custom == "screen:embeds:publish" {
+                    guard let selected = await store.get("screen.embeds.selected." + guild, as: String.self),
+                        let target = await store.get("screen.embeds.channel." + guild, as: String.self)
+                    else {
+                        throw KimiError.configuration("Choose both a saved embed and a destination channel.")
+                    }
+                    try await EmbedService(store: store, rest: rest).publish(guild: guild, name: selected, channel: target)
+                    try await rest.editKimiInteraction(app, token, "Embed published in <#" + target + ">.")
                 } else {
                     throw KimiError.configuration("This plugin setting is not supported by the current screen.")
                 }
