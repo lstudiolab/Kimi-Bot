@@ -26,8 +26,12 @@ actor SupportService {
     }
     func ensureCategory(_ guild: String) async throws -> String {
         let current = await settings(guild)
-        if let id = current.categoryID { return id }
         let channels = try await rest.call("GET", "guilds/\(guild)/channels") as? [[String: Any]] ?? []
+        if let id = current.categoryID,
+            channels.contains(where: { ($0["id"] as? String) == id && ($0["type"] as? Int) == 4 })
+        {
+            return id
+        }
         if let found = channels.first(where: {
             ($0["type"] as? Int) == 4 && ($0["name"] as? String)?.lowercased() == "ticket"
         }), let id = found["id"] as? String {
