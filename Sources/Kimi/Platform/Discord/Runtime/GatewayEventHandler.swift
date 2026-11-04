@@ -542,6 +542,16 @@ extension KimiRuntime {
                                 body: ["permissions": String(safePermissions)],
                                 auditReason: "Kimi Lock removed unauthorized elevated role permissions"
                             )
+                            if var cached = await store.get(
+                                "security.role-permissions." + guild, as: [String: String].self),
+                                cached[target] != nil
+                            {
+                                cached[target] = String(safePermissions)
+                                try? await store.setGuild(
+                                    cached, key: "security.role-permissions." + guild, guildID: guild)
+                                try? await store.setGuild(
+                                    Date(), key: "security.role-permissions-updated." + guild, guildID: guild)
+                            }
                             await logger.log("WARN", "Kimi Lock stripped elevated permissions from role " + target)
                         } catch {
                             await logger.log("ERROR", "Could not strip elevated role permissions: " + error.localizedDescription)
