@@ -575,6 +575,12 @@ extension KimiRuntime {
                     }
                 }
             }
+            if action == 22, let target {
+                let key = "security.pending-bans." + guild + "." + actor
+                var targets = await store.get(key, as: [String].self) ?? []
+                if !targets.contains(target) { targets.append(target) }
+                try? await store.setGuild(Array(targets.suffix(100)), key: key, guildID: guild)
+            }
             if action == 32, let target {
                 await recovery.queueDeletedRole(guild, target)
             }
@@ -596,6 +602,21 @@ extension KimiRuntime {
                     }
                     if incident.action == "32" {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingRoles(guild)
+                    }
+                    if incident.action == "22" {
+                        let key = "security.pending-bans." + guild + "." + actor
+                        let targets = await store.get(key, as: [String].self) ?? []
+                        for userID in targets {
+                            do {
+                                _ = try await rest.call(
+                                    "DELETE", "guilds/" + guild + "/bans/" + userID,
+                                    auditReason: "Kimi Lock reversed a confirmed mass-ban incident"
+                                )
+                            } catch {
+                                await logger.log("ERROR", "Could not reverse a mass-ban action for " + userID)
+                            }
+                        }
+                        try? await store.setGuild([String](), key: key, guildID: guild)
                     }
                     if (incident.action == "50" || incident.action == "51"),
                         let webhook = data["target_id"] as? String
