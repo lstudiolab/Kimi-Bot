@@ -281,12 +281,11 @@ final class DashboardServer: @unchecked Sendable {
             }
             guard count > 0 else { return nil }
             received.append(contentsOf: chunk.prefix(count))
-            guard received.count <= maximumHeaderBytes + maximumBodyBytes,
-                let range = received.range(of: delimiter) ?? (received.count > maximumHeaderBytes ? nil : nil)
-            else { return nil }
-            if range.lowerBound <= maximumHeaderBytes {
+            guard received.count <= maximumHeaderBytes + maximumBodyBytes else { return nil }
+            if let range = received.range(of: delimiter) {
+                guard range.lowerBound <= maximumHeaderBytes else { return nil }
                 boundary = range
-            } else {
+            } else if received.count > maximumHeaderBytes {
                 return nil
             }
         }
