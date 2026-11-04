@@ -165,13 +165,15 @@ actor KimiGuardService {
             guard values[key]?.id == reviewedIncident.id else {
                 throw KimiError.configuration("This incident changed during review. Reload the review panel.")
             }
-            values[key] = incident
+            values[key] = reviewedIncident
             return (values, ())
         }
 
         if failures.isEmpty {
             return "Incident reviewed. Restored \\(safe.count) safe roles. Elevated roles were not restored."
         }
-        return "Some restrictions could not be released. Restored \\(safe.count - failures.filter { $0.hasPrefix("role ") }.count) safe roles. Retry the review after resolving: "
+        let failedRoleCount = failures.filter { $0.hasPrefix("role ") }.count
+        return "Some restrictions could not be released. Restored \\(safe.count - failedRoleCount) safe roles. Retry the review after resolving: "
             + failures.joined(separator: "; ")
-    }\n}\n
+    }
+}
