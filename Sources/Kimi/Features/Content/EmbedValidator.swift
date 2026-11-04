@@ -14,6 +14,20 @@ struct EmbedValidator {
         let footer: String?
         let url: String?
         let imageURL: String?
+
+        init(
+            title: String, description: String, fields: [Field], color: Int,
+            author: String? = nil, footer: String? = nil, url: String? = nil, imageURL: String? = nil
+        ) {
+            self.title = title
+            self.description = description
+            self.fields = fields
+            self.color = color
+            self.author = author
+            self.footer = footer
+            self.url = url
+            self.imageURL = imageURL
+        }
     }
     func validate(_ embed: Definition) -> [String] {
         var errors: [String] = []
