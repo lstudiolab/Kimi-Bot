@@ -35,10 +35,6 @@ struct Configuration {
     let token: String
     let clientID: String
     let dataDirectory: URL
-    let dashboardPort: Int
-    let dashboardHost: String
-    let oauthSecret: String
-    let oauthRedirectURI: String
     static func load() throws -> Configuration {
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         var env: [String: String] = [:]
@@ -62,11 +58,7 @@ struct Configuration {
         }
         let dir = root.appendingPathComponent(get("DATA_DIR").isEmpty ? "data" : get("DATA_DIR"), isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let port = Int(get("DASHBOARD_PORT")) ?? 8787
-        return Configuration(
-            token: token, clientID: id, dataDirectory: dir, dashboardPort: max(1024, min(65535, port)),
-            dashboardHost: get("DASHBOARD_HOST").isEmpty ? "127.0.0.1" : get("DASHBOARD_HOST"),
-            oauthSecret: get("DISCORD_OAUTH_CLIENT_SECRET"), oauthRedirectURI: get("DISCORD_OAUTH_REDIRECT_URI"))
+        return Configuration(token: token, clientID: id, dataDirectory: dir)
     }
 }
 actor PersistentStore {
@@ -489,18 +481,16 @@ actor KimiRuntime {
     let store: PersistentStore
     let logger: Logger
     let clientID: String
-    let dashboardURL: String?
     let performance: PerformanceMonitor
     let moderation: ModerationEngine
     init(
-        rest: DiscordREST, store: PersistentStore, logger: Logger, clientID: String, dashboardURL: String? = nil,
+        rest: DiscordREST, store: PersistentStore, logger: Logger, clientID: String,
         performance: PerformanceMonitor = PerformanceMonitor()
     ) {
         self.rest = rest
         self.store = store
         self.logger = logger
         self.clientID = clientID
-        self.dashboardURL = dashboardURL
         self.performance = performance
         self.moderation = ModerationEngine(store: store)
     }
@@ -514,13 +504,10 @@ actor KimiRuntime {
             let logger = Logger()
             let store = try PersistentStore(directory: config.dataDirectory)
             let rest = DiscordREST(token: config.token)
-            DashboardServer(config: config, rest: rest, store: store, logger: logger).start()
             try await rest.registerCommands(config.clientID)
             await logger.log("INFO", "Kimi Swift started. Global commands synchronized.")
-            let dashboardURL = config.oauthRedirectURI.replacingOccurrences(of: "/oauth/callback", with: "")
             let runtime = KimiRuntime(
-                rest: rest, store: store, logger: logger, clientID: config.clientID,
-                dashboardURL: dashboardURL.isEmpty ? nil : dashboardURL)
+                rest: rest, store: store, logger: logger, clientID: config.clientID)
             let gateway = DiscordGateway(token: config.token, logger: logger) { event in
                 let name = event["name"] as? String ?? ""
                 let data = event["data"] as? [String: Any] ?? [:]
