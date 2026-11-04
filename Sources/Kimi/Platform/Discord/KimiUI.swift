@@ -41,6 +41,25 @@ enum KimiUI {
             "max_values": max(1, min(25, maximum)), "options": Array(options.prefix(25)),
         ]
     }
+    static func channelSelect(id: String, placeholder: String, channelTypes: [Int] = [0]) -> [String: Any] {
+        [
+            "type": 8,
+            "custom_id": id,
+            "placeholder": String(placeholder.prefix(150)),
+            "channel_types": channelTypes,
+            "min_values": 0,
+            "max_values": 1,
+        ]
+    }
+    static func roleSelect(id: String, placeholder: String) -> [String: Any] {
+        [
+            "type": 6,
+            "custom_id": id,
+            "placeholder": String(placeholder.prefix(150)),
+            "min_values": 0,
+            "max_values": 1,
+        ]
+    }
     static func textInput(
         id: String, label: String, value: String = "", style: Int = 1, required: Bool = true, maximum: Int = 1000
     ) -> [String: Any] {
