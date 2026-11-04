@@ -78,7 +78,11 @@ actor RecoveryService {
         for roleID in pending[guild] ?? [] {
             guard let data = snapshots[guild]?[roleID],
                 let source = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { continue }
+            else {
+                remaining.append(roleID)
+                await logger.log("WARN", "Role recovery retained an item without a snapshot: " + roleID)
+                continue
+            }
             let original = UInt64(source["permissions"] as? String ?? "") ?? 0
             var safePermissions = original
             for bit in SecurityPolicy.privilegedPermissionBits { safePermissions &= ~bit }
