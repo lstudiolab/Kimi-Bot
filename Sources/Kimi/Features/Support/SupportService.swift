@@ -60,7 +60,7 @@ actor SupportService {
 
     private func panelBody(_ settings: Settings) -> [String: Any] {
         [
-            "content": "**\(settings.panelTitle)**\n\(settings.panelDescription)",
+            "content": DiscordText.prefixUTF16("**\(settings.panelTitle)**\n\(settings.panelDescription)", limit: 1900),
             "components": panelComponents(),
             "allowed_mentions": ["parse": []],
         ]
