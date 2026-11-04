@@ -546,4 +546,69 @@ final class CoreTests: XCTestCase {
         XCTAssertNoThrow(try KimiUI.validateMessageComponents([KimiUI.row([menu])]))
     }
 
+    func testAnalyticsCountersAreAtomicAcrossServiceInstances() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-analytics-atomic-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    await AnalyticsService(store: store).record(guild: "123456789012345678", event: "message")
+                }
+            }
+        }
+        let report = await AnalyticsService(store: store).report(guild: "123456789012345678")
+        XCTAssertEqual(report.messages, 100)
+    }
+
+    func testVerificationAttemptsAreAtomicAcrossServiceInstances() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-verification-atomic-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<50 {
+                group.addTask {
+                    _ = try? await VerificationRecords(store: store).attempt(
+                        guildID: "123456789012345678", userID: "223456789012345678")
+                }
+            }
+        }
+        let record = await VerificationRecords(store: store).record(
+            guildID: "123456789012345678", userID: "223456789012345678")
+        XCTAssertEqual(record.attempts, 50)
+    }
+
+    func testConcurrentModerationEvaluationsPreserveRateHistory() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-moderation-atomic-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        var policy = await engine.policy(guildID: "123456789012345678")
+        policy.messagesPerMinute = 2
+        try await engine.configure(policy, guildID: "123456789012345678")
+        let now = Date()
+        let findings = await withTaskGroup(of: ModerationEngine.Finding?.self, returning: [ModerationEngine.Finding?].self) { group in
+            for index in 0..<12 {
+                group.addTask {
+                    await engine.evaluate(
+                        guildID: "123456789012345678", userID: "223456789012345678",
+                        messageID: "3234567890123456" + String(format: "%02d", index),
+                        content: "unique message " + String(index),
+                        channelID: "423456789012345678",
+                        now: now.addingTimeInterval(Double(index)))
+                }
+            }
+            var values: [ModerationEngine.Finding?] = []
+            for await value in group { values.append(value) }
+            return values
+        }
+        XCTAssertTrue(findings.contains { $0?.reason.contains("High-velocity message flood") == true })
+    }
+
 }
