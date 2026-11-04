@@ -236,6 +236,8 @@ extension KimiRuntime {
                 let message = data["message_id"] as? String,
                 let user = data["user_id"] as? String
             else { return }
+            let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
+            guard user != botID else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
                 return
