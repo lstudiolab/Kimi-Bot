@@ -513,7 +513,7 @@ extension KimiRuntime {
                 let options = data["options"] as? [String: Any] ?? [:]
                 let channelID = options["channel_id"] as? String
                 let overwriteID = options["id"] as? String ?? target
-                let overwriteType = Int(options["type"] as? String ?? "0") ?? 0
+                let overwriteType = options["type"] as? Int ?? Int(options["type"] as? String ?? "0") ?? 0
                 let changes = data["changes"] as? [[String: Any]] ?? []
                 func permissionValue(_ raw: Any?) -> UInt64? {
                     if let value = raw as? String { return UInt64(value) }
