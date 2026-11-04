@@ -6,6 +6,7 @@ actor RolePickerService {
         let name: String
         let guildID: String
         let channelID: String
+        var messageID: String?
         let roles: [Role]
     }
     struct Role: Codable, Sendable {
@@ -44,11 +45,11 @@ actor RolePickerService {
             return Role(id: id, name: item["name"] as? String ?? "Role")
         }
         guard !values.isEmpty else { throw KimiError.configuration("No safe assignable roles were found.") }
-        let menu = Menu(id: safeName, name: name, guildID: guild, channelID: channel, roles: values)
         var menus = await store.get("rolepicker.menus." + guild, as: [String: Menu].self) ?? [:]
-        menus[safeName] = menu
-        try await store.setGuild(menus, key: "rolepicker.menus." + guild, guildID: guild)
-        let options = values.map { ["label": String($0.name.prefix(100)), "value": $0.id] }
+        let previous = menus[safeName]
+        let options = values.map {
+            ["label": DiscordText.prefixUTF16($0.name, limit: 100), "value": $0.id]
+        }
         let customID = "rolepicker:select:" + safeName
         let components =
             [
@@ -62,12 +63,45 @@ actor RolePickerService {
                     ],
                 ]
             ] as [[String: Any]]
-        _ = try await rest.call(
-            "POST", "channels/\(channel)/messages",
-            body: [
-                "content": "**\(name)**\nChoose the roles you want to have. You can update your selection at any time.",
-                "components": components, "allowed_mentions": ["parse": []],
-            ])
+        let body: [String: Any] = [
+            "content": DiscordText.prefixUTF16(
+                "**" + name + "**\nChoose the roles you want to have. You can update your selection at any time.",
+                limit: 1900),
+            "components": components, "allowed_mentions": ["parse": []],
+        ]
+        var messageID: String?
+        if let oldMessage = previous?.messageID, previous?.channelID == channel {
+            do {
+                _ = try await rest.call(
+                    "PATCH", "channels/\(channel)/messages/\(oldMessage)", body: body)
+                messageID = oldMessage
+            } catch KimiError.http(404, _) {
+                messageID = nil
+            }
+        }
+        var createdMessageID: String?
+        if messageID == nil {
+            let response = try await rest.call("POST", "channels/\(channel)/messages", body: body) as? [String: Any] ?? [:]
+            guard let created = response["id"] as? String, !created.isEmpty else {
+                throw KimiError.invalidResponse
+            }
+            messageID = created
+            createdMessageID = created
+        }
+        let menu = Menu(
+            id: safeName, name: name, guildID: guild, channelID: channel, messageID: messageID, roles: values)
+        menus[safeName] = menu
+        do {
+            try await store.setGuild(menus, key: "rolepicker.menus." + guild, guildID: guild)
+        } catch {
+            if let createdMessageID {
+                _ = try? await rest.call("DELETE", "channels/\(channel)/messages/\(createdMessageID)")
+            }
+            throw error
+        }
+        if let previous, previous.channelID != channel, let oldMessage = previous.messageID {
+            _ = try? await rest.call("DELETE", "channels/\(previous.channelID)/messages/\(oldMessage)")
+        }
         await logger.log("INFO", "Role Picker menu " + safeName + " published in guild " + guild)
         return values.count
     }
