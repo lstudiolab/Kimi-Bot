@@ -26,7 +26,7 @@ actor PluginManager {
     }
 
     func install(_ name: String, guildID: String) async throws -> Result {
-        guard CommandCatalog.groups[name] != nil else {
+        guard CommandCatalog.pluginCommands[name] != nil else {
             return Result(ok: false, message: "Unknown plugin.", plugin: nil)
         }
 
