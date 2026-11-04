@@ -95,6 +95,7 @@ actor AutomationEngine {
         return values.contains(where: { $0.id == id && $0.guildID == guildID })
     }
     func remove(id: String, guildID: String) async throws -> Bool {
+        guard (await rules(guildID: guildID)).contains(where: { $0.id == id }) else { return false }
         let values = try await store.updateGuild("automation.rules", guildID: guildID, as: [Rule].self) { stored in
             (stored ?? []).filter { !($0.id == id && $0.guildID == guildID) }
         }
