@@ -85,7 +85,8 @@ actor PersistentStore {
             {
                 values = decoded
             }
-            if let installed = legacy["installed_plugins"],
+            if values["plugins.installed"] == nil, values["apps.installed"] == nil,
+                let installed = legacy["installed_plugins"],
                 let bytes = try? JSONSerialization.data(withJSONObject: installed)
             {
                 values["plugins.installed"] = bytes
