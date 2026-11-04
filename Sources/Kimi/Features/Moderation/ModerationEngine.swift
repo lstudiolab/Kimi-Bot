@@ -116,7 +116,7 @@ actor ModerationEngine {
     }
 
     private func containsSuspiciousURL(_ content: String) -> Bool {
-        let pattern = #"(?i)(?:https?://|www\.)[^\s<>]+"#
+        let pattern = #"(?i)(?:https?://|www\.)[^\s<>]+|(?<![@\w])(?:[a-z0-9-]+\.)+(?:com|net|org|io|gg|co|ru|xyz|top|link|info|biz)(?:/[^\s<>]*)?|(?<![0-9])\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:/[^\s<>]*)?"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
@@ -126,7 +126,7 @@ actor ModerationEngine {
         let loggerDomains: Set<String> = ["grabify.link", "iplogger.org", "iplogger.com", "2no.co", "yip.su", "ps3cfw.com", "blasze.com", "leancoding.co", "stopify.co"]
         let shorteners: Set<String> = ["bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "rb.gy"]
         return urls.contains { raw in
-            let candidate = raw.hasPrefix("www.") ? "https://" + raw : raw
+            let candidate = raw.hasPrefix("http://") || raw.hasPrefix("https://") ? raw : "https://" + raw
             guard let parts = URLComponents(string: candidate), let host = parts.host?.lowercased() else { return true }
             if parts.user != nil || parts.password != nil || host.hasPrefix("xn--") || host.contains(".xn--") { return true }
             if loggerDomains.contains(host) || shorteners.contains(host) { return true }
@@ -228,7 +228,7 @@ actor ModerationEngine {
             "use my referral", "use my promo code", "follow me on twitch", "follow me on tiktok",
         ]
         let hasExternalLink = content.range(
-            of: #"(?i)(?:https?://|www\.)"#, options: .regularExpression) != nil
+            of: #"(?i)(?:https?://|www\.|(?<![@\w])(?:[a-z0-9-]+\.)+(?:com|net|org|io|gg|co|ru|xyz|top|link|info|biz))"#, options: .regularExpression) != nil
         let selfAdvertising = value.blockSelfAdvertising && hasExternalLink
             && advertisingPhrases.contains { normalizedContent.contains(normalized($0)) }
         let suspiciousLink = containsSuspiciousURL(content)
