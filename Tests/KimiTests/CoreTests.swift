@@ -514,9 +514,9 @@ final class CoreTests: XCTestCase {
             "kimi-moderation-cache-" + UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
         try FileManager.default.createDirectory(
             at: directory.appendingPathComponent("timi.json"), withIntermediateDirectories: true)
-        let store = try PersistentStore(directory: directory)
         let engine = ModerationEngine(store: store)
         var changed = ModerationEngine.Policy()
         changed.messagesPerMinute = 77
