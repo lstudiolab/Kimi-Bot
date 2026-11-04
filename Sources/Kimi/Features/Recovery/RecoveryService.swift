@@ -96,7 +96,9 @@ actor RecoveryService {
             if let unicode = source["unicode_emoji"] as? String { body["unicode_emoji"] = unicode }
             do {
                 let created = try await rest.call("POST", "guilds/" + guild + "/roles", body: body)
-                let restored = (created as? [String: Any])?["id"] as? String ?? "unknown"
+                guard let restored = (created as? [String: Any])?["id"] as? String else {
+                    throw KimiError.invalidResponse
+                }
                 await logger.log(
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
@@ -199,9 +201,28 @@ actor RecoveryService {
         var body: [String: Any] = [:]
         for key in allowed { if let value = source[key] { body[key] = value } }
         body["name"] = SecurityPolicy.channelName(source["name"] as? String ?? "restored-channel")
+        if let overwrites = source["permission_overwrites"] as? [[String: Any]] {
+            let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
+            body["permission_overwrites"] = overwrites.compactMap { original -> [String: Any]? in
+                guard let id = original["id"] as? String,
+                    let type = original["type"] as? Int, type == 0 || type == 1
+                else { return nil }
+                let allow = UInt64(original["allow"] as? String ?? "") ?? 0
+                let deny = UInt64(original["deny"] as? String ?? "") ?? 0
+                let blocked = allow & privilegedMask
+                return [
+                    "id": id,
+                    "type": type,
+                    "allow": String(allow & ~privilegedMask),
+                    "deny": String(deny | blocked),
+                ]
+            }
+        }
         do {
             let created = try await rest.call("POST", "guilds/\(guild)/channels", body: body)
-            let restored = (created as? [String: Any])?["id"] as? String ?? "unknown"
+            guard let restored = (created as? [String: Any])?["id"] as? String else {
+                throw KimiError.invalidResponse
+            }
             await logger.log(
                 "WARN", "Kimi Lock restored deleted channel " + channelID + " as " + restored + " in guild " + guild)
             return true
