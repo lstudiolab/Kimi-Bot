@@ -251,7 +251,8 @@ final class DashboardServer: @unchecked Sendable {
                 let manager = PluginManager(store: store)
                 let result =
                     action == "install"
-                    ? try await manager.install(plugin, guildID: guild) : try await manager.uninstall(plugin, guildID: guild)
+                    ? try await manager.install(plugin, guildID: guild)
+                    : try await manager.uninstall(plugin, guildID: guild)
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let installed = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(config.clientID, guildID: guild, installed: installed)
@@ -395,8 +396,9 @@ final class DashboardServer: @unchecked Sendable {
                     + "'><input type='hidden' name='action' value='" + (active ? "uninstall" : "install")
                     + "'><button class='" + (active ? "secondary" : "primary") + "'>" + (active ? "Remove" : "Install")
                     + "</button></form>" : ""
-            return "<article class='plugin'><div><b>" + escape(plugin) + "</b><small>" + (active ? "Installed" : "Available")
-                + "</small></div>" + button + "</article>"
+            return
+                "<article class='plugin'><div><b>" + escape(plugin) + "</b><small>"
+                + (active ? "Installed" : "Available") + "</small></div>" + button + "</article>"
         }.joined()
         let analytics = await AnalyticsService(store: store).report(guild: guild)
         let stats =
