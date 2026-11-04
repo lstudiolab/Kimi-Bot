@@ -206,5 +206,5 @@ enum CommandCatalog {
     static func guildCommands(installed: [String]) -> [[String: Any]] {
         installed.flatMap { pluginCommands[$0] ?? [] }.compactMap { all[$0] }
     }
-    static func pluginNames() -> [String] { groups.keys.sorted() }
+    static func pluginNames() -> [String] { pluginCommands.keys.sorted() }
 }
