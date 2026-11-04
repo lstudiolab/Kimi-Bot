@@ -31,29 +31,32 @@ actor PluginManager {
         guard CommandCatalog.pluginCommands[name] != nil else {
             return Result(ok: false, message: "Unknown plugin.", plugin: nil)
         }
-
-        var all = await loadInstallations()
-        var values = all[guildID] ?? []
-        guard !values.contains(name) else {
-            return Result(ok: false, message: "\(name) is already installed.", plugin: name)
+        let legacy = await store.get(legacyStorageKey, as: [String: [String]].self) ?? [:]
+        return try await store.modifyGuild(storageKey, guildID: guildID, as: [String: [String]].self) { stored in
+            var all = stored ?? [:]
+            for (id, plugins) in legacy where all[id] == nil { all[id] = plugins }
+            var values = all[guildID] ?? []
+            guard !values.contains(name) else {
+                return (all, Result(ok: false, message: "\(name) is already installed.", plugin: name))
+            }
+            values.append(name)
+            all[guildID] = values
+            return (all, Result(ok: true, message: "\(name) installed.", plugin: name))
         }
-
-        values.append(name)
-        all[guildID] = values
-        try await store.setGuild(all, key: storageKey, guildID: guildID)
-        return Result(ok: true, message: "\(name) installed.", plugin: name)
     }
 
     func uninstall(_ name: String, guildID: String) async throws -> Result {
-        var all = await loadInstallations()
-        var values = all[guildID] ?? []
-        guard values.contains(name) else {
-            return Result(ok: false, message: "\(name) is not installed.", plugin: name)
+        let legacy = await store.get(legacyStorageKey, as: [String: [String]].self) ?? [:]
+        return try await store.modifyGuild(storageKey, guildID: guildID, as: [String: [String]].self) { stored in
+            var all = stored ?? [:]
+            for (id, plugins) in legacy where all[id] == nil { all[id] = plugins }
+            var values = all[guildID] ?? []
+            guard values.contains(name) else {
+                return (all, Result(ok: false, message: "\(name) is not installed.", plugin: name))
+            }
+            values.removeAll { $0 == name }
+            all[guildID] = values
+            return (all, Result(ok: true, message: "\(name) removed; saved settings were preserved.", plugin: name))
         }
-
-        values.removeAll { $0 == name }
-        all[guildID] = values
-        try await store.setGuild(all, key: storageKey, guildID: guildID)
-        return Result(ok: true, message: "\(name) removed; saved settings were preserved.", plugin: name)
     }
 }
