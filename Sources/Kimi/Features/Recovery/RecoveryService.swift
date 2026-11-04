@@ -125,24 +125,28 @@ actor RecoveryService {
         _ guild: String, _ channel: String, _ message: String, _ author: String, _ content: String,
         attachments: [Attachment] = [], authorName: String? = nil
     ) async {
-        var all = await store.get("recovery.messages", as: [String: [Message]].self) ?? [:]
         let now = Date()
         let cutoff = now.addingTimeInterval(-week)
-        var rows = (all[guild] ?? []).filter { $0.createdAt >= cutoff }
-        rows.removeAll { $0.id == message }
         let value = Message(
             id: message, channelID: channel, authorID: author, content: String(content.prefix(4000)), createdAt: now,
             authorName: authorName, attachments: Array(attachments.prefix(10)))
-        rows.append(value)
-        rows.sort { $0.createdAt < $1.createdAt }
-        func encodedSize(_ row: Message) -> Int { (try? JSONEncoder().encode(row).count) ?? row.content.utf8.count }
-        var bytes = rows.reduce(0) { $0 + encodedSize($1) }
-        while !rows.isEmpty && (rows.count > maxMessages || bytes > maxArchiveBytes) {
-            bytes -= encodedSize(rows.removeFirst())
-        }
-        all[guild] = rows
         do {
-            try await store.setGuild(all, key: "recovery.messages", guildID: guild)
+            try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
+                var all = stored ?? [:]
+                var rows = (all[guild] ?? []).filter { $0.createdAt >= cutoff }
+                rows.removeAll { $0.id == message }
+                rows.append(value)
+                rows.sort { $0.createdAt < $1.createdAt }
+                func encodedSize(_ row: Message) -> Int {
+                    (try? JSONEncoder().encode(row).count) ?? row.content.utf8.count
+                }
+                var bytes = rows.reduce(0) { $0 + encodedSize($1) }
+                while !rows.isEmpty && (rows.count > maxMessages || bytes > maxArchiveBytes) {
+                    bytes -= encodedSize(rows.removeFirst())
+                }
+                all[guild] = rows
+                return all
+            }
         } catch {
             await logger.log("ERROR", "Recovery message snapshot was not persisted: " + error.localizedDescription)
         }
