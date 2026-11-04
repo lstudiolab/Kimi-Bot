@@ -3,10 +3,10 @@ import Foundation
 enum KimiUI {
     static let grey = 0x808080
     static func embed(title: String, description: String) -> [String: Any] {
-        ["color": grey, "title": String(title.prefix(256)), "description": String(description.prefix(4096))]
+        ["color": grey, "title": DiscordText.prefixUTF16(title, limit: 256), "description": DiscordText.prefixUTF16(description, limit: 4096)]
     }
     static func button(id: String, label: String, style: Int = 2, disabled: Bool = false) -> [String: Any] {
-        ["type": 2, "style": max(1, min(5, style)), "custom_id": String(id.prefix(100)), "label": String(label.prefix(80)), "disabled": disabled]
+        ["type": 2, "style": max(1, min(5, style)), "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled]
     }
     static func row(_ components: [[String: Any]]) -> [String: Any] {
         ["type": 1, "components": Array(components.prefix(5))]
@@ -54,8 +54,8 @@ enum KimiUI {
         let maximumValues = max(1, min(25, min(safeOptions.count, maximum)))
         let minimumValues = max(0, min(minimum, maximumValues))
         return [
-            "type": 3, "custom_id": String(id.prefix(100)),
-            "placeholder": String(placeholder.prefix(150)), "min_values": minimumValues,
+            "type": 3, "custom_id": DiscordText.prefixUTF16(id, limit: 100),
+            "placeholder": DiscordText.prefixUTF16(placeholder, limit: 150), "min_values": minimumValues,
             "max_values": maximumValues, "options": safeOptions,
         ]
     }
@@ -63,7 +63,7 @@ enum KimiUI {
         [
             "type": 8,
             "custom_id": id,
-            "placeholder": String(placeholder.prefix(150)),
+            "placeholder": DiscordText.prefixUTF16(placeholder, limit: 150),
             "channel_types": channelTypes,
             "min_values": 0,
             "max_values": 1,
@@ -73,7 +73,7 @@ enum KimiUI {
         [
             "type": 6,
             "custom_id": id,
-            "placeholder": String(placeholder.prefix(150)),
+            "placeholder": DiscordText.prefixUTF16(placeholder, limit: 150),
             "min_values": 0,
             "max_values": 1,
         ]
@@ -82,18 +82,18 @@ enum KimiUI {
         id: String, label: String, value: String = "", style: Int = 1, required: Bool = true, maximum: Int = 1000
     ) -> [String: Any] {
         var item: [String: Any] = [
-            "type": 4, "custom_id": String(id.prefix(100)), "label": String(label.prefix(45)),
+            "type": 4, "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 45),
             "style": max(1, min(2, style)), "required": required,
             "max_length": max(1, min(4000, maximum)),
         ]
-        if !value.isEmpty { item["value"] = String(value.prefix(max(1, min(4000, maximum)))) }
+        if !value.isEmpty { item["value"] = DiscordText.prefixUTF16(value, limit: max(1, min(4000, maximum))) }
         return item
     }
     static func modal(id: String, title: String, inputs: [[String: Any]]) -> [String: Any] {
-        ["custom_id": id, "title": String(title.prefix(45)), "components": inputs.prefix(5).map { row([$0]) }]
+        ["custom_id": id, "title": DiscordText.prefixUTF16(title, limit: 45), "components": inputs.prefix(5).map { row([$0]) }]
     }
     static func safeMentions() -> [String: Any] { ["parse": []] }
     static func message(_ content: String, components: [[String: Any]] = []) -> [String: Any] {
-        ["content": String(content.prefix(1900)), "components": components, "allowed_mentions": safeMentions()]
+        ["content": DiscordText.prefixUTF16(content, limit: 1900), "components": components, "allowed_mentions": safeMentions()]
     }
 }
