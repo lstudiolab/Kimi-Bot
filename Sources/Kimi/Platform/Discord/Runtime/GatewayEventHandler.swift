@@ -31,6 +31,12 @@ extension KimiRuntime {
         for channel in channels { await recovery.captureChannel(guild, channel) }
         let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
         for role in roles { await recovery.captureRole(guild, role) }
+        let permissions = Dictionary(uniqueKeysWithValues: roles.compactMap { role -> (String, String)? in
+            guard let id = role["id"] as? String else { return nil }
+            return (id, role["permissions"] as? String ?? "0")
+        })
+        try? await store.setGuild(permissions, key: "security.role-permissions." + guild, guildID: guild)
+        try? await store.setGuild(Date(), key: "security.role-permissions-updated." + guild, guildID: guild)
     }
     func dispatchMigratedEvent(_ name: String, _ data: [String: Any]) async {
         switch name {
@@ -508,6 +514,12 @@ extension KimiRuntime {
             if (action == 30 || action == 31), await migratedModuleEnabled("recovery", guild: guild) {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
                 for role in roles { await recovery.captureRole(guild, role) }
+                let permissions = Dictionary(uniqueKeysWithValues: roles.compactMap { role -> (String, String)? in
+                    guard let id = role["id"] as? String else { return nil }
+                    return (id, role["permissions"] as? String ?? "0")
+                })
+                try? await store.setGuild(permissions, key: "security.role-permissions." + guild, guildID: guild)
+                try? await store.setGuild(Date(), key: "security.role-permissions-updated." + guild, guildID: guild)
             }
             guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
             let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
