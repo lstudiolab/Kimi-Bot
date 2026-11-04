@@ -493,7 +493,19 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(
             SecurityPolicy.isSafeRole(
                 roleID: "223456789012345680", guildID: "123456789012345678",
-                managed: false, permissions: 1 << 11)
+                managed: false, permissions: (1 << 10) | (1 << 11) | (1 << 14) | (1 << 20) | (1 << 21))
+        )
+        XCTAssertFalse(
+            SecurityPolicy.isSafeRole(
+                roleID: "223456789012345681", guildID: "123456789012345678",
+                managed: false, permissions: 1 << 1),
+            "Kick Members must not be assignable through automated role menus."
+        )
+        XCTAssertFalse(
+            SecurityPolicy.isSafeRole(
+                roleID: "223456789012345682", guildID: "123456789012345678",
+                managed: false, permissions: 1 << 2),
+            "Ban Members must not be assignable through automated role menus."
         )
     }
 
