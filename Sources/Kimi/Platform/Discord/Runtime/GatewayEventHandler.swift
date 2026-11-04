@@ -155,6 +155,71 @@ extension KimiRuntime {
                     (name == "GUILD_BAN_ADD" ? "Ban recorded for " : "Unban recorded for ") + user + " in guild "
                         + guild)
             }
+        case "MESSAGE_REACTION_ADD":
+            guard let guild = data["guild_id"] as? String,
+                let channel = data["channel_id"] as? String,
+                let message = data["message_id"] as? String,
+                let user = data["user_id"] as? String
+            else { return }
+            let installed = await PluginManager(store: store).installed(guildID: guild)
+            guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
+                return
+            }
+            let member = data["member"] as? [String: Any] ?? [:]
+            let userData = member["user"] as? [String: Any] ?? [:]
+            guard userData["bot"] as? Bool != true else { return }
+            let key = "moderation.reactions." + guild + "." + message + "." + user
+            let now = Date()
+            var events = (await store.get(key, as: [Date].self) ?? []).filter {
+                now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) <= 10
+            }
+            events.append(now)
+            try? await store.setGuild(events, key: key, guildID: guild)
+            guard events.count >= 6 else { return }
+            let emoji = data["emoji"] as? [String: Any] ?? [:]
+            let emojiName = emoji["name"] as? String ?? ""
+            let emojiID = emoji["id"] as? String
+            let rawEmoji = emojiID.map { emojiName + ":" + $0 } ?? emojiName
+            let safeEmoji = rawEmoji.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? rawEmoji
+            do {
+                _ = try await rest.call(
+                    "DELETE",
+                    "channels/" + channel + "/messages/" + message + "/reactions/" + safeEmoji + "/" + user
+                )
+                await logger.log("WARN", "Kimi Lock removed rapid reaction spam from " + user + " in guild " + guild)
+                if events.count >= 12 {
+                    try await rest.timeoutKimiMember(guild, user, 5, "Repeated reaction spam")
+                }
+            } catch {
+                await logger.log("WARN", "Reaction spam containment failed: " + error.localizedDescription)
+            }
+        case "THREAD_CREATE":
+            guard let guild = data["guild_id"] as? String,
+                let thread = data["id"] as? String,
+                let owner = data["owner_id"] as? String
+            else { return }
+            let installed = await PluginManager(store: store).installed(guildID: guild)
+            guard installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) else {
+                return
+            }
+            let key = "moderation.threads." + guild + "." + owner
+            let now = Date()
+            var events = (await store.get(key, as: [Date].self) ?? []).filter {
+                now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) <= 60
+            }
+            events.append(now)
+            try? await store.setGuild(events, key: key, guildID: guild)
+            if events.count >= 6 {
+                do {
+                    _ = try await rest.call("DELETE", "channels/" + thread)
+                    await logger.log("WARN", "Kimi Lock removed a thread creation flood by " + owner)
+                    if events.count >= 10 {
+                        try await rest.timeoutKimiMember(guild, owner, 10, "Thread and forum flooding")
+                    }
+                } catch {
+                    await logger.log("WARN", "Thread flood containment failed: " + error.localizedDescription)
+                }
+            }
         case "MESSAGE_CREATE":
             guard let guild = data["guild_id"] as? String, let channel = data["channel_id"] as? String,
                 let message = data["id"] as? String, let author = data["author"] as? [String: Any],
