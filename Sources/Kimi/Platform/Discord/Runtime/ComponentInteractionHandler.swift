@@ -12,6 +12,16 @@ extension KimiRuntime {
         let actorID = actor["id"] as? String ?? ""
         let username = actor["username"] as? String ?? "member"
         let custom = data["custom_id"] as? String ?? ""
+        func modalValue(_ key: String) -> String? {
+            let rows = data["components"] as? [[String: Any]] ?? []
+            for row in rows {
+                let components = row["components"] as? [[String: Any]] ?? []
+                if let value = components.first(where: { ($0["custom_id"] as? String) == key })?["value"] as? String {
+                    return value
+                }
+            }
+            return nil
+        }
         do {
             switch custom {
             case "screen:ticket:edit-panel":
@@ -127,7 +137,50 @@ extension KimiRuntime {
                     throw KimiError.configuration("Only the server owner or a member with Manage Server can change plugin settings.")
                 }
                 let selected = (data["values"] as? [String])?.first
-                if custom == "screen:ticket:category" {
+                if custom == "screen:ticket:save-panel" {
+                    var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    if let title = modalValue("panel-title") {
+                        settings.panelTitle = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(256))
+                    }
+                    if let description = modalValue("panel-description") {
+                        settings.panelDescription = String(description.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
+                    }
+                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                } else if custom == "screen:welcome:save-messages" {
+                    let engine = FoundationEngine(store: store, rest: rest, logger: logger)
+                    var settings = await engine.settings(guildID: guild)
+                    if let message = modalValue("welcome-message") { settings.welcomeMessage = String(message.prefix(1800)) }
+                    if let message = modalValue("goodbye-message") { settings.goodbyeMessage = String(message.prefix(1800)) }
+                    try await engine.configure(guildID: guild, settings)
+                } else if custom == "screen:lock:save-keywords" {
+                    let engine = ModerationEngine(store: store)
+                    var policy = await engine.policy(guildID: guild)
+                    let raw = modalValue("keywords") ?? ""
+                    let words = raw.components(separatedBy: "\n").map {
+                        $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }.filter { !$0.isEmpty }
+                    guard words.count <= 100 else {
+                        throw KimiError.configuration("A maximum of 100 blocked keywords is supported.")
+                    }
+                    policy.blockedPhrases = Array(Set(words).sorted().prefix(100))
+                    try await engine.configure(policy, guildID: guild)
+                } else if custom == "screen:role-picker:save-name" {
+                    guard let name = modalValue("menu-name")?.trimmingCharacters(in: .whitespacesAndNewlines),
+                        !name.isEmpty, name.count <= 24
+                    else { throw KimiError.configuration("Enter a menu name between 1 and 24 characters.") }
+                    try await store.setGuild(name, key: "screen.role-picker.name." + guild, guildID: guild)
+                } else if custom == "screen:embeds:save" {
+                    guard let name = modalValue("embed-name"), let title = modalValue("embed-title"),
+                        let description = modalValue("embed-description")
+                    else { throw KimiError.configuration("Complete the embed name, title and description.") }
+                    let color = Int(modalValue("embed-color") ?? "8421504") ?? 8421504
+                    guard (0...16_777_215).contains(color) else {
+                        throw KimiError.configuration("Embed color must be a decimal value from 0 to 16777215.")
+                    }
+                    let saved = try await EmbedService(store: store, rest: rest).save(
+                        guild: guild, name: name, title: title, description: description, color: color)
+                    try await store.setGuild(saved.name, key: "screen.embeds.selected." + guild, guildID: guild)
+                } else if custom == "screen:ticket:category" {
                     var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
                     settings.categoryID = selected
                     try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
@@ -193,9 +246,9 @@ extension KimiRuntime {
                     guard let target = await store.get("screen.role-picker.channel." + guild, as: String.self) else {
                         throw KimiError.configuration("Select a role-menu channel first.")
                     }
-                    let count = try await RolePickerService(store: store, rest: rest, logger: logger)
-                        .publish(guild: guild, channel: target)
-                    try await rest.editKimiInteraction(app, token, "Role menu published with " + String(count) + " safe roles.")
+                    let menuName = await store.get("screen.role-picker.name." + guild, as: String.self) ?? "roles"
+                    _ = try await RolePickerService(store: store, rest: rest, logger: logger)
+                        .publish(guild: guild, channel: target, name: menuName)
                 } else if custom == "screen:embeds:select" {
                     guard let selected else { throw KimiError.configuration("Choose a saved embed.") }
                     try await store.setGuild(selected, key: "screen.embeds.selected." + guild, guildID: guild)
@@ -209,7 +262,6 @@ extension KimiRuntime {
                         throw KimiError.configuration("Choose both a saved embed and a destination channel.")
                     }
                     try await EmbedService(store: store, rest: rest).publish(guild: guild, name: selected, channel: target)
-                    try await rest.editKimiInteraction(app, token, "Embed published in <#" + target + ">.")
                 } else {
                     throw KimiError.configuration("This plugin setting is not supported by the current screen.")
                 }
