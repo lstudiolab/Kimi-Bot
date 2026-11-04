@@ -62,6 +62,78 @@ extension KimiRuntime {
                 }
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, pluginName + " updated.", rows)
+            } else if custom.hasPrefix("screen:") {
+                let owner = try await rest.ownerID(guild)
+                let permissions = UInt64(member["permissions"] as? String ?? "") ?? 0
+                guard owner == actorID || permissions & (1 << 5) != 0 else {
+                    throw KimiError.configuration("Only the server owner or a member with Manage Server can change plugin settings.")
+                }
+                let selected = (data["values"] as? [String])?.first
+                if custom == "screen:ticket:category" {
+                    var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    settings.categoryID = selected
+                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                } else if custom == "screen:ticket:staff-role" {
+                    var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    settings.supportRoleID = selected
+                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                } else if custom == "screen:ticket:panel" {
+                    var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    settings.panelChannelID = selected
+                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                } else if custom == "screen:ticket:transcript" {
+                    var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    settings.transcriptChannelID = selected
+                    try await SupportService(store: store, rest: rest, logger: logger).configure(settings, guild: guild)
+                } else if custom == "screen:ticket:publish" {
+                    let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
+                    guard let target = settings.panelChannelID else {
+                        throw KimiError.configuration("Select a ticket panel channel first.")
+                    }
+                    try await SupportService(store: store, rest: rest, logger: logger).publishPanel(guild: guild, channel: target)
+                } else if custom.hasPrefix("screen:lock:") {
+                    let engine = ModerationEngine(store: store)
+                    var policy = await engine.policy(guildID: guild)
+                    switch custom {
+                    case "screen:lock:toggle": policy.enabled.toggle()
+                    case "screen:lock:invites": policy.blockInvites.toggle()
+                    case "screen:lock:mentions": policy.blockMassMentions.toggle()
+                    case "screen:lock:caps": policy.blockExcessiveCaps.toggle()
+                    case "screen:lock:sanction":
+                        guard let selected, ["delete", "timeout", "kick", "ban"].contains(selected) else {
+                            throw KimiError.configuration("Choose a valid sanction.")
+                        }
+                        policy.sanction = selected
+                    case "screen:lock:rate":
+                        guard let selected, let limit = Int(selected), [10, 20, 30, 50].contains(limit) else {
+                            throw KimiError.configuration("Choose a valid message threshold.")
+                        }
+                        policy.messagesPerMinute = limit
+                    case "screen:lock:timeout":
+                        guard let selected, let minutes = Int(selected), [5, 10, 30, 60].contains(minutes) else {
+                            throw KimiError.configuration("Choose a valid timeout duration.")
+                        }
+                        policy.timeoutMinutes = minutes
+                    default: throw KimiError.configuration("Unknown Kimi Lock setting.")
+                    }
+                    try await engine.configure(policy, guildID: guild)
+                } else if custom == "screen:welcome:channel" || custom == "screen:welcome:goodbye" {
+                    let engine = FoundationEngine(store: store, rest: rest, logger: logger)
+                    var settings = await engine.settings(guildID: guild)
+                    if custom == "screen:welcome:channel" { settings.welcomeChannel = selected }
+                    else { settings.goodbyeChannel = selected }
+                    try await engine.configure(guildID: guild, settings)
+                } else if custom == "screen:auto-role:role" || custom == "screen:auto-role:disable" {
+                    let engine = FoundationEngine(store: store, rest: rest, logger: logger)
+                    var settings = await engine.settings(guildID: guild)
+                    settings.autoRole = custom == "screen:auto-role:disable" ? nil : selected
+                    try await engine.configure(guildID: guild, settings)
+                } else if custom == "screen:role-picker:refresh" || custom == "screen:embeds:refresh" {
+                    // Read-only refresh controls; editor support is handled by each plugin's service.
+                } else {
+                    throw KimiError.configuration("This plugin setting is not supported by the current screen.")
+                }
+                try await rest.editKimiInteraction(app, token, "Plugin settings saved.")
             } else if custom == "settings:status" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
