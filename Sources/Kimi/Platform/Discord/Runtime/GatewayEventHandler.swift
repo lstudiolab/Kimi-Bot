@@ -509,6 +509,50 @@ extension KimiRuntime {
                     }
                 }
             }
+            if let owner, actor != owner, [13, 14, 15].contains(action) {
+                let options = data["options"] as? [String: Any] ?? [:]
+                let channelID = options["channel_id"] as? String
+                let overwriteID = options["id"] as? String ?? target
+                let overwriteType = Int(options["type"] as? String ?? "0") ?? 0
+                let changes = data["changes"] as? [[String: Any]] ?? []
+                func permissionValue(_ raw: Any?) -> UInt64? {
+                    if let value = raw as? String { return UInt64(value) }
+                    if let value = raw as? NSNumber { return value.uint64Value }
+                    return nil
+                }
+                let oldAllow = permissionValue(changes.first(where: { ($0["key"] as? String) == "allow" })?["old_value"])
+                let oldDeny = permissionValue(changes.first(where: { ($0["key"] as? String) == "deny" })?["old_value"])
+                let newAllow = permissionValue(changes.first(where: { ($0["key"] as? String) == "allow" })?["new_value"])
+                if let channelID, let overwriteID {
+                    do {
+                        if action == 13, let newAllow, newAllow & privilegedMask != 0 {
+                            _ = try await rest.call(
+                                "DELETE", "channels/" + channelID + "/permissions/" + overwriteID,
+                                auditReason: "Kimi Lock reverted an unauthorized privileged permission overwrite"
+                            )
+                            await logger.log("WARN", "Kimi Lock removed an unauthorized privileged channel overwrite.")
+                        } else if action == 14, let oldAllow, let oldDeny, let newAllow,
+                            newAllow & ~oldAllow & privilegedMask != 0
+                        {
+                            _ = try await rest.call(
+                                "PUT", "channels/" + channelID + "/permissions/" + overwriteID,
+                                body: ["allow": String(oldAllow), "deny": String(oldDeny), "type": overwriteType],
+                                auditReason: "Kimi Lock reverted an unauthorized permission escalation"
+                            )
+                            await logger.log("WARN", "Kimi Lock reverted a privileged channel permission change.")
+                        } else if action == 15, let oldAllow, let oldDeny {
+                            _ = try await rest.call(
+                                "PUT", "channels/" + channelID + "/permissions/" + overwriteID,
+                                body: ["allow": String(oldAllow), "deny": String(oldDeny), "type": overwriteType],
+                                auditReason: "Kimi Lock restored a deleted channel permission overwrite"
+                            )
+                            await logger.log("WARN", "Kimi Lock restored a deleted channel permission overwrite.")
+                        }
+                    } catch {
+                        await logger.log("ERROR", "Permission overwrite recovery failed: " + error.localizedDescription)
+                    }
+                }
+            }
             if let owner, actor != owner, action == 25, let target {
                 let changes = data["changes"] as? [[String: Any]] ?? []
                 let additions = changes.first(where: { ($0["key"] as? String) == "$add" })?["new_value"] as? [[String: Any]] ?? []
