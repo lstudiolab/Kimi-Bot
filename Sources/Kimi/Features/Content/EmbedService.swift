@@ -38,16 +38,16 @@ actor EmbedService {
             throw KimiError.configuration("Embed names must be 1–24 characters.")
         }
         var data = await store.get("embeds.saved", as: [String: [Saved]].self) ?? [:]
-        var list = data[guild]
-        if list == nil { list = [] }
-        let existing = list!.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })
+        var list = data[guild] ?? []
+        let existing = list.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })
         let nextFields = fields ?? existing?.fields ?? []
         let validationFields = nextFields.map { EmbedValidator.Field(name: $0.name, value: $0.value) }
         let validator = EmbedValidator()
         let errors = validator.validate(
             .init(
                 title: title, description: description, fields: validationFields, color: color,
-                imageURL: imageURL ?? existing?.imageURL))
+                author: author ?? existing?.author, footer: footer ?? existing?.footer,
+                url: url ?? existing?.url, imageURL: imageURL ?? existing?.imageURL))
         guard errors.isEmpty else { throw KimiError.configuration(errors.joined(separator: " ")) }
         if let author = author ?? existing?.author, author.count > 256 {
             throw KimiError.configuration("Embed author exceeds 256 characters.")
@@ -68,7 +68,7 @@ actor EmbedService {
             footer: footer ?? existing?.footer, author: author ?? existing?.author,
             thumbnailURL: thumbnailURL ?? existing?.thumbnailURL, imageURL: imageURL ?? existing?.imageURL,
             url: url ?? existing?.url, fields: nextFields)
-        if let index = list!.firstIndex(where: { $0.id == id }) { list![index] = value } else { list!.append(value) }
+        if let index = list.firstIndex(where: { $0.id == id }) { list[index] = value } else { list.append(value) }
         data[guild] = list
         try await store.setGuild(data, key: "embeds.saved", guildID: guild)
         return value
