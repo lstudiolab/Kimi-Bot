@@ -104,15 +104,16 @@ actor RecoveryService {
                 guard let restored = (created as? [String: Any])?["id"] as? String else {
                     throw KimiError.invalidResponse
                 }
-                restoredIDs.insert(roleID)
                 var roleMappings = await store.get("recovery.role-map." + guild, as: [String: String].self) ?? [:]
                 roleMappings[roleID] = restored
                 do {
                     try await store.setGuild(
                         roleMappings, key: "recovery.role-map." + guild, guildID: guild)
                 } catch {
-                    await logger.log("ERROR", "Restored role mapping could not be saved: " + error.localizedDescription)
+                    _ = try? await rest.call("DELETE", "guilds/" + guild + "/roles/" + restored)
+                    throw error
                 }
+                restoredIDs.insert(roleID)
                 await logger.log(
                     "WARN", "Kimi Lock restored deleted role " + roleID + " as " + restored
                         + " with elevated permissions stripped.")
@@ -274,7 +275,8 @@ actor RecoveryService {
             do {
                 try await store.setGuild(mappings, key: "recovery.channel-map." + guild, guildID: guild)
             } catch {
-                await logger.log("ERROR", "Restored channel mapping could not be saved: " + error.localizedDescription)
+                _ = try? await rest.call("DELETE", "channels/" + restored)
+                throw error
             }
             await logger.log(
                 "WARN", "Kimi Lock restored deleted channel " + channelID + " as " + restored + " in guild " + guild)
