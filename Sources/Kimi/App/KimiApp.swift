@@ -276,6 +276,10 @@ actor PersistentStore {
         try data.write(to: url, options: .atomic)
         values = candidate
     }
+    func guildStorageUsage(guildID: String) -> Int {
+        guildUsage(guildID, source: values)
+    }
+
     private func guildUsage(_ guild: String, source: [String: Data]) -> Int {
         var snapshot: [String: Any] = [:]
         func select(_ object: Any) -> Any? {
