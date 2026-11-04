@@ -488,7 +488,7 @@ extension KimiRuntime {
                 return
             }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            if action == 30 || action == 31 {
+            if (action == 30 || action == 31), await migratedModuleEnabled("recovery", guild: guild) {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
                 for role in roles { await recovery.captureRole(guild, role) }
             }
@@ -592,7 +592,7 @@ extension KimiRuntime {
                 if !targets.contains(target) { targets.append(target) }
                 try? await store.setGuild(Array(targets.suffix(100)), key: key, guildID: guild)
             }
-            if action == 32, let target {
+            if action == 32, let target, await migratedModuleEnabled("recovery", guild: guild) {
                 await recovery.queueDeletedRole(guild, target)
             }
             do {
@@ -611,7 +611,7 @@ extension KimiRuntime {
                     if incident.action == "12" {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingChannels(guild)
                     }
-                    if incident.action == "32" {
+                    if incident.action == "32", await migratedModuleEnabled("recovery", guild: guild) {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingRoles(guild)
                     }
                     if incident.action == "22" {
