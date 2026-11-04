@@ -7,7 +7,7 @@ This document defines how Kimi is structured, how its runtime behaves, and how c
 Kimi should feel deliberate, quiet, predictable, and dependable.
 
 - **Clarity:** commands, settings, errors, and logs use specific language. Prefer a clear explanation over a short but ambiguous response.
-- **Consistency:** the same interaction pattern behaves the same way across Foundation, Kimi Lock, Kimi Guard, Support, Verification, and installed apps.
+- **Consistency:** the same interaction pattern behaves the same way across Foundation, Kimi Lock, Kimi Guard, Support, Verification, and installed plugins.
 - **Feedback:** every user-initiated operation receives one acknowledgement, then a final result or a clear failure. Never send competing initial responses.
 - **Safety:** default to least privilege, validate hierarchy and ownership at the point of action, and make destructive automation bounded and auditable.
 - **Privacy:** do not log tokens, OAuth secrets, authorization headers, or unnecessary message content. Retention must be explicit and bounded.
