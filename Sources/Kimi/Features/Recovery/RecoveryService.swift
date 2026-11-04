@@ -120,11 +120,12 @@ actor RecoveryService {
                 await logger.log("ERROR", "Role recovery failed for " + roleID + ": " + error.localizedDescription)
             }
         }
+        let completedRoleIDs = restoredIDs
         do {
-            try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
+            _ = try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
                 var updated = stored ?? [:]
                 let current = updated[guild] ?? []
-                updated[guild] = current.filter { !restoredIDs.contains($0) }
+                updated[guild] = current.filter { !completedRoleIDs.contains($0) }
                 return updated
             }
         } catch {
@@ -200,11 +201,12 @@ actor RecoveryService {
         for channel in ordered {
             if await restoreChannel(guild, channel) { restoredIDs.insert(channel) }
         }
+        let completedChannelIDs = restoredIDs
         do {
-            try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
+            _ = try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
                 var updated = stored ?? [:]
                 let current = updated[guild] ?? []
-                updated[guild] = current.filter { !restoredIDs.contains($0) }
+                updated[guild] = current.filter { !completedChannelIDs.contains($0) }
                 return updated
             }
         } catch {
