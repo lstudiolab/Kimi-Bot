@@ -47,7 +47,7 @@ extension KimiRuntime {
                     ])
                 return true
             case "screen:lock:keywords":
-                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                let policy = await moderation.policy(guildID: guild)
                 try await rest.respondKimiModal(
                     id, token, customID: "screen:lock:save-keywords", title: "Blocked keywords",
                     inputs: [
@@ -153,7 +153,7 @@ extension KimiRuntime {
                     if let message = modalValue("goodbye-message") { settings.goodbyeMessage = String(message.prefix(1800)) }
                     try await engine.configure(guildID: guild, settings)
                 } else if custom == "screen:lock:save-keywords" {
-                    let engine = ModerationEngine(store: store)
+                    let engine = moderation
                     var policy = await engine.policy(guildID: guild)
                     let raw = modalValue("keywords") ?? ""
                     let words = raw.components(separatedBy: "\n").map {
@@ -203,7 +203,7 @@ extension KimiRuntime {
                     }
                     try await SupportService(store: store, rest: rest, logger: logger).publishPanel(guild: guild, channel: target)
                 } else if custom.hasPrefix("screen:lock:") {
-                    let engine = ModerationEngine(store: store)
+                    let engine = moderation
                     var policy = await engine.policy(guildID: guild)
                     switch custom {
                     case "screen:lock:toggle": policy.enabled.toggle()
@@ -268,7 +268,7 @@ extension KimiRuntime {
                 try await rest.editKimiInteraction(app, token, "Plugin settings saved.")
             } else if custom == "settings:status" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
-                let policy = await ModerationEngine(store: store).policy(guildID: guild)
+                let policy = await moderation.policy(guildID: guild)
                 let open = await SupportTickets(store: store).all().filter { $0.guildID == guild && $0.isOpen }.count
                 let report = await AnalyticsService(store: store).report(guild: guild)
                 let message =
