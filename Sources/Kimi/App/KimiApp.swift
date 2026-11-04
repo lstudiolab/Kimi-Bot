@@ -142,6 +142,29 @@ actor PersistentStore {
         try persist(candidate)
         return true
     }
+    func reserveGuildCounter(_ key: String, guildID: String, limit: Int, initialValue: Int = 0) throws -> Int? {
+        let current = max(initialValue, get(key, as: Int.self) ?? initialValue)
+        guard current < limit else { return nil }
+        var candidate = values
+        let next = current + 1
+        candidate[key] = try JSONEncoder().encode(next)
+        guard guildUsage(guildID, source: candidate) <= StorageQuota.freeLimit else {
+            throw KimiError.configuration("This server has reached its storage allowance.")
+        }
+        try persist(candidate)
+        return next
+    }
+    func releaseGuildCounter(_ key: String, guildID: String, minimumValue: Int = 0) throws -> Int {
+        let current = max(minimumValue, get(key, as: Int.self) ?? minimumValue)
+        let next = max(minimumValue, current - 1)
+        var candidate = values
+        candidate[key] = try JSONEncoder().encode(next)
+        guard guildUsage(guildID, source: candidate) <= StorageQuota.freeLimit else {
+            throw KimiError.configuration("This server has reached its storage allowance.")
+        }
+        try persist(candidate)
+        return next
+    }
     func storageUsage(guildID: String) -> Int { guildUsage(guildID, source: values) }
     func storageReport(guildID: String) -> (used: Int, limit: Int, percent: Int) {
         let used = storageUsage(guildID: guildID)
