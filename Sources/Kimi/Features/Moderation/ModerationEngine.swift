@@ -148,7 +148,7 @@ actor ModerationEngine {
     }
 
     private func containsSuspiciousURL(_ content: String) -> Bool {
-        let pattern = #"(?i)(?:https?://|www\\.)[^\\s<>]+|(?<![@\\w])(?:[a-z0-9-]+\\.)+[a-z]{2,}(?::\\d+)?(?:/[^\\s<>]*)?|(?<![0-9])\\d{1,3}(?:\\.\\d{1,3}){3}(?::\\d+)?(?:/[^\\s<>]*)?"#
+        let pattern = #"(?i)(?:https?://|www\.)[^\s<>]+|(?<![@\w])(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:/[^\s<>]*)?|(?<![0-9])\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:/[^\s<>]*)?"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
