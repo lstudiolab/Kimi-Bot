@@ -27,7 +27,7 @@ extension KimiRuntime {
                     throw KimiError.configuration(appName.rawValue + " is not installed in this server.")
                 }
             }
-            if custom == "settings:plugins" {
+            if custom == "settings:plugins" || custom == "settings:apps" {
                 let installed = await AppManager(store: store).installed(guildID: guild)
                 let buttons = CommandCatalog.pluginNames().map { appName in
                     KimiUI.button(
@@ -37,8 +37,9 @@ extension KimiRuntime {
                 }
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
-            } else if custom.hasPrefix("settings:app:") {
-                let appName = String(custom.dropFirst("settings:app:".count))
+            } else if custom.hasPrefix("settings:plugin:") || custom.hasPrefix("settings:app:") {
+                let prefix = custom.hasPrefix("settings:plugin:") ? "settings:plugin:" : "settings:app:"
+                let appName = String(custom.dropFirst(prefix.count))
                 let owner = try await rest.ownerID(guild)
                 guard owner == actorID else {
                     throw KimiError.configuration("Only the server owner can install or remove plugins.")
@@ -52,9 +53,9 @@ extension KimiRuntime {
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let updated = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(app, guildID: guild, installed: updated)
-                let buttons = CommandCatalog.appNames().map { value in
+                let buttons = CommandCatalog.pluginNames().map { value in
                     KimiUI.button(
-                        id: "settings:app:" + value,
+                        id: "settings:plugin:" + value,
                         label: value + " · " + (updated.contains(value) ? "Remove" : "Install"),
                         style: updated.contains(value) ? 2 : 1)
                 }
@@ -73,7 +74,7 @@ extension KimiRuntime {
                     + "\nOpen Support tickets: " + String(open) + "\nMessages recorded: " + String(report.messages)
                 let rows = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:apps", label: "Manage plugins"),
+                        KimiUI.button(id: "settings:plugins", label: "Manage plugins"),
                         KimiUI.button(id: "settings:home", label: "Home"),
                     ])
                 ]
@@ -108,7 +109,7 @@ extension KimiRuntime {
             } else if custom == "settings:home" {
                 let rows = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:apps", label: "Plugin Store"),
+                        KimiUI.button(id: "settings:plugins", label: "Plugin Store"),
                         KimiUI.button(id: "settings:status", label: "System Status"),
                     ]),
                     KimiUI.row([
