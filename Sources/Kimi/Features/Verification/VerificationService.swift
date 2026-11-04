@@ -82,8 +82,18 @@ actor VerificationService {
         let record = await records.record(guildID: guild, userID: userID)
         let snowflake = Int64(userID) ?? 0
         let created = Date(timeIntervalSince1970: Double((snowflake >> 22) + 1_420_070_400_000) / 1000)
-        let profile = (try? await rest.call("GET", "users/" + userID)) as? [String: Any] ?? [:]
-        let defaultAvatar = (profile["avatar"] as? String) == nil
+        let profile: [String: Any]?
+        do {
+            profile = try await rest.call("GET", "users/" + userID) as? [String: Any]
+        } catch {
+            profile = nil
+            await logger.log(
+                "WARN",
+                "Could not retrieve the verification profile for " + userID
+                    + "; avatar presence was not used as a risk signal: " + error.localizedDescription)
+        }
+        // A failed profile request is not evidence of a default avatar.
+        let defaultAvatar = profile.map { ($0["avatar"] as? String) == nil } ?? false
         let result = VerificationEngine().evaluate(
             createdAt: created, defaultAvatar: defaultAvatar, suspiciousBehavior: record.failures > 0,
             attempts: record.attempts, minimumAgeDays: value.minimumAgeDays)
