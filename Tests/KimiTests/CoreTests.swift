@@ -226,16 +226,21 @@ final class CoreTests: XCTestCase {
             "kimi-store-failure-" + UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(
-            at: directory.appendingPathComponent("timi.json"), withIntermediateDirectories: true)
-
         let store = try PersistentStore(directory: directory)
+        try await store.set("committed", key: "test.existing")
+        let file = directory.appendingPathComponent("timi.json")
+        let backup = directory.appendingPathComponent("timi.json.backup")
+        try FileManager.default.moveItem(at: file, to: backup)
+        try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+
         do {
             try await store.set("not committed", key: "test.value")
             XCTFail("A write over a directory must fail.")
         } catch {}
         let value = await store.get("test.value", as: String.self)
-        XCTAssertNil(value, "Failed disk writes must not mutate in-memory state.")
+        let existing = await store.get("test.existing", as: String.self)
+        XCTAssertNil(value, "Failed disk writes must not publish new values.")
+        XCTAssertEqual(existing, "committed", "Failed writes must preserve previously committed memory state.")
     }
 
     func testModerationDetectsObfuscatedTermsAndExecutableAttachments() async throws {
