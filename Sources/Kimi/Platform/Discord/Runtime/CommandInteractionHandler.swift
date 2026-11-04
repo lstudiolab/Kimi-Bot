@@ -472,17 +472,6 @@ extension KimiRuntime {
                 }
                 reply = try await KimiGuardService(store: store, rest: rest, logger: logger).review(
                     guild: guild, actor: target, decision: decision, reviewer: user)
-            case "web-token":
-                let owner = try await rest.ownerID(guild)
-                guard owner == user else {
-                    throw KimiError.configuration("Only the server owner can open the dashboard link.")
-                }
-                guard let dashboardURL else {
-                    throw KimiError.configuration("Configure DISCORD_OAUTH_REDIRECT_URI to enable the dashboard.")
-                }
-                reply =
-                    "Open the Kimi dashboard and sign in with Discord: " + dashboardURL
-                    + "/login. No email verification is used."
             case "analytics":
                 let report = await AnalyticsService(store: store).report(guild: guild)
                 reply =
