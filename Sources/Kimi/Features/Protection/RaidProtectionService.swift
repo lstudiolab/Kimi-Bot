@@ -38,7 +38,7 @@ actor RaidProtectionService {
         let age = max(0, Int(now.timeIntervalSince(createdAt) / 86400))
         var action = "Raid burst detected; alert only."
         var quarantined: String? = nil
-        let owner = (try? await rest.ownerID(guild)) ?? ""
+        guard let owner = try? await rest.ownerID(guild) else { return }
         let recentNewAccounts = Set(recent.compactMap { join -> String? in
             guard let createdAt = join.createdAt else { return nil }
             return max(0, Int(now.timeIntervalSince(createdAt) / 86400)) < 7 ? join.user : nil
