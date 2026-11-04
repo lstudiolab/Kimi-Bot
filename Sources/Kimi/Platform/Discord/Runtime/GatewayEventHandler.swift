@@ -374,7 +374,7 @@ extension KimiRuntime {
                     userID: user, mentionedUserIDs: mentionedUsers, referenceMessageID: reference)
             }
             guard moderationEnabled else { return }
-            let owner = try? await rest.ownerID(guild)
+            let owner = await cachedGuildOwnerID(guild)
             let member = data["member"] as? [String: Any] ?? [:]
             let memberRoles = Set(member["roles"] as? [String] ?? [])
             let rolePermissions = await cachedRolePermissions(guild)
@@ -439,6 +439,12 @@ extension KimiRuntime {
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
                 let editedContent = data["content"] as? String
             {
+                let member = data["member"] as? [String: Any] ?? [:]
+                let memberRoles = Set(member["roles"] as? [String] ?? [])
+                let rolePermissions = await cachedRolePermissions(guild)
+                let canMentionEveryone = memberRoles.contains { roleID in
+                    ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & (1 << 17)) != 0
+                }
                 let finding = await moderation.evaluate(
                     guildID: guild,
                     userID: user,
@@ -448,6 +454,7 @@ extension KimiRuntime {
                     attachments: data["attachments"] as? [[String: Any]] ?? [],
                     stickerCount: (data["sticker_items"] as? [Any] ?? []).count,
                     mentionEveryone: data["mention_everyone"] as? Bool ?? false,
+                    allowMassMentions: canMentionEveryone,
                     roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
                     userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
                 )
