@@ -251,9 +251,9 @@ actor DiscordREST {
         request.setValue("Bot " + token, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let auditReason {
-            request.setValue(
-                auditReason.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? auditReason,
-                forHTTPHeaderField: "X-Audit-Log-Reason")
+            let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
+            let encoded = auditReason.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+            request.setValue(encoded, forHTTPHeaderField: "X-Audit-Log-Reason")
         }
         if let body {
             if let object = body as? [String: Any],
