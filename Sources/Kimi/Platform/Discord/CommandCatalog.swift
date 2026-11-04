@@ -3,15 +3,15 @@ import Foundation
 enum CommandCatalog {
     static let core = [
         "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove",
-        "automations", "guard-review",
-        "web-token", "analytics", "performance", "configure-foundation", "configure-welcome", "configure-roles",
-        "configure-auto-role", "configure-embeds", "configure-kimi-lock", "configure-support",
+        "automations", "guard-review", "web-token", "analytics", "performance",
     ]
     static let pluginCommands: [String: [String]] = [
-        "Welcome": ["welcome"], "Auto Role": ["autorole"], "Role Picker": ["roles"],
-        "Embeds": ["embed-new", "embed-edit", "embed-post"],
-        "Kimi Lock": ["moderation", "verify", "verify-config", "filter", "security"],
-        "Support": ["tickets", "ticket-panel", "ticket-config"],
+        "Welcome": ["welcome-screen"],
+        "Auto Role": ["auto-role-screen"],
+        "Role Picker": ["role-picker-screen"],
+        "Embeds": ["embeds-screen"],
+        "Kimi Lock": ["kimi-lock-screen"],
+        "Support": ["ticket-screen"],
     ]
     static let all: [String: [String: Any]] = {
         let admin = "32"
@@ -90,6 +90,12 @@ enum CommandCatalog {
                 ]), "web-token": command("web-token", "Open the Kimi dashboard"),
             "analytics": command("analytics", "View server activity and system statistics"),
             "performance": command("performance", "View Kimi command latency and failure metrics"),
+            "welcome-screen": command("welcome-screen", "Configure the Welcome plugin"),
+            "auto-role-screen": command("auto-role-screen", "Configure the Auto Role plugin"),
+            "role-picker-screen": command("role-picker-screen", "Configure the Role Picker plugin"),
+            "embeds-screen": command("embeds-screen", "Configure the Embeds plugin"),
+            "kimi-lock-screen": command("kimi-lock-screen", "Configure Kimi Lock protection"),
+            "ticket-screen": command("ticket-screen", "Configure the Support ticket system"),
             "welcome": command(
                 "welcome", "Configure welcome and goodbye messages",
                 [
