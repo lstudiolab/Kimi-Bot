@@ -25,6 +25,9 @@ actor SupportTickets {
             guard !tickets.contains(where: { $0.guildID == guildID && $0.userID == userID && $0.isOpen }) else {
                 throw TicketError.alreadyOpen
             }
+            guard tickets.filter({ $0.guildID == guildID && $0.isOpen }).count < 100 else {
+                throw TicketError.limitReached
+            }
             tickets.append(ticket)
             return tickets
         }
@@ -81,4 +84,4 @@ actor SupportTickets {
         return ticket
     }
 }
-enum TicketError: Error { case alreadyOpen, notFound, alreadyClosed }
+enum TicketError: Error { case alreadyOpen, limitReached, notFound, alreadyClosed }
