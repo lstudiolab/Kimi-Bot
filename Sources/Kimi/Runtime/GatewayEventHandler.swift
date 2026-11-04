@@ -14,19 +14,19 @@ extension KimiRuntime {
             if let guilds = data["guilds"] as? [[String: Any]] {
                 for item in guilds {
                     guard let guild = item["id"] as? String else { continue }
-                    let installed = await AppManager(store: store).installed(guildID: guild)
+                    let installed = await PluginManager(store: store).installed(guildID: guild)
                     try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
                 }
             }
         case "GUILD_CREATE":
             guard let guild = data["id"] as? String else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
         case "GUILD_MEMBER_ADD":
             guard let guild = data["guild_id"] as? String, let user = data["user"] as? [String: Any],
                 let id = user["id"] as? String
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             let welcomeOn = await migratedModuleEnabled("welcome", guild: guild)
             let autoRoleOn = await migratedModuleEnabled("auto_role", guild: guild)
             if installed.contains("Welcome") && welcomeOn || installed.contains("Auto Role") && autoRoleOn {
@@ -122,7 +122,7 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String, let user = data["user"] as? [String: Any],
                 let id = user["id"] as? String
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Welcome"), await migratedModuleEnabled("welcome", guild: guild) {
                 await FoundationEngine(store: store, rest: rest, logger: logger).memberLeft(
                     guildID: guild, userID: id, username: user["username"] as? String ?? "member",
@@ -135,7 +135,7 @@ extension KimiRuntime {
         case "GUILD_MEMBER_UPDATE":
             guard let guild = data["guild_id"] as? String, let user = (data["user"] as? [String: Any])?["id"] as? String
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) {
                 let key = "moderation.member-snapshot." + guild + "." + user
                 let previous = Set(await store.get(key, as: [String].self) ?? [])
@@ -148,7 +148,7 @@ extension KimiRuntime {
         case "GUILD_BAN_ADD", "GUILD_BAN_REMOVE":
             guard let guild = data["guild_id"] as? String, let user = (data["user"] as? [String: Any])?["id"] as? String
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) {
                 await logger.log(
                     "INFO",
@@ -165,7 +165,7 @@ extension KimiRuntime {
             await runAutomations(
                 guild: guild, trigger: "message_create", userID: user, channelID: channel, messageID: message,
                 content: content, username: author["username"] as? String ?? "member")
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
             let moderationEnabled = await migratedModuleEnabled("moderation", guild: guild)
             guard installed.contains("Kimi Lock"), recoveryEnabled || moderationEnabled else { return }
@@ -239,7 +239,7 @@ extension KimiRuntime {
                 let message = data["id"] as? String, let author = data["author"] as? [String: Any],
                 let user = author["id"] as? String
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 let recovery = RecoveryService(store: store, logger: logger, rest: rest)
                 let previous = await recovery.savedMessage(guild, channel, message)
@@ -267,7 +267,7 @@ extension KimiRuntime {
                 let message = data["id"] as? String
             else { return }
             if await store.get("moderation.deleted." + message, as: Bool.self) == true { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 await RecoveryService(store: store, logger: logger, rest: rest).restoreMessage(guild, channel, message)
             }
@@ -275,7 +275,7 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String, let channel = data["channel_id"] as? String,
                 let ids = data["ids"] as? [String]
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 for id in ids {
                     if await store.get("moderation.deleted." + id, as: Bool.self) != true {
@@ -286,13 +286,13 @@ extension KimiRuntime {
             }
         case "CHANNEL_CREATE", "CHANNEL_UPDATE":
             guard let guild = data["guild_id"] as? String else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 await RecoveryService(store: store, logger: logger, rest: rest).captureChannel(guild, data)
             }
         case "CHANNEL_DELETE":
             guard let guild = data["guild_id"] as? String, let channel = data["id"] as? String else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
                 await RecoveryService(store: store, logger: logger, rest: rest).queueDeletedChannel(guild, channel)
             }
@@ -300,7 +300,7 @@ extension KimiRuntime {
             guard let guild = data["guild_id"] as? String, let actor = data["user_id"] as? String,
                 let action = data["action_type"] as? Int
             else { return }
-            let installed = await AppManager(store: store).installed(guildID: guild)
+            let installed = await PluginManager(store: store).installed(guildID: guild)
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("protection", guild: guild) else {
                 return
             }
