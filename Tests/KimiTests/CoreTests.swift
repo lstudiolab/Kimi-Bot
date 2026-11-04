@@ -234,8 +234,13 @@ final class CoreTests: XCTestCase {
         XCTAssertNil(value, "Failed disk writes must not mutate in-memory state.")
     }
 
-    func testModerationDetectsDiscordInviteLinks() async {
-        let engine = ModerationEngine()
+    func testModerationDetectsDiscordInviteLinks() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-moderation-test-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
         let finding = await engine.evaluate(
             guildID: "123456789012345678",
             userID: "223456789012345678",
