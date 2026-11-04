@@ -170,11 +170,15 @@ actor ModerationEngine {
 
         let normalizedContent = normalized(content)
         let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard"]
+        let wordTokens = content.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
         let customTerm = value.blockedPhrases.first { phrase in
-            let needle = normalized(phrase)
-            return needle.count >= 2 && normalizedContent.contains(needle)
+            let needle = phrase.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
+            guard !needle.isEmpty, needle.joined().count >= 2, needle.count <= wordTokens.count else { return false }
+            return (0...(wordTokens.count - needle.count)).contains { start in
+                Array(wordTokens[start..<(start + needle.count)]) == needle
+            }
         }
-        let tokens = content.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
+        let tokens = wordTokens
         var compactRuns: [String] = []
         var singleCharacterRun = ""
         for token in tokens {
