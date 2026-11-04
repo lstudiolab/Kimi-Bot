@@ -13,7 +13,7 @@ actor AppManager {
         return all[guildID] ?? []
     }
     func install(_ name: String, guildID: String) async throws -> Result {
-        guard CommandCatalog.groups[name] != nil else { return Result(ok: false, message: "Unknown app.", app: nil) }
+        guard CommandCatalog.groups[name] != nil else { return Result(ok: false, message: "Unknown plugin.", app: nil) }
         var all = await store.get("apps.installed", as: [String: [String]].self) ?? [:]
         var values = all[guildID] ?? []
         guard !values.contains(name) else {
