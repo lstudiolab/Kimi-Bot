@@ -161,7 +161,7 @@ enum CommandCatalog {
                     text("welcome-message", "Welcome message"), text("goodbye-message", "Goodbye message"),
                 ]),
             "configure-welcome": command(
-                "configure-welcome", "Configure the Welcome app",
+                "configure-welcome", "Configure the Welcome plugin",
                 [
                     channel("welcome-channel", "Welcome channel"), channel("goodbye-channel", "Goodbye channel"),
                     text("welcome-message", "Welcome message"), text("goodbye-message", "Goodbye message"),
