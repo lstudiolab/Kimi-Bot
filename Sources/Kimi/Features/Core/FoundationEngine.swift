@@ -52,8 +52,8 @@ actor FoundationEngine {
         let value = await settings(guildID: guildID)
         if autoRoleEnabled, let role = value.autoRole {
             do {
-                let roles = try await rest.call("GET", "guilds/\\(guildID)/roles") as? [[String: Any]] ?? []
-                let bot = try await rest.call("GET", "guilds/\\(guildID)/members/@me") as? [String: Any] ?? [:]
+                let roles = try await rest.call("GET", "guilds/\(guildID)/roles") as? [[String: Any]] ?? []
+                let bot = try await rest.call("GET", "guilds/\(guildID)/members/@me") as? [String: Any] ?? [:]
                 let botRoleIDs = Set(bot["roles"] as? [String] ?? [])
                 let botRoles = roles.filter { botRoleIDs.contains($0["id"] as? String ?? "") }
                 let highest = botRoles.map { $0["position"] as? Int ?? 0 }.max() ?? 0
@@ -70,7 +70,7 @@ actor FoundationEngine {
                 else {
                     throw KimiError.configuration("The automatic role is unsafe or above Kimi's highest role.")
                 }
-                _ = try await rest.call("PUT", "guilds/\\(guildID)/members/\\(userID)/roles/\\(role)")
+                _ = try await rest.call("PUT", "guilds/\(guildID)/members/\(userID)/roles/\(role)")
             } catch {
                 await logger.log("WARN", "Auto Role failed: \(error.localizedDescription)")
             }
