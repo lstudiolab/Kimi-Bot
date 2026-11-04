@@ -169,7 +169,7 @@ final class DashboardServer: @unchecked Sendable {
                 return
             }
             let guild = query["id"] ?? ""
-            guard let selected = session.guilds.first(where: { $0.id == guild }), await canManage(selected),
+            guard let selected = await currentGuild(session, guildID: guild), await canManage(selected),
                 await botIsPresent(guild)
             else {
                 write(
@@ -192,7 +192,7 @@ final class DashboardServer: @unchecked Sendable {
             }
             let form = parseForm(request.body)
             let guild = form["guild"] ?? ""
-            guard form["csrf"] == session.csrf, let selected = session.guilds.first(where: { $0.id == guild }),
+            guard form["csrf"] == session.csrf, let selected = await currentGuild(session, guildID: guild),
                 await canManage(selected), await botIsPresent(guild)
             else {
                 write(fd, 403, "Server settings access denied.", "text/plain")
@@ -208,9 +208,9 @@ final class DashboardServer: @unchecked Sendable {
                 try await store.set(languages, key: "languages")
                 let foundation = FoundationEngine(store: store, rest: rest, logger: logger)
                 var welcome = await foundation.settings(guildID: guild)
-                welcome.welcomeChannel = form["welcome-channel"]
-                welcome.goodbyeChannel = form["goodbye-channel"]
-                welcome.autoRole = form["auto-role"]
+                welcome.welcomeChannel = form["welcome-channel"].flatMap { $0.isEmpty ? nil : $0 }
+                welcome.goodbyeChannel = form["goodbye-channel"].flatMap { $0.isEmpty ? nil : $0 }
+                welcome.autoRole = form["auto-role"].flatMap { $0.isEmpty ? nil : $0 }
                 welcome.welcomeMessage = form["welcome-message"] ?? welcome.welcomeMessage
                 welcome.goodbyeMessage = form["goodbye-message"] ?? welcome.goodbyeMessage
                 try await foundation.configure(guildID: guild, welcome)
@@ -220,7 +220,7 @@ final class DashboardServer: @unchecked Sendable {
                 policy.messagesPerMinute = Int(form["messages-per-minute"] ?? "") ?? policy.messagesPerMinute
                 policy.timeoutMinutes = Int(form["timeout-minutes"] ?? "") ?? policy.timeoutMinutes
                 policy.sanction = form["sanction"] ?? policy.sanction
-                policy.logChannelID = form["log-channel"]
+                policy.logChannelID = form["log-channel"].flatMap { $0.isEmpty ? nil : $0 }
                 policy.blockInvites = form["block-invites"] == "true"
                 policy.blockMassMentions = form["block-mentions"] == "true"
                 policy.blockExcessiveCaps = form["block-caps"] == "true"
@@ -258,7 +258,7 @@ final class DashboardServer: @unchecked Sendable {
             let guild = form["guild"] ?? ""
             let plugin = form["plugin"] ?? ""
             let action = form["action"] ?? ""
-            guard form["csrf"] == session.csrf, let selected = session.guilds.first(where: { $0.id == guild }),
+            guard form["csrf"] == session.csrf, let selected = await currentGuild(session, guildID: guild),
                 selected.owner == true, await botIsPresent(guild)
             else {
                 write(fd, 403, "Only the server owner can manage installed plugins.", "text/plain")
@@ -547,6 +547,15 @@ final class DashboardServer: @unchecked Sendable {
                     ? "As server owner, you can install or remove plugins."
                     : "Only the server owner can change installed plugins.") + "</p>" + cards + "</section>" + settings
                 + commandHTML + activity)
+    }
+    private func currentGuild(_ session: Session, guildID: String) async -> OAuthGuild? {
+        do {
+            let current = try await oauthGET("/users/@me/guilds", access: session.accessToken, as: [OAuthGuild].self)
+            return current.first(where: { $0.id == guildID })
+        } catch {
+            await logger.log("WARN", "Dashboard could not refresh server permissions: " + error.localizedDescription)
+            return nil
+        }
     }
     private func canManage(_ guild: OAuthGuild) async -> Bool {
         if guild.owner == true { return true }
