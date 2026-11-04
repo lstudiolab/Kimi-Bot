@@ -163,17 +163,29 @@ actor SupportService {
                     "components": controls, "allowed_mentions": ["users": [user], "parse": []],
                 ])
         } catch {
+            var recordClosed = false
             do {
                 _ = try await SupportTickets(store: store).close(id: ticket.id, guildID: guild)
+                recordClosed = true
             } catch {
                 await logger.log("ERROR", "Failed to roll back the ticket record: " + error.localizedDescription)
             }
-            do {
-                _ = try await rest.call("DELETE", "channels/" + channel)
-            } catch {
-                await logger.log("ERROR", "Failed to remove an incomplete ticket channel: " + error.localizedDescription)
+            if recordClosed {
+                do {
+                    _ = try await rest.call("DELETE", "channels/" + channel)
+                } catch {
+                    await logger.log("ERROR", "Failed to remove an incomplete ticket channel: " + error.localizedDescription)
+                }
+            } else {
+                await logger.log(
+                    "ERROR",
+                    "The incomplete ticket channel was retained because its active record could not be rolled back: "
+                        + channel)
             }
-            throw KimiError.configuration("The ticket channel was created, but its opening message could not be sent. No active ticket was kept.")
+            throw KimiError.configuration(
+                recordClosed
+                    ? "The ticket channel was created, but its opening message could not be sent. The incomplete ticket was rolled back."
+                    : "The ticket channel was created, but its opening message failed and its record could not be rolled back. Staff should inspect the retained channel.")
         }
         if let threadResponse = try? await rest.call(
             "POST", "channels/" + channel + "/threads",
