@@ -1,7 +1,7 @@
 import Foundation
 
 enum ComponentRouter {
-    enum App: String, Sendable {
+    enum Plugin: String, Sendable {
         case support = "Support"
         case kimiLock = "Kimi Lock"
         case rolePicker = "Role Picker"
@@ -13,7 +13,7 @@ enum ComponentRouter {
         case ticketOpen, ticketClose(String), ticketConfirmClose(String), ticketCancel, verifyStart, verifyApprove(
             String), verifyReject(String), roleSelect, botApprove(String), botReject(String), settings(String), unknown
     }
-    static func app(for id: String) -> App? {
+    static func plugin(for id: String) -> Plugin? {
         if id.hasPrefix("ticket:") { return .support }
         if id.hasPrefix("modpanel:") || id.hasPrefix("botguard:") || id.hasPrefix("verify:") { return .kimiLock }
         if id.hasPrefix("rolepicker:") { return .rolePicker }
