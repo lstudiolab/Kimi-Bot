@@ -70,7 +70,7 @@ actor EmbedService {
             url: url ?? existing?.url, fields: nextFields)
         if let index = list!.firstIndex(where: { $0.id == id }) { list![index] = value } else { list!.append(value) }
         data[guild] = list
-        try await store.set(data, key: "embeds.saved")
+        try await store.setGuild(data, key: "embeds.saved", guildID: guild)
         return value
     }
     func publish(guild: String, name: String, channel: String) async throws {
