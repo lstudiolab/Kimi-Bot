@@ -210,6 +210,7 @@ extension KimiRuntime {
                     case "screen:lock:invites": policy.blockInvites.toggle()
                     case "screen:lock:mentions": policy.blockMassMentions.toggle()
                     case "screen:lock:caps": policy.blockExcessiveCaps.toggle()
+                    case "screen:lock:advertising": policy.blockSelfAdvertising.toggle()
                     case "screen:lock:sanction":
                         guard let selected, ["delete", "timeout", "kick", "ban"].contains(selected) else {
                             throw KimiError.configuration("Choose a valid sanction.")
