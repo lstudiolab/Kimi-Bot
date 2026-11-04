@@ -257,6 +257,14 @@ final class CoreTests: XCTestCase {
         )
         XCTAssertTrue(obfuscated?.reason.contains("Custom blocked keyword") == true)
 
+        let spacedObfuscation = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "223456789012345679",
+            messageID: "323456789012345679",
+            content: "b a d w o r d"
+        )
+        XCTAssertTrue(spacedObfuscation?.reason.contains("Custom blocked keyword") == true)
+
         let hidden = await engine.evaluate(
             guildID: "123456789012345678",
             userID: "323456789012345679",
