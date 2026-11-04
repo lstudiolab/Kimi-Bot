@@ -591,8 +591,12 @@ extension KimiRuntime {
                 {
                     await logger.log("WARN", "Kimi Lock incident: " + incident.reason)
                     if ["12", "13", "14", "15", "20", "22", "25", "30", "31", "32", "50", "51", "52"].contains(incident.action) {
-                        _ = try await KimiGuardService(store: store, rest: rest, logger: logger).contain(
-                            guild: guild, actor: actor, action: incident.action)
+                        do {
+                            _ = try await KimiGuardService(store: store, rest: rest, logger: logger).contain(
+                                guild: guild, actor: actor, action: incident.action)
+                        } catch {
+                            await logger.log("ERROR", "Kimi Guard containment failed; continuing recovery: " + error.localizedDescription)
+                        }
                     }
                     if incident.action == "12" {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingChannels(guild)
