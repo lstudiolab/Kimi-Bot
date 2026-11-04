@@ -37,6 +37,7 @@ The Gateway requests Guild Members and Message Content privileged intents, plus 
 
 ## Platform limitations (not claims of protection)
 
+- The verification flow does not automatically quarantine a new member from every channel. For actual room isolation, deny `View Channel` to `@everyone` on restricted categories/channels and grant it to the verified role. The bot's verification role assignment then controls access; otherwise an unverified member may still see channels permitted to `@everyone`.
 - Discord does not expose the contents of voice audio to ordinary bots. Kimi can monitor voice-state changes and soundboard effect events, but cannot detect microphone audio blasting or judge spoken audio.
 - Discord does not expose arbitrary members' profile bios to bots. Presence/status visibility requires the privileged Presence intent and still does not provide profile bios. This implementation does not claim to moderate bios or all custom statuses.
 - A bot cannot observe DMs exchanged between two other users. It can only inspect messages sent to the bot itself.
