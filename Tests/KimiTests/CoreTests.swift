@@ -16,7 +16,8 @@ final class CoreTests: XCTestCase {
         let names = commands.compactMap { $0["name"] as? String }
         XCTAssertEqual(names.count, Set(names).count, "Global slash-command names must be unique.")
         for required in [
-            "setup", "plugin-install", "plugin-remove", "automations", "guard-review", "web-token", "plan", "plugins", "plugin-store",
+            "setup", "plugin-install", "plugin-remove", "automations", "guard-review", "web-token",
+            "plan", "plugins", "plugin-store",
             "analytics", "performance",
         ] {
             XCTAssertTrue(names.contains(required), "Missing global command: " + required)
