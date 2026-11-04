@@ -403,11 +403,13 @@ extension KimiRuntime {
                 do {
                     switch effectiveSanction {
                     case "timeout": try await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
-                    case "kick": _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + user, body: nil)
+                    case "kick": _ = try await rest.call(
+                        "DELETE", "guilds/" + guild + "/members/" + user, auditReason: finding.reason)
                     case "ban":
                         _ = try await rest.call(
                             "PUT", "guilds/" + guild + "/bans/" + user,
-                            body: ["delete_message_seconds": policy.actionDurationSeconds, "reason": finding.reason])
+                            body: ["delete_message_seconds": policy.actionDurationSeconds],
+                            auditReason: finding.reason)
                     default: break
                     }
                 } catch { await logger.log("ERROR", "AutoMod sanction failed: " + error.localizedDescription) }
@@ -421,7 +423,7 @@ extension KimiRuntime {
                         "POST", "channels/" + logChannel + "/messages",
                         body: [
                             "content": "Kimi Lock removed a message from <@" + user + "> in <#" + channel
-                                + ">. Reason: " + finding.reason + ". Sanction: " + policy.sanction + ".",
+                                + ">. Reason: " + finding.reason + ". Sanction: " + effectiveSanction + ".",
                             "allowed_mentions": ["parse": []],
                         ])
                 }
@@ -457,11 +459,13 @@ extension KimiRuntime {
                     do {
                         switch sanction {
                         case "timeout": try await rest.timeoutKimiMember(guild, user, policy.timeoutMinutes, finding.reason)
-                        case "kick": _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + user, body: nil)
+                        case "kick": _ = try await rest.call(
+                        "DELETE", "guilds/" + guild + "/members/" + user, auditReason: finding.reason)
                         case "ban":
                             _ = try await rest.call(
                                 "PUT", "guilds/" + guild + "/bans/" + user,
-                                body: ["delete_message_seconds": policy.actionDurationSeconds, "reason": finding.reason])
+                                body: ["delete_message_seconds": policy.actionDurationSeconds],
+                                auditReason: finding.reason)
                         default: break
                         }
                     } catch { await logger.log("ERROR", "Edited-message sanction failed: " + error.localizedDescription) }
