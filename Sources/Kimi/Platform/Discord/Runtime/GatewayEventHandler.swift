@@ -5,6 +5,24 @@ extension KimiRuntime {
         let modules = await store.getLegacy("modules", as: [String: [String: Bool]].self) ?? [:]
         return modules[guild]?[module] != false
     }
+    func cachedRolePermissions(_ guild: String) async -> [String: String] {
+        let cacheKey = "security.role-permissions." + guild
+        let dateKey = "security.role-permissions-updated." + guild
+        if let updated = await store.get(dateKey, as: Date.self),
+            Date().timeIntervalSince(updated) >= 0, Date().timeIntervalSince(updated) < 60,
+            let cached = await store.get(cacheKey, as: [String: String].self)
+        {
+            return cached
+        }
+        let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+        let values = Dictionary(uniqueKeysWithValues: roles.compactMap { role -> (String, String)? in
+            guard let id = role["id"] as? String else { return nil }
+            return (id, role["permissions"] as? String ?? "0")
+        })
+        try? await store.setGuild(values, key: cacheKey, guildID: guild)
+        try? await store.setGuild(Date(), key: dateKey, guildID: guild)
+        return values
+    }
     func captureGuildStructure(_ guild: String) async {
         let installed = await PluginManager(store: store).installed(guildID: guild)
         guard installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) else { return }
@@ -337,10 +355,9 @@ extension KimiRuntime {
             let owner = try? await rest.ownerID(guild)
             let member = data["member"] as? [String: Any] ?? [:]
             let memberRoles = Set(member["roles"] as? [String] ?? [])
-            let guildRoles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
-            let canMentionEveryone = guildRoles.contains { role in
-                memberRoles.contains(role["id"] as? String ?? "")
-                    && ((UInt64(role["permissions"] as? String ?? "") ?? 0) & (1 << 17)) != 0
+            let rolePermissions = await cachedRolePermissions(guild)
+            let canMentionEveryone = memberRoles.contains { roleID in
+                ((UInt64(rolePermissions[roleID] ?? "0") ?? 0) & (1 << 17)) != 0
             }
             if let owner, user != owner,
                 let finding = await moderation.evaluate(
