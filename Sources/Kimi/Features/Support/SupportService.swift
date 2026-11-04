@@ -66,8 +66,8 @@ actor SupportService {
         guard openCount < 100 else {
             throw KimiError.configuration("The support queue is full. Please contact staff through the configured support channel.")
         }
-        let cooldownKey = "support.ticket-cooldown." + guild + "." + user
-        guard try await store.claimGuildCooldown(cooldownKey, guildID: guild, interval: 60) else {
+        let cooldownKey = "support.ticket-cooldowns." + guild
+        guard try await store.claimGuildCooldown(cooldownKey, subject: user, guildID: guild, interval: 60) else {
             throw KimiError.configuration("Please wait before opening another support ticket.")
         }
         let category = try await ensureCategory(guild)
