@@ -141,24 +141,36 @@ actor RecoveryService {
         do {
             try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
                 var all = stored ?? [:]
-                let previous = all[guild]?.first(where: { $0.id == message })
-                let originalCreatedAt = previous?.createdAt ?? now
-                var rows = (all[guild] ?? []).filter { $0.createdAt >= cutoff && $0.id != message }
+                let previousRows = all[guild] ?? []
+                let previousIndex = previousRows.firstIndex(where: { $0.id == message })
+                let originalCreatedAt = previousIndex.map { previousRows[$0].createdAt } ?? now
+                var rows = previousRows.filter { $0.createdAt >= cutoff }
                 // Editing an old message must not refresh its seven-day retention window.
                 if originalCreatedAt >= cutoff {
-                    rows.append(Message(
+                    let updated = Message(
                         id: message, channelID: channel, authorID: author, content: String(content.prefix(4000)),
                         createdAt: originalCreatedAt, authorName: authorName,
-                        attachments: Array(attachments.prefix(10))))
+                        attachments: Array(attachments.prefix(10)))
+                    if let index = rows.firstIndex(where: { $0.id == message }) {
+                        rows[index] = updated
+                    } else {
+                        rows.append(updated)
+                    }
+                } else {
+                    rows.removeAll { $0.id == message }
                 }
-                rows.sort { $0.createdAt < $1.createdAt }
                 func encodedSize(_ row: Message) -> Int {
                     (try? JSONEncoder().encode(row).count) ?? row.content.utf8.count
                 }
                 var bytes = rows.reduce(0) { $0 + encodedSize($1) }
-                while !rows.isEmpty && (rows.count > maxMessages || bytes > maxArchiveBytes) {
-                    bytes -= encodedSize(rows.removeFirst())
+                var firstRetained = 0
+                while firstRetained < rows.count
+                    && (rows.count - firstRetained > maxMessages || bytes > maxArchiveBytes)
+                {
+                    bytes -= encodedSize(rows[firstRetained])
+                    firstRetained += 1
                 }
+                if firstRetained > 0 { rows = Array(rows.dropFirst(firstRetained)) }
                 all[guild] = rows
                 return all
             }
