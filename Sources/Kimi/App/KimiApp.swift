@@ -75,15 +75,33 @@ actor PersistentStore {
     private var legacy: [String: Any] = [:]
     init(directory: URL) throws {
         url = directory.appendingPathComponent("timi.json")
-        if let data = try? Data(contentsOf: url),
-            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        {
+        if FileManager.default.fileExists(atPath: url.path) {
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch {
+                throw KimiError.configuration("The Kimi data file exists but could not be read: " + error.localizedDescription)
+            }
+
+            let root: [String: Any]
+            do {
+                guard let decoded = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    throw KimiError.invalidResponse
+                }
+                root = decoded
+            } catch {
+                throw KimiError.configuration("The Kimi data file is invalid JSON. The existing data was left untouched.")
+            }
+
             legacy = root.filter { $0.key != "_swift_runtime" }
-            if let runtime = root["_swift_runtime"],
-                let runtimeData = try? JSONSerialization.data(withJSONObject: runtime),
-                let decoded = try? JSONDecoder().decode([String: Data].self, from: runtimeData)
-            {
-                values = decoded
+            if let runtime = root["_swift_runtime"] {
+                do {
+                    let runtimeData = try JSONSerialization.data(withJSONObject: runtime)
+                    values = try JSONDecoder().decode([String: Data].self, from: runtimeData)
+                } catch {
+                    throw KimiError.configuration(
+                        "The Swift runtime data is corrupted. The existing data was left untouched.")
+                }
             }
             if values["plugins.installed"] == nil,
                 let installed = legacy["installed_plugins"],
