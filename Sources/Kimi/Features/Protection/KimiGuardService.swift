@@ -91,7 +91,7 @@ actor KimiGuardService {
             throw KimiError.configuration("Only the server owner can review a Kimi Guard incident.")
         }
 
-        var all = await store.get("guard.incidents", as: [String: Incident].self) ?? [:]
+        let all = await store.get("guard.incidents", as: [String: Incident].self) ?? [:]
         let key = guild + ":" + actor
         guard var incident = all[key],
             ["restricted", "review_required", "kept", "partial_release"].contains(incident.status)
