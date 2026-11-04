@@ -62,17 +62,17 @@ extension KimiRuntime {
                 guard owner == user else {
                     throw KimiError.configuration("Only the server owner can install or remove plugins.")
                 }
-                guard let appName = value("plugin") else { throw KimiError.configuration("Choose a plugin.") }
+                guard let pluginName = value("plugin") else { throw KimiError.configuration("Choose a plugin.") }
                 let manager = PluginManager(store: store)
                 let result =
                     name == "plugin-install"
-                    ? try await manager.install(appName, guildID: guild)
-                    : try await manager.uninstall(appName, guildID: guild)
+                    ? try await manager.install(pluginName, guildID: guild)
+                    : try await manager.uninstall(pluginName, guildID: guild)
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let installed = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(app, guildID: guild, installed: installed)
                 reply =
-                    appName
+                    pluginName
                     + (name == "plugin-install"
                         ? " installed. Its commands are available in this server."
                         : " removed. Saved settings were preserved.")
