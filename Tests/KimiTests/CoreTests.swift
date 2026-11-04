@@ -22,7 +22,7 @@ final class CoreTests: XCTestCase {
             XCTAssertTrue(names.contains(required), "Missing global command: " + required)
         }
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Kimi Lock"))
-        XCTAssertTrue(CommandCatalog.appNames().contains("Support"))
+        XCTAssertTrue(CommandCatalog.pluginNames().contains("Support"))
     }
     func testModerationPolicyDefaultsAreConservative() {
         let policy = ModerationEngine.Policy()
