@@ -43,7 +43,7 @@ actor FoundationEngine {
             goodbyeMessage: legacy?.goodbye_message ?? "{username} has left {server}.", autoRole: legacy?.auto_role_id)
     }
     func configure(guildID: String, _ value: Welcome) async throws {
-        try await store.set(value, key: "foundation.\(guildID)")
+        try await store.setGuild(value, key: "foundation.\(guildID)", guildID: guildID)
     }
     func memberJoined(
         guildID: String, userID: String, username: String, serverName: String, memberCount: Int,
@@ -51,7 +51,27 @@ actor FoundationEngine {
     ) async {
         let value = await settings(guildID: guildID)
         if autoRoleEnabled, let role = value.autoRole {
-            do { _ = try await rest.call("PUT", "guilds/\(guildID)/members/\(userID)/roles/\(role)") } catch {
+            do {
+                let roles = try await rest.call("GET", "guilds/\\(guildID)/roles") as? [[String: Any]] ?? []
+                let bot = try await rest.call("GET", "guilds/\\(guildID)/members/@me") as? [String: Any] ?? [:]
+                let botRoleIDs = Set(bot["roles"] as? [String] ?? [])
+                let botRoles = roles.filter { botRoleIDs.contains($0["id"] as? String ?? "") }
+                let highest = botRoles.map { $0["position"] as? Int ?? 0 }.max() ?? 0
+                let canManage = botRoles.contains {
+                    (UInt64($0["permissions"] as? String ?? "") ?? 0) & ((1 << 28) | (1 << 3)) != 0
+                }
+                guard canManage, let target = roles.first(where: { ($0["id"] as? String) == role }) else {
+                    throw KimiError.configuration("Kimi cannot assign the configured automatic role.")
+                }
+                let permissions = UInt64(target["permissions"] as? String ?? "") ?? 0
+                guard SecurityPolicy.isSafeRole(
+                    roleID: role, guildID: guildID, managed: target["managed"] as? Bool ?? false,
+                    permissions: permissions), (target["position"] as? Int ?? 0) < highest
+                else {
+                    throw KimiError.configuration("The automatic role is unsafe or above Kimi's highest role.")
+                }
+                _ = try await rest.call("PUT", "guilds/\\(guildID)/members/\\(userID)/roles/\\(role)")
+            } catch {
                 await logger.log("WARN", "Auto Role failed: \(error.localizedDescription)")
             }
         }
