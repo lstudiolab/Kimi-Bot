@@ -19,6 +19,22 @@ struct LogEntry: Sendable {
     let level: String
     let message: String
 }
+enum DiscordText {
+    static func prefixUTF16(_ value: String, limit: Int) -> String {
+        guard limit > 0 else { return "" }
+        var result = ""
+        result.reserveCapacity(min(value.count, limit))
+        var used = 0
+        for scalar in value.unicodeScalars {
+            let width = scalar.value > 0xFFFF ? 2 : 1
+            guard used + width <= limit else { break }
+            result.unicodeScalars.append(scalar)
+            used += width
+        }
+        return result
+    }
+}
+
 actor Logger {
     private var entries: [LogEntry] = []
     func log(_ level: String, _ message: String) {
@@ -388,7 +404,7 @@ actor DiscordREST {
             "POST", "interactions/\(id)/\(token)/callback",
             body: [
                 "type": 4,
-                "data": ["content": String(text.prefix(1900)), "flags": 64, "allowed_mentions": ["parse": []]],
+                "data": ["content": DiscordText.prefixUTF16(text, limit: 1900), "flags": 64, "allowed_mentions": ["parse": []]],
             ])
     }
     func createChannel(guild: String, name: String, type: Int = 0) async throws -> String {
