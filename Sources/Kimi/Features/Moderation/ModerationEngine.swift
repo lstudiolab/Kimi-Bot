@@ -127,7 +127,7 @@ actor ModerationEngine {
     func evaluate(
         guildID: String, userID: String, messageID: String, content: String, channelID: String = "",
         now: Date = Date(), attachments: [[String: Any]] = [], stickerCount: Int = 0,
-        mentionEveryone: Bool = false, roleMentionCount: Int = 0, userMentionCount: Int = 0
+        mentionEveryone: Bool = false, allowMassMentions: Bool = false, roleMentionCount: Int = 0, userMentionCount: Int = 0
     ) async -> Finding? {
         let value = await policy(guildID: guildID)
         guard value.enabled else { return nil }
@@ -164,15 +164,23 @@ actor ModerationEngine {
         let customEmojiCount = content.components(separatedBy: "<:").count - 1
             + content.components(separatedBy: "<a:").count - 1
         let emojiSpam = emojiCount + customEmojiCount > 20 || stickerCount > 3
-        let massMention = value.blockMassMentions && (mentionEveryone || content.contains("@everyone")
-            || content.contains("@here") || userMentionCount >= 5 || roleMentionCount >= 3)
+        let massMention = value.blockMassMentions
+            && ((mentionEveryone || content.contains("@everyone") || content.contains("@here")) && !allowMassMentions
+                || userMentionCount >= 5 || roleMentionCount >= 3)
         let invite = value.blockInvites && content.range(
             of: #"(?i)(?:discord\.gg/|discord(?:app)?\.com/invite/)"#, options: .regularExpression) != nil
         let suspiciousLink = containsSuspiciousURL(content)
         let attachmentsBlocked = attachments.contains { item in
             let filename = item["filename"] as? String ?? ""
             let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
+            let contentType = (item["content_type"] as? String ?? "").lowercased()
+            let dangerousTypes = [
+                "application/x-msdownload", "application/x-dosexec", "application/x-executable",
+                "application/x-sh", "application/javascript", "text/javascript",
+                "application/vnd.android.package-archive",
+            ]
             return ["exe", "dll", "com", "scr", "msi", "bat", "cmd", "ps1", "sh", "bash", "vbs", "js", "hta", "jar", "apk", "dmg", "pkg", "py", "pyc", "wasm", "lnk", "reg", "sys"].contains(ext)
+                || dangerousTypes.contains(contentType)
         }
         var repeated = (duplicateHistory[key] ?? []).filter {
             now.timeIntervalSince($0.1) >= 0 && now.timeIntervalSince($0.1) <= 10
