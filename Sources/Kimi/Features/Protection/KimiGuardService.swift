@@ -103,12 +103,13 @@ actor KimiGuardService {
             var kept = incident
             kept.status = "kept"
             let reviewedID = incident.id
+            let keptIncident = kept
             _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
                 var values = stored ?? [:]
                 guard values[key]?.id == reviewedID else {
                     throw KimiError.configuration("This incident changed during review. Reload the review panel.")
                 }
-                values[key] = kept
+                values[key] = keptIncident
                 return (values, ())
             }
             return "The account remains restricted."
