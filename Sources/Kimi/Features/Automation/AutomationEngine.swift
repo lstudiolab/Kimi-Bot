@@ -71,31 +71,34 @@ actor AutomationEngine {
         {
             throw KimiError.configuration(kind + " action format: " + kind + ":ROLE_ID")
         }
-        var values = await store.get("automation.rules", as: [Rule].self) ?? []
-        guard values.filter({ $0.guildID == guildID }).count < 100 else {
-            throw KimiError.configuration("This server has reached the 100-rule limit.")
-        }
         let rule = Rule(
             id: UUID().uuidString, guildID: guildID, name: String(name.prefix(80)), trigger: trigger,
             condition: condition.map { String($0.prefix(200)) }, action: action, enabled: true, createdAt: Date())
-        values.append(rule)
-        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
+        _ = try await store.updateGuild("automation.rules", guildID: guildID, as: [Rule].self) { stored in
+            var values = stored ?? []
+            guard values.filter({ $0.guildID == guildID }).count < 100 else {
+                throw KimiError.configuration("This server has reached the 100-rule limit.")
+            }
+            values.append(rule)
+            return values
+        }
         return rule
     }
     func setEnabled(_ enabled: Bool, id: String, guildID: String) async throws -> Bool {
-        var values = await store.get("automation.rules", as: [Rule].self) ?? []
-        guard let i = values.firstIndex(where: { $0.id == id && $0.guildID == guildID }) else { return false }
-        values[i].enabled = enabled
-        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
-        return true
+        let values = try await store.updateGuild("automation.rules", guildID: guildID, as: [Rule].self) { stored in
+            var rules = stored ?? []
+            if let index = rules.firstIndex(where: { $0.id == id && $0.guildID == guildID }) {
+                rules[index].enabled = enabled
+            }
+            return rules
+        }
+        return values.contains(where: { $0.id == id && $0.guildID == guildID })
     }
     func remove(id: String, guildID: String) async throws -> Bool {
-        var values = await store.get("automation.rules", as: [Rule].self) ?? []
-        let before = values.count
-        values.removeAll { $0.id == id && $0.guildID == guildID }
-        guard values.count != before else { return false }
-        try await store.setGuild(values, key: "automation.rules", guildID: guildID)
-        return true
+        let values = try await store.updateGuild("automation.rules", guildID: guildID, as: [Rule].self) { stored in
+            (stored ?? []).filter { !($0.id == id && $0.guildID == guildID) }
+        }
+        return !values.contains(where: { $0.id == id && $0.guildID == guildID })
     }
     func matching(guildID: String, trigger: String, content: String = "") async -> [Rule] {
         await rules(guildID: guildID).filter { rule in
