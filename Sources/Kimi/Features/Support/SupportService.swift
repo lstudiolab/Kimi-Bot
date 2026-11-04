@@ -90,7 +90,12 @@ actor SupportService {
         }
         value.panelChannelID = channel
         value.panelMessageID = messageID
-        try await configure(value, guild: guild)
+        do {
+            try await configure(value, guild: guild)
+        } catch {
+            _ = try? await rest.call("DELETE", "channels/\(channel)/messages/\(messageID)")
+            throw error
+        }
     }
     func open(guild: String, user: String, username: String, bot: String) async throws -> SupportTickets.Ticket {
         let existing = await SupportTickets(store: store).all()
