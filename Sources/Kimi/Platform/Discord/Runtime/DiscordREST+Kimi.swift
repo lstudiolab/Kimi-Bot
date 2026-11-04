@@ -27,6 +27,15 @@ extension DiscordREST {
         guard let id = (data as? [String: Any])?["id"] as? String else { throw KimiError.invalidResponse }
         return id
     }
+    func respondKimiModal(
+        _ id: String, _ token: String, customID: String, title: String, inputs: [[String: Any]]
+    ) async throws {
+        _ = try await call(
+            "POST",
+            "interactions/\(id)/\(token)/callback",
+            body: ["type": 9, "data": KimiUI.modal(id: customID, title: title, inputs: inputs)]
+        )
+    }
     func deferKimiInteraction(_ id: String, _ token: String) async throws {
         _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 5, "data": ["flags": 64]])
     }
