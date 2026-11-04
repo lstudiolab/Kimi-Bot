@@ -373,12 +373,17 @@ actor DiscordREST {
             request.setValue(encoded, forHTTPHeaderField: "X-Audit-Log-Reason")
         }
         if let body {
-            if let object = body as? [String: Any],
-                let components = object["components"] as? [[String: Any]]
-            {
-                try KimiUI.validateMessageComponents(components)
+            if var object = body as? [String: Any] {
+                if let content = object["content"] as? String {
+                    object["content"] = DiscordText.prefixUTF16(content, limit: 2000)
+                }
+                if let components = object["components"] as? [[String: Any]] {
+                    try KimiUI.validateMessageComponents(components)
+                }
+                request.httpBody = try JSONSerialization.data(withJSONObject: object, options: [.fragmentsAllowed])
+            } else {
+                request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.fragmentsAllowed])
             }
-            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.fragmentsAllowed])
         }
         var attempt = 0
         while true {
