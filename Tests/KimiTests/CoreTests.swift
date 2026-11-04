@@ -543,7 +543,7 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(validator.validate(valid).isEmpty)
         let invalid = EmbedValidator.Definition(
             title: valid.title, description: valid.description, fields: valid.fields,
-            color: 0x1000000, author: valid.author, footer: valid.footer + "x",
+            color: 0x1000000, author: valid.author, footer: (valid.footer ?? "") + "x",
             url: "javascript:alert(1)", imageURL: nil
         )
         XCTAssertFalse(validator.validate(invalid).isEmpty)
