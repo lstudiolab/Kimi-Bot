@@ -485,6 +485,8 @@ extension KimiRuntime {
                 for role in roles { await recovery.captureRole(guild, role) }
             }
             guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
+            let botID = await store.get("runtime.bot_id", as: String.self) ?? ""
+            guard actor != botID else { return }
             let target = data["target_id"] as? String
             if action == 12, let target, await migratedModuleEnabled("recovery", guild: guild) {
                 await recovery.queueDeletedChannel(guild, target)
