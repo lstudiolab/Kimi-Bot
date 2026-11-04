@@ -25,6 +25,55 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Kimi Lock"))
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Support"))
     }
+    func testPluginStoreNamingAndCommandRegistration() {
+        let names = Set(CommandCatalog.globalCommands().compactMap { $0["name"] as? String })
+        XCTAssertTrue(names.contains("plugin-store"))
+        XCTAssertTrue(names.contains("plugin-install"))
+        XCTAssertTrue(names.contains("plugin-remove"))
+        XCTAssertFalse(names.contains("app-store"))
+        XCTAssertFalse(names.contains("install"))
+        XCTAssertFalse(names.contains("uninstall"))
+        XCTAssertEqual(PluginRegistry.resolve("Kimi Lock")?.name, "Kimi Lock")
+        XCTAssertEqual(PluginRegistry.resolve("tickets")?.name, "Support")
+        let support = Set(CommandCatalog.guildCommands(installed: ["Support"]).compactMap { $0["name"] as? String })
+        XCTAssertEqual(support, Set(["tickets", "ticket-panel", "ticket-config"]))
+        XCTAssertTrue(CommandCatalog.guildCommands(installed: []).isEmpty)
+    }
+
+    func testPluginManagerPersistsInstallationsAndMigratesLegacyData() async throws {
+        let guild = "123456789012345678"
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-plugin-store-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let legacy = ["installed_plugins": [guild: ["Welcome"]]]
+        let data = try JSONSerialization.data(withJSONObject: legacy, options: [.prettyPrinted])
+        try data.write(to: directory.appendingPathComponent("timi.json"))
+
+        let store = try PersistentStore(directory: directory)
+        let manager = PluginManager(store: store)
+        let migrated = await manager.installed(guildID: guild)
+        XCTAssertEqual(migrated, ["Welcome"])
+
+        let installed = try await manager.install("Support", guildID: guild)
+        XCTAssertTrue(installed.ok)
+        let afterInstall = await manager.installed(guildID: guild)
+        XCTAssertEqual(Set(afterInstall), Set(["Welcome", "Support"]))
+
+        let duplicate = try await manager.install("Support", guildID: guild)
+        XCTAssertFalse(duplicate.ok)
+
+        let removed = try await manager.uninstall("Support", guildID: guild)
+        XCTAssertTrue(removed.ok)
+        let afterRemoval = await manager.installed(guildID: guild)
+        XCTAssertEqual(afterRemoval, ["Welcome"])
+
+        let reopened = try PersistentStore(directory: directory)
+        let persisted = await PluginManager(store: reopened).installed(guildID: guild)
+        XCTAssertEqual(persisted, ["Welcome"])
+    }
+
     func testModerationPolicyDefaultsAreConservative() {
         let policy = ModerationEngine.Policy()
         XCTAssertTrue(policy.enabled)
