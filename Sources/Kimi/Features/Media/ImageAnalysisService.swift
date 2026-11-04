@@ -338,8 +338,8 @@ actor ImageAnalysisService {
                 offset += size
             }
         }
-        if let width, let height, width <= 0 || height <= 0 || width > 50000 || height > 50000 {
-            return Metadata(type: type, width: nil, height: nil, bytes: b.count)
+        guard let width, let height, width > 0, height > 0, width <= 50000, height <= 50000 else {
+            return nil
         }
         return Metadata(type: type, width: width, height: height, bytes: b.count)
     }
