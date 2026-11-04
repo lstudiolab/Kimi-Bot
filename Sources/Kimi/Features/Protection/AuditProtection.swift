@@ -22,7 +22,7 @@ actor AuditProtection {
         activity[key] = events
         let sensitiveThreshold: Int
         switch action {
-        case "12", "13", "14", "15", "32", "50": sensitiveThreshold = 2
+        case "12", "13", "14", "15", "32", "50", "51", "52": sensitiveThreshold = 2
         case "20", "22", "25", "30": sensitiveThreshold = 3
         case "1", "10", "11": sensitiveThreshold = 4
         default: sensitiveThreshold = threshold
