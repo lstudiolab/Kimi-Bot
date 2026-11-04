@@ -42,7 +42,7 @@ extension KimiRuntime {
                     + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
                 responseComponents = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:apps", label: "App Store"),
+                        KimiUI.button(id: "settings:plugins", label: "Plugin Store"),
                         KimiUI.button(id: "settings:status", label: "System Status"),
                     ]),
                     KimiUI.row([
@@ -50,22 +50,22 @@ extension KimiRuntime {
                         KimiUI.button(id: "settings:activity", label: "Activity"),
                     ]),
                 ]
-            case "apps", "app-store":
+            case "plugins", "plugin-store":
                 let installed = await AppManager(store: store).installed(guildID: guild)
                 reply =
-                    "Kimi Apps\n"
-                    + CommandCatalog.appNames().map {
+                    "Kimi Plugins\n"
+                    + CommandCatalog.pluginNames().map {
                         $0 + " — " + (installed.contains($0) ? "Installed" : "Available")
-                    }.joined(separator: "\n") + "\n\nUse /install to add an app."
-            case "install", "uninstall":
+                    }.joined(separator: "\n") + "\n\nUse /plugin-install to add a plugin."
+            case "plugin-install", "plugin-remove":
                 let owner = try await rest.ownerID(guild)
                 guard owner == user else {
-                    throw KimiError.configuration("Only the server owner can install or remove apps.")
+                    throw KimiError.configuration("Only the server owner can install or remove plugins.")
                 }
-                guard let appName = value("app") else { throw KimiError.configuration("Choose an app.") }
+                guard let appName = value("plugin") else { throw KimiError.configuration("Choose a plugin.") }
                 let manager = AppManager(store: store)
                 let result =
-                    name == "install"
+                    name == "plugin-install"
                     ? try await manager.install(appName, guildID: guild)
                     : try await manager.uninstall(appName, guildID: guild)
                 guard result.ok else { throw KimiError.configuration(result.message) }
