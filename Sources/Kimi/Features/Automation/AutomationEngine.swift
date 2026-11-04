@@ -112,10 +112,13 @@ actor AutomationEngine {
         }
     }
     func record(_ execution: Execution) async {
-        var values = await store.get("automation.executions", as: [Execution].self) ?? []
-        values.append(execution)
-        values = Array(values.suffix(1000))
-        try? await store.setGuild(values, key: "automation.executions", guildID: execution.guildID)
+        do {
+            _ = try await store.updateGuild(
+                "automation.executions", guildID: execution.guildID, as: [Execution].self)
+            { stored in Array(((stored ?? []) + [execution]).suffix(1000)) }
+        } catch {
+            await logger?.log("ERROR", "Automation execution record could not be saved: " + error.localizedDescription)
+        }
     }
     func executions(guildID: String) async -> [Execution] {
         (await store.get("automation.executions", as: [Execution].self) ?? []).filter { $0.guildID == guildID }
