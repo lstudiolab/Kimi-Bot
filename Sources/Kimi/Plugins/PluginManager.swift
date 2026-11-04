@@ -21,7 +21,8 @@ actor PluginManager {
     }
 
     func installed(guildID: String) async -> [String] {
-        await loadInstallations()[guildID] ?? []
+        let installations = await loadInstallations()
+        return installations[guildID] ?? []
     }
 
     func install(_ name: String, guildID: String) async throws -> Result {
