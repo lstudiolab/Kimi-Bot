@@ -133,7 +133,6 @@ actor ModerationEngine {
     ) async -> Finding? {
         let value = await policy(guildID: guildID)
         guard value.enabled else { return nil }
-        let key = guildID + ":" + channelID + ":" + userID
         let rateKey = "moderation.rate." + guildID + "." + channelID + "." + userID
         var events = (await store.get(rateKey, as: [Date].self) ?? []).filter {
             now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60
@@ -148,7 +147,21 @@ actor ModerationEngine {
             let needle = normalized(phrase)
             return needle.count >= 2 && normalizedContent.contains(needle)
         }
-        let profanity = defaultTerms.contains { normalizedContent.contains(normalized($0)) }
+        let tokens = content.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
+        var compactRuns: [String] = []
+        var singleCharacterRun = ""
+        for token in tokens {
+            if token.count == 1 {
+                singleCharacterRun += token
+            } else {
+                if !singleCharacterRun.isEmpty { compactRuns.append(singleCharacterRun); singleCharacterRun = "" }
+                compactRuns.append(token)
+            }
+        }
+        if !singleCharacterRun.isEmpty { compactRuns.append(singleCharacterRun) }
+        let profanity = compactRuns.contains { token in
+            defaultTerms.contains { token == normalized($0) }
+        }
         let spam = events.count > max(1, value.messagesPerMinute)
         let excessive = content.count > 1900
         let letters = content.filter { $0.isLetter }
