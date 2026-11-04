@@ -39,8 +39,12 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(PluginRegistry.resolve("Kimi Lock")?.name, "Kimi Lock")
         XCTAssertEqual(PluginRegistry.resolve("tickets")?.name, "Support")
         let support = Set(CommandCatalog.guildCommands(installed: ["Support"]).compactMap { $0["name"] as? String })
-        XCTAssertEqual(support, Set(["tickets", "ticket-panel", "ticket-config"]))
+        XCTAssertEqual(support, Set(["ticket-screen"]))
         XCTAssertTrue(CommandCatalog.guildCommands(installed: []).isEmpty)
+        XCTAssertEqual(
+            Set(CommandCatalog.guildCommands(installed: ["Kimi Lock"]).compactMap { $0["name"] as? String }),
+            Set(["kimi-lock-screen"])
+        )
     }
 
     func testPluginManagerPersistsInstallationsAndMigratesLegacyData() async throws {
