@@ -52,6 +52,7 @@ actor ModerationEngine {
     private let store: PersistentStore
     private var policies: [String: Policy] = [:]
     private var history: [String: [Date]] = [:]
+    private var duplicateHistory: [String: [(String, Date)]] = [:]
     init(store: PersistentStore) { self.store = store }
     func policy(guildID: String) async -> Policy {
         if let cached = policies[guildID] { return cached }
@@ -105,7 +106,7 @@ actor ModerationEngine {
     }
 
     private func containsSuspiciousURL(_ content: String) -> Bool {
-        let pattern = #"(?i)(?:https?://|www\\.)[^\\s<>]+"#
+        let pattern = #"(?i)(?:https?://|www\.)[^\s<>]+"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let range = NSRange(content.startIndex..., in: content)
         let urls = regex.matches(in: content, range: range).compactMap { match -> String? in
@@ -119,7 +120,7 @@ actor ModerationEngine {
             guard let parts = URLComponents(string: candidate), let host = parts.host?.lowercased() else { return true }
             if parts.user != nil || parts.password != nil || host.hasPrefix("xn--") || host.contains(".xn--") { return true }
             if loggerDomains.contains(host) || shorteners.contains(host) { return true }
-            return host.range(of: #"^\\d{1,3}(?:\\.\\d{1,3}){3}$"#, options: .regularExpression) != nil
+            return host.range(of: #"^\\d{1,3}(?:\.\\d{1,3}){3}$"#, options: .regularExpression) != nil
         }
     }
 
@@ -139,7 +140,7 @@ actor ModerationEngine {
         }
 
         let normalizedContent = normalized(content)
-        let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard", "nigger", "nigga", "faggot", "kike", "chink", "spic", "wetback", "tranny", "coon", "dyke"]
+        let defaultTerms = ["fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "cunt", "slut", "whore", "retard"]
         let customTerm = value.blockedPhrases.first { phrase in
             let needle = normalized(phrase)
             return needle.count >= 2 && normalizedContent.contains(needle)
@@ -166,14 +167,22 @@ actor ModerationEngine {
         let massMention = value.blockMassMentions && (mentionEveryone || content.contains("@everyone")
             || content.contains("@here") || userMentionCount >= 5 || roleMentionCount >= 3)
         let invite = value.blockInvites && content.range(
-            of: #"(?i)(?:discord\\.gg/|discord(?:app)?\\.com/invite/)"#, options: .regularExpression) != nil
+            of: #"(?i)(?:discord\.gg/|discord(?:app)?\.com/invite/)"#, options: .regularExpression) != nil
         let suspiciousLink = containsSuspiciousURL(content)
         let attachmentsBlocked = attachments.contains { item in
             let filename = item["filename"] as? String ?? ""
             let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
             return ["exe", "dll", "com", "scr", "msi", "bat", "cmd", "ps1", "sh", "bash", "vbs", "js", "hta", "jar", "apk", "dmg", "pkg", "py", "pyc", "wasm", "lnk", "reg", "sys"].contains(ext)
         }
-        let duplicate = events.count >= 3 && normalizedContent.count > 3
+        var repeated = (duplicateHistory[key] ?? []).filter {
+            now.timeIntervalSince($0.1) >= 0 && now.timeIntervalSince($0.1) <= 10
+        }
+        repeated.append((normalizedContent, now))
+        duplicateHistory[key] = repeated
+        if duplicateHistory.count > 20000 {
+            duplicateHistory = duplicateHistory.filter { !$0.value.isEmpty && now.timeIntervalSince($0.value.last?.1 ?? now) < 30 }
+        }
+        let duplicate = repeated.filter { $0.0 == normalizedContent }.count >= 3 && normalizedContent.count > 3
         let triggered = customTerm != nil || profanity || spam || excessive || caps || formattingWall
             || emojiSpam || massMention || invite || suspiciousLink || attachmentsBlocked || duplicate
         guard triggered else { return nil }
