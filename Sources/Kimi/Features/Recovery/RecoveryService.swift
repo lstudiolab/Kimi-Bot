@@ -138,15 +138,19 @@ actor RecoveryService {
     ) async {
         let now = Date()
         let cutoff = now.addingTimeInterval(-week)
-        let value = Message(
-            id: message, channelID: channel, authorID: author, content: String(content.prefix(4000)), createdAt: now,
-            authorName: authorName, attachments: Array(attachments.prefix(10)))
         do {
             try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
                 var all = stored ?? [:]
-                var rows = (all[guild] ?? []).filter { $0.createdAt >= cutoff }
-                rows.removeAll { $0.id == message }
-                rows.append(value)
+                let previous = all[guild]?.first(where: { $0.id == message })
+                let originalCreatedAt = previous?.createdAt ?? now
+                var rows = (all[guild] ?? []).filter { $0.createdAt >= cutoff && $0.id != message }
+                // Editing an old message must not refresh its seven-day retention window.
+                if originalCreatedAt >= cutoff {
+                    rows.append(Message(
+                        id: message, channelID: channel, authorID: author, content: String(content.prefix(4000)),
+                        createdAt: originalCreatedAt, authorName: authorName,
+                        attachments: Array(attachments.prefix(10))))
+                }
                 rows.sort { $0.createdAt < $1.createdAt }
                 func encodedSize(_ row: Message) -> Int {
                     (try? JSONEncoder().encode(row).count) ?? row.content.utf8.count
