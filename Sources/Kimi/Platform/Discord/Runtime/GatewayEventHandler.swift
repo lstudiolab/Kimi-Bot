@@ -27,13 +27,21 @@ extension KimiRuntime {
     }
     func cachedGuildOwnerID(_ guild: String) async -> String? {
         let key = "runtime.guild-owner." + guild
-        if let cached = await store.get(key, as: String.self) { return cached }
+        let updatedKey = "runtime.guild-owner-updated." + guild
+        if let cached = await store.get(key, as: String.self),
+            let updated = await store.get(updatedKey, as: Date.self),
+            Date().timeIntervalSince(updated) >= 0,
+            Date().timeIntervalSince(updated) < 300
+        {
+            return cached
+        }
 
         guard let owner = try? await rest.ownerID(guild), !owner.isEmpty else {
             return nil
         }
 
         try? await store.set(owner, key: key)
+        try? await store.set(Date(), key: updatedKey)
         return owner
     }
     func captureGuildStructure(_ guild: String) async {
@@ -69,10 +77,17 @@ extension KimiRuntime {
             guard let guild = data["id"] as? String else { return }
             if let owner = data["owner_id"] as? String {
                 try? await store.set(owner, key: "runtime.guild-owner." + guild)
+                try? await store.set(Date(), key: "runtime.guild-owner-updated." + guild)
             }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             try? await rest.registerGuildCommands(clientID, guildID: guild, installed: installed)
             await captureGuildStructure(guild)
+        case "GUILD_UPDATE":
+            guard let guild = data["id"] as? String else { return }
+            if let owner = data["owner_id"] as? String {
+                try? await store.set(owner, key: "runtime.guild-owner." + guild)
+                try? await store.set(Date(), key: "runtime.guild-owner-updated." + guild)
+            }
         case "GUILD_MEMBER_ADD":
             guard let guild = data["guild_id"] as? String, let user = data["user"] as? [String: Any],
                 let id = user["id"] as? String
