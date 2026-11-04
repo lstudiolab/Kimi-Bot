@@ -150,7 +150,7 @@ actor RecoveryService {
                 // Editing an old message must not refresh its seven-day retention window.
                 if originalCreatedAt >= cutoff {
                     let updated = Message(
-                        id: message, channelID: channel, authorID: author, content: String(content.prefix(4000)),
+                        id: message, channelID: channel, authorID: author, content: DiscordText.prefixUTF16(content, limit: 4000),
                         createdAt: originalCreatedAt, authorName: authorName,
                         attachments: Array(attachments.prefix(10)))
                     if let index = rows.firstIndex(where: { $0.id == message }) {
@@ -302,7 +302,7 @@ actor RecoveryService {
         do {
             _ = try await rest.call(
                 "POST", "channels/\(channel)/messages",
-                body: ["content": String(body.prefix(1900)), "allowed_mentions": ["parse": []]])
+                body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["parse": []]])
         } catch {
             await logger.log("ERROR", "Message recovery failed for " + message + ": " + error.localizedDescription)
         }

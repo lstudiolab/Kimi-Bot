@@ -387,8 +387,9 @@ actor DiscordREST {
         }
         var attempt = 0
         while true {
-            let globalWait = globalRateLimitUntil.timeIntervalSinceNow
-            if globalWait > 0 {
+            while true {
+                let globalWait = globalRateLimitUntil.timeIntervalSinceNow
+                guard globalWait > 0 else { break }
                 try await Task.sleep(nanoseconds: UInt64(min(30, globalWait) * 1_000_000_000))
             }
             let (data, response) = try await session.data(for: request)

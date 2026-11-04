@@ -193,7 +193,8 @@ actor ModerationEngine {
     func evaluate(
         guildID: String, userID: String, messageID: String, content: String, channelID: String = "",
         now: Date = Date(), attachments: [[String: Any]] = [], stickerCount: Int = 0,
-        mentionEveryone: Bool = false, allowMassMentions: Bool = false, roleMentionCount: Int = 0, userMentionCount: Int = 0
+        mentionEveryone: Bool = false, allowMassMentions: Bool = false, roleMentionCount: Int = 0,
+        userMentionCount: Int = 0, isEdit: Bool = false
     ) async -> Finding? {
         await acquireEvaluation()
         defer { releaseEvaluation() }
@@ -209,7 +210,7 @@ actor ModerationEngine {
         var events = previousRateEvents.filter {
             now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 60
         }
-        events.append(now)
+        if !isEdit { events.append(now) }
         if events.count > 120 { events = Array(events.suffix(120)) }
         rateHistory[rateKey] = events
         let normalizedContent = normalized(content)
@@ -241,8 +242,8 @@ actor ModerationEngine {
         let profanity = compactRuns.contains { token in
             defaultTerms.contains { token == normalized($0) }
         }
-        let spam = events.count > max(1, value.messagesPerMinute)
-        let excessive = content.count > 1900
+        let spam = !isEdit && events.count > max(1, value.messagesPerMinute)
+        let excessive = content.utf16.count > 1900
         let letters = content.filter { $0.isLetter }
         let uppercase = letters.filter { $0.isUppercase }.count
         let caps = value.blockExcessiveCaps && letters.count >= 12
@@ -293,7 +294,7 @@ actor ModerationEngine {
         var repeated = storedDuplicates.filter {
             now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) <= 10
         }
-        repeated.append(DuplicateEvent(content: normalizedContent, timestamp: now))
+        if !isEdit { repeated.append(DuplicateEvent(content: normalizedContent, timestamp: now)) }
         if repeated.count > 30 { repeated = Array(repeated.suffix(30)) }
         duplicateHistory[duplicateKey] = repeated
         if rateHistory.count > 5000 {
@@ -306,7 +307,8 @@ actor ModerationEngine {
                 $0.value.last.map { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 30 } ?? false
             }
         }
-        let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
+        let duplicate = !isEdit && repeated.filter { $0.content == normalizedContent }.count >= 3
+            && normalizedContent.count > 3
         if events.count == 1 || events.count.isMultiple(of: 5) || spam || duplicate {
             if let rateData = try? JSONEncoder().encode(events),
                 let duplicateData = try? JSONEncoder().encode(repeated)

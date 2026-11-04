@@ -548,7 +548,8 @@ extension KimiRuntime {
                     mentionEveryone: data["mention_everyone"] as? Bool ?? false,
                     allowMassMentions: canMentionEveryone,
                     roleMentionCount: (data["mention_roles"] as? [String] ?? []).count,
-                    userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count
+                    userMentionCount: (data["mentions"] as? [[String: Any]] ?? []).count,
+                    isEdit: true
                 )
                 if let owner = await cachedGuildOwnerID(guild), owner != user, let finding {
                     let policy = await moderation.policy(guildID: guild)

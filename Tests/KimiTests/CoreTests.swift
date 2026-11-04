@@ -654,6 +654,39 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(findings.contains { $0?.reason.contains("High-velocity message flood") == true })
     }
 
+    func testModerationDoesNotCountEditsAsNewMessagesAndUsesUTF16Length() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-moderation-edit-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        let guild = "123456789012345678"
+        let user = "223456789012345678"
+        var policy = await engine.policy(guildID: guild)
+        policy.messagesPerMinute = 2
+        try await engine.configure(policy, guildID: guild)
+        let now = Date()
+        _ = await engine.evaluate(
+            guildID: guild, userID: user, messageID: "323456789012345678",
+            content: "first ordinary message", now: now)
+        _ = await engine.evaluate(
+            guildID: guild, userID: user, messageID: "323456789012345679",
+            content: "second ordinary message", now: now.addingTimeInterval(1))
+        for offset in 0..<4 {
+            let edit = await engine.evaluate(
+                guildID: guild, userID: user, messageID: "323456789012345679",
+                content: "second ordinary message", now: now.addingTimeInterval(Double(offset + 2)),
+                isEdit: true)
+            XCTAssertFalse(edit?.reason.contains("High-velocity message flood") == true)
+            XCTAssertFalse(edit?.reason.contains("Repeated message burst") == true)
+        }
+        let oversizedUnicode = await engine.evaluate(
+            guildID: guild, userID: "223456789012345680", messageID: "323456789012345680",
+            content: String(repeating: "😀", count: 1000), now: now)
+        XCTAssertTrue(oversizedUnicode?.reason.contains("Message length flood") == true)
+    }
+
     func testRecoveryEditsPreserveOriginalRetentionTimestamp() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "kimi-recovery-edit-" + UUID().uuidString, isDirectory: true)

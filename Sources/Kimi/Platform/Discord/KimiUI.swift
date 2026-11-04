@@ -84,7 +84,7 @@ enum KimiUI {
     static func roleSelect(id: String, placeholder: String) -> [String: Any] {
         [
             "type": 6,
-            "custom_id": id,
+            "custom_id": DiscordText.prefixUTF16(id, limit: 100),
             "placeholder": DiscordText.prefixUTF16(placeholder, limit: 150),
             "min_values": 0,
             "max_values": 1,
