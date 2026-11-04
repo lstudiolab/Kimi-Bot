@@ -31,14 +31,16 @@ actor RecoveryService {
         guard let id = channel["id"] as? String,
             let data = try? JSONSerialization.data(withJSONObject: channel, options: [.fragmentsAllowed])
         else { return }
-        var all = await store.get("recovery.channels", as: [String: [String: Data]].self) ?? [:]
-        all[guild, default: [:]][id] = data
-        if all[guild, default: [:]].count > 1000 {
-            all[guild] = Dictionary(
-                uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(1000))
-        }
         do {
-            try await store.setGuild(all, key: "recovery.channels", guildID: guild)
+            try await store.updateGuild("recovery.channels", guildID: guild, as: [String: [String: Data]].self) { stored in
+                var all = stored ?? [:]
+                all[guild, default: [:]][id] = data
+                if all[guild, default: [:]].count > 1000 {
+                    all[guild] = Dictionary(
+                        uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(1000))
+                }
+                return all
+            }
         } catch {
             await logger.log("ERROR", "Recovery channel snapshot was not persisted: " + error.localizedDescription)
         }
@@ -47,26 +49,30 @@ actor RecoveryService {
         guard let id = role["id"] as? String, id != guild,
             let data = try? JSONSerialization.data(withJSONObject: role, options: [.fragmentsAllowed])
         else { return }
-        var all = await store.get("recovery.roles", as: [String: [String: Data]].self) ?? [:]
-        all[guild, default: [:]][id] = data
-        if all[guild, default: [:]].count > 500 {
-            all[guild] = Dictionary(
-                uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(500))
-        }
         do {
-            try await store.setGuild(all, key: "recovery.roles", guildID: guild)
+            try await store.updateGuild("recovery.roles", guildID: guild, as: [String: [String: Data]].self) { stored in
+                var all = stored ?? [:]
+                all[guild, default: [:]][id] = data
+                if all[guild, default: [:]].count > 500 {
+                    all[guild] = Dictionary(
+                        uniqueKeysWithValues: all[guild, default: [:]].sorted { $0.key < $1.key }.suffix(500))
+                }
+                return all
+            }
         } catch {
             await logger.log("ERROR", "Recovery role snapshot was not persisted: " + error.localizedDescription)
         }
     }
     func queueDeletedRole(_ guild: String, _ role: String) async {
         guard role != guild else { return }
-        var all = await store.get("recovery.pending-roles", as: [String: [String]].self) ?? [:]
-        var pending = all[guild] ?? []
-        if !pending.contains(role) { pending.append(role) }
-        all[guild] = Array(pending.suffix(100))
         do {
-            try await store.setGuild(all, key: "recovery.pending-roles", guildID: guild)
+            try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
+                var all = stored ?? [:]
+                var pending = all[guild] ?? []
+                if !pending.contains(role) { pending.append(role) }
+                all[guild] = Array(pending.suffix(100))
+                return all
+            }
         } catch {
             await logger.log("ERROR", "Deleted-role recovery queue was not persisted: " + error.localizedDescription)
         }
@@ -152,12 +158,14 @@ actor RecoveryService {
         return found
     }
     func queueDeletedChannel(_ guild: String, _ channel: String) async {
-        var all = await store.get("recovery.pending-channels", as: [String: [String]].self) ?? [:]
-        var values = all[guild] ?? []
-        if !values.contains(channel) { values.append(channel) }
-        all[guild] = Array(values.suffix(100))
         do {
-            try await store.setGuild(all, key: "recovery.pending-channels", guildID: guild)
+            try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
+                var all = stored ?? [:]
+                var values = all[guild] ?? []
+                if !values.contains(channel) { values.append(channel) }
+                all[guild] = Array(values.suffix(100))
+                return all
+            }
         } catch {
             await logger.log("ERROR", "Deleted-channel recovery queue was not persisted: " + error.localizedDescription)
         }
