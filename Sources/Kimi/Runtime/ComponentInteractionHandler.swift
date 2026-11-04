@@ -21,25 +21,25 @@ extension KimiRuntime {
             return true
         }
         do {
-            if let appName = ComponentRouter.app(for: custom) {
+            if let pluginName = ComponentRouter.plugin(for: custom) {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
-                guard installed.contains(appName.rawValue) else {
-                    throw KimiError.configuration(appName.rawValue + " is not installed in this server.")
+                guard installed.contains(pluginName.rawValue) else {
+                    throw KimiError.configuration(pluginName.rawValue + " is not installed in this server.")
                 }
             }
             if custom == "settings:plugins" || custom == "settings:apps" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
-                let buttons = CommandCatalog.pluginNames().map { appName in
+                let buttons = CommandCatalog.pluginNames().map { pluginName in
                     KimiUI.button(
-                        id: "settings:plugin:" + appName,
-                        label: appName + " · " + (installed.contains(appName) ? "Remove" : "Install"),
-                        style: installed.contains(appName) ? 2 : 1)
+                        id: "settings:plugin:" + pluginName,
+                        label: pluginName + " · " + (installed.contains(pluginName) ? "Remove" : "Install"),
+                        style: installed.contains(pluginName) ? 2 : 1)
                 }
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
             } else if custom.hasPrefix("settings:plugin:") || custom.hasPrefix("settings:app:") {
                 let prefix = custom.hasPrefix("settings:plugin:") ? "settings:plugin:" : "settings:app:"
-                let appName = String(custom.dropFirst(prefix.count))
+                let pluginName = String(custom.dropFirst(prefix.count))
                 let owner = try await rest.ownerID(guild)
                 guard owner == actorID else {
                     throw KimiError.configuration("Only the server owner can install or remove plugins.")
@@ -47,9 +47,9 @@ extension KimiRuntime {
                 let manager = PluginManager(store: store)
                 let installed = await manager.installed(guildID: guild)
                 let result =
-                    installed.contains(appName)
-                    ? try await manager.uninstall(appName, guildID: guild)
-                    : try await manager.install(appName, guildID: guild)
+                    installed.contains(pluginName)
+                    ? try await manager.uninstall(pluginName, guildID: guild)
+                    : try await manager.install(pluginName, guildID: guild)
                 guard result.ok else { throw KimiError.configuration(result.message) }
                 let updated = await manager.installed(guildID: guild)
                 try await rest.registerGuildCommands(app, guildID: guild, installed: updated)
@@ -60,7 +60,7 @@ extension KimiRuntime {
                         style: updated.contains(value) ? 2 : 1)
                 }
                 let rows = KimiUI.buttonRows(buttons)
-                try await rest.editKimiInteraction(app, token, appName + " updated.", rows)
+                try await rest.editKimiInteraction(app, token, pluginName + " updated.", rows)
             } else if custom == "settings:status" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
