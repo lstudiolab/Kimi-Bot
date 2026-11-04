@@ -409,7 +409,43 @@ actor GatewayEventDispatcher {
     private var activeEvents = 0
     private var interactions: [[String: Any]] = []
     private var events: [[String: Any]] = []
+    private var interactionHead = 0
+    private var eventHead = 0
     private var lastOverflowLog = Date.distantPast
+
+    private var queuedCount: Int {
+        interactions.count - interactionHead + events.count - eventHead
+    }
+
+    private func popInteraction() -> [String: Any]? {
+        guard interactionHead < interactions.count else {
+            interactions.removeAll(keepingCapacity: true)
+            interactionHead = 0
+            return nil
+        }
+        let value = interactions[interactionHead]
+        interactionHead += 1
+        if interactionHead >= 128 && interactionHead * 2 >= interactions.count {
+            interactions.removeFirst(interactionHead)
+            interactionHead = 0
+        }
+        return value
+    }
+
+    private func popEvent() -> [String: Any]? {
+        guard eventHead < events.count else {
+            events.removeAll(keepingCapacity: true)
+            eventHead = 0
+            return nil
+        }
+        let value = events[eventHead]
+        eventHead += 1
+        if eventHead >= 128 && eventHead * 2 >= events.count {
+            events.removeFirst(eventHead)
+            eventHead = 0
+        }
+        return value
+    }
 
     init(logger: Logger, handler: @escaping @Sendable ([String: Any]) async -> Void) {
         self.logger = logger
@@ -417,9 +453,9 @@ actor GatewayEventDispatcher {
     }
 
     func enqueue(_ event: [String: Any], isInteraction: Bool) async {
-        if interactions.count + events.count >= maximumQueued {
-            if isInteraction, !events.isEmpty {
-                events.removeFirst()
+        if queuedCount >= maximumQueued {
+            if isInteraction, eventHead < events.count {
+                _ = popEvent()
             } else {
                 if Date().timeIntervalSince(lastOverflowLog) >= 10 {
                     lastOverflowLog = Date()
@@ -437,8 +473,7 @@ actor GatewayEventDispatcher {
     }
 
     private func schedule() {
-        while activeInteractions < maximumConcurrentInteractions && !interactions.isEmpty {
-            let event = interactions.removeFirst()
+        while activeInteractions < maximumConcurrentInteractions, let event = popInteraction() {
             activeInteractions += 1
             let handler = self.handler
             Task {
@@ -446,8 +481,7 @@ actor GatewayEventDispatcher {
                 self.completed(isInteraction: true)
             }
         }
-        while activeEvents < maximumConcurrentEvents && !events.isEmpty {
-            let event = events.removeFirst()
+        while activeEvents < maximumConcurrentEvents, let event = popEvent() {
             activeEvents += 1
             let handler = self.handler
             Task {
