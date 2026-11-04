@@ -409,7 +409,7 @@ final class CoreTests: XCTestCase {
 
         let hidden = await engine.evaluate(
             guildID: "123456789012345678", userID: "223456789012345678",
-            messageID: "323456789012345678", content: "b\\u{200B}a\\u{200D}dword")
+            messageID: "323456789012345678", content: "b\u{200B}a\u{200D}dword")
         XCTAssertTrue(hidden?.reason.contains("Custom blocked keyword") == true)
 
         let spaced = await engine.evaluate(
