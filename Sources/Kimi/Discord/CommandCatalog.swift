@@ -2,7 +2,7 @@ import Foundation
 
 enum CommandCatalog {
     static let core = [
-        "kimi", "setup", "plan", "apps", "app-store", "install", "uninstall", "automations", "guard-review",
+        "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove", "automations", "guard-review",
         "web-token", "analytics", "performance", "configure-foundation", "configure-welcome", "configure-roles",
         "configure-auto-role", "configure-embeds", "configure-kimi-lock", "configure-support",
     ]
@@ -16,7 +16,7 @@ enum CommandCatalog {
         let admin = "32"
         func command(_ n: String, _ d: String, _ o: [[String: Any]] = []) -> [String: Any] {
             var v: [String: Any] = ["name": n, "description": d, "type": 1, "options": o]
-            if !["plan", "apps", "app-store"].contains(n) { v["default_member_permissions"] = admin }
+            if !["plan", "plugins", "plugin-store"].contains(n) { v["default_member_permissions"] = admin }
             return v
         }
         func text(_ n: String, _ d: String, _ required: Bool = false, _ choices: [[String: Any]] = []) -> [String: Any]
@@ -36,16 +36,16 @@ enum CommandCatalog {
             ["type": 4, "name": n, "description": d, "min_value": min, "max_value": max]
         }
         func boolean(_ n: String, _ d: String) -> [String: Any] { ["type": 5, "name": n, "description": d] }
-        let apps = ["Welcome", "Auto Role", "Role Picker", "Embeds", "Kimi Lock", "Support"].map {
+        let plugins = ["Welcome", "Auto Role", "Role Picker", "Embeds", "Kimi Lock", "Support"].map {
             ["name": $0, "value": $0]
         }
         return [
             "kimi": command("kimi", "Open Kimi server settings"),
             "setup": command("setup", "Prepare private Kimi channels"),
-            "plan": command("plan", "View Kimi storage usage"), "apps": command("apps", "Browse Kimi apps"),
-            "app-store": command("app-store", "Manage installed apps"),
-            "install": command("install", "Install a Kimi app", [text("app", "App to install", true, apps)]),
-            "uninstall": command("uninstall", "Uninstall a Kimi app", [text("app", "App to remove", true, apps)]),
+            "plan": command("plan", "View Kimi storage usage"), "plugins": command("plugins", "Browse installed and available plugins"),
+            "plugin-store": command("plugin-store", "Manage Kimi plugins"),
+            "plugin-install": command("plugin-install", "Install a Kimi plugin", [text("plugin", "Plugin to install", true, plugins)]),
+            "plugin-remove": command("plugin-remove", "Remove a Kimi plugin", [text("plugin", "Plugin to remove", true, plugins)]),
             "automations": command(
                 "automations", "Manage server automations",
                 [
@@ -151,7 +151,7 @@ enum CommandCatalog {
                     ], ["type": 1, "name": "list", "description": "List blocked phrases"],
                 ]),
             "configure-foundation": command(
-                "configure-foundation", "Configure the Welcome app (legacy alias)",
+                "configure-foundation", "Configure the Welcome plugin (legacy alias)",
                 [
                     channel("welcome-channel", "Welcome channel"), channel("goodbye-channel", "Goodbye channel"),
                     text("welcome-message", "Welcome message"), text("goodbye-message", "Goodbye message"),
@@ -163,7 +163,7 @@ enum CommandCatalog {
                     text("welcome-message", "Welcome message"), text("goodbye-message", "Goodbye message"),
                 ]),
             "configure-roles": command(
-                "configure-roles", "Configure the Role Picker app",
+                "configure-roles", "Configure the Role Picker plugin",
                 [text("name", "Menu name"), channel("channel", "Publishing channel")]),
             "configure-auto-role": command(
                 "configure-auto-role", "Configure automatic member role", [role("role", "Role assigned to new members")]
@@ -206,5 +206,5 @@ enum CommandCatalog {
     static func guildCommands(installed: [String]) -> [[String: Any]] {
         installed.flatMap { groups[$0] ?? [] }.compactMap { all[$0] }
     }
-    static func appNames() -> [String] { groups.keys.sorted() }
+    static func pluginNames() -> [String] { groups.keys.sorted() }
 }
