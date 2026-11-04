@@ -763,4 +763,36 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(saved?[guild]?.isEmpty ?? true)
     }
 
+    func testAutoRolePolicyChecksHierarchyAndPrivilegedPermissions() {
+        let guild = "123456789012345678"
+        let botRoleID = "223456789012345678"
+        let targetRoleID = "323456789012345678"
+        let botRole: [String: Any] = [
+            "id": botRoleID, "position": 10, "permissions": "268435456", "managed": false,
+        ]
+        let safeRole: [String: Any] = [
+            "id": targetRoleID, "position": 5, "permissions": "0", "managed": false,
+        ]
+        XCTAssertNoThrow(
+            try AutoRolePolicy.validate(
+                guildID: guild, roleID: targetRoleID,
+                roles: [botRole, safeRole], botRoleIDs: [botRoleID]))
+
+        let elevatedRole: [String: Any] = [
+            "id": targetRoleID, "position": 5, "permissions": "8", "managed": false,
+        ]
+        XCTAssertThrowsError(
+            try AutoRolePolicy.validate(
+                guildID: guild, roleID: targetRoleID,
+                roles: [botRole, elevatedRole], botRoleIDs: [botRoleID]))
+
+        let higherRole: [String: Any] = [
+            "id": targetRoleID, "position": 11, "permissions": "0", "managed": false,
+        ]
+        XCTAssertThrowsError(
+            try AutoRolePolicy.validate(
+                guildID: guild, roleID: targetRoleID,
+                roles: [botRole, higherRole], botRoleIDs: [botRoleID]))
+    }
+
 }
