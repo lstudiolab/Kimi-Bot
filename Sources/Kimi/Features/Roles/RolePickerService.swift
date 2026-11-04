@@ -108,11 +108,12 @@ actor RolePickerService {
             else { throw KimiError.configuration("A selected role is no longer safe or assignable.") }
         }
         let key = "rolepicker.selection." + guild + "." + user + "." + (menuID ?? "default")
-        let previous = Set(await store.get(key, as: [String].self) ?? [])
-        for role in previous.subtracting(chosen) {
+        let member = try await rest.call("GET", "guilds/\(guild)/members/\(user)") as? [String: Any] ?? [:]
+        let currentRoles = Set(member["roles"] as? [String] ?? [])
+        for role in currentRoles.intersection(allowed).subtracting(chosen) {
             _ = try await rest.call("DELETE", "guilds/\(guild)/members/\(user)/roles/\(role)")
         }
-        for role in chosen.subtracting(previous) {
+        for role in chosen.subtracting(currentRoles) {
             _ = try await rest.call("PUT", "guilds/\(guild)/members/\(user)/roles/\(role)")
         }
         try await store.setGuild(Array(chosen), key: key, guildID: guild)
