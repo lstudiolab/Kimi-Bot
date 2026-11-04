@@ -36,7 +36,8 @@ extension KimiRuntime {
                         style: installed.contains(pluginName) ? 2 : 1)
                 }
                 let rows = KimiUI.buttonRows(buttons)
-                try await rest.editKimiInteraction(app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
+                try await rest.editKimiInteraction(
+                    app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
             } else if custom.hasPrefix("settings:plugin:") || custom.hasPrefix("settings:app:") {
                 let prefix = custom.hasPrefix("settings:plugin:") ? "settings:plugin:" : "settings:app:"
                 let pluginName = String(custom.dropFirst(prefix.count))
