@@ -485,11 +485,11 @@ extension KimiRuntime {
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("protection", guild: guild) else {
                 return
             }
+            guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            let owner = (try? await rest.ownerID(guild)) ?? ""
             let target = data["target_id"] as? String
             let privilegedMask = SecurityPolicy.privilegedPermissionBits.reduce(UInt64(0), { $0 | $1 })
-            if let owner, actor != owner, (action == 30 || action == 31), let target {
+            if (action == 30 || action == 31), let target {
                 let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
                 if let role = roles.first(where: { ($0["id"] as? String) == target }) {
                     let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
@@ -509,7 +509,7 @@ extension KimiRuntime {
                     }
                 }
             }
-            if let owner, actor != owner, [13, 14, 15].contains(action) {
+            if [13, 14, 15].contains(action) {
                 let options = data["options"] as? [String: Any] ?? [:]
                 let channelID = options["channel_id"] as? String
                 let overwriteID = options["id"] as? String ?? target
@@ -553,7 +553,7 @@ extension KimiRuntime {
                     }
                 }
             }
-            if let owner, actor != owner, action == 25, let target {
+            if action == 25, let target {
                 let changes = data["changes"] as? [[String: Any]] ?? []
                 let additions = changes.first(where: { ($0["key"] as? String) == "$add" })?["new_value"] as? [[String: Any]] ?? []
                 let addedRoleIDs = additions.compactMap { $0["id"] as? String }
