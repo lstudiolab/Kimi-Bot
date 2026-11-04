@@ -298,6 +298,14 @@ final class CoreTests: XCTestCase {
         )
         XCTAssertTrue(link?.reason.contains("Suspicious or tracking URL") == true)
 
+        let advertising = await engine.evaluate(
+            guildID: "123456789012345678",
+            userID: "223456789012345679",
+            messageID: "323456789012345679",
+            content: "Join my server https://example.com"
+        )
+        XCTAssertTrue(advertising?.reason.contains("Unsolicited self-advertising") == true)
+
         let now = Date()
         _ = await engine.evaluate(
             guildID: "123456789012345678",
