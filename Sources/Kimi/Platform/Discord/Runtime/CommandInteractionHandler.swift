@@ -109,6 +109,7 @@ extension KimiRuntime {
                         KimiUI.button(id: "screen:lock:invites", label: "Toggle invite filter"),
                         KimiUI.button(id: "screen:lock:mentions", label: "Toggle mention filter"),
                         KimiUI.button(id: "screen:lock:caps", label: "Toggle caps filter"),
+                        KimiUI.button(id: "screen:lock:advertising", label: "Toggle ad filter"),
                     ]),
                     KimiUI.row([
                         KimiUI.stringSelect(id: "screen:lock:sanction", placeholder: "Automatic sanction", options: [
