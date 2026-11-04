@@ -201,7 +201,7 @@ extension KimiRuntime {
             }
             if user != owner && !privileged,
                 let finding = await ModerationEngine(store: store).evaluate(
-                    guildID: guild, userID: user, messageID: message, content: content, channelID: channel)
+                    guildID: guild, userID: user, messageID: message, content: content, channelID: channel, attachments: attachments, stickerCount: (data["sticker_items"] as? [Any] ?? []).count, mentionEveryone: data["mention_everyone"] as? Bool ?? false, roleMentionCount: (data["mention_roles"] as? [String] ?? []).count, userMentionCount: mentionedUsers.count)
             {
                 let policy = await ModerationEngine(store: store).policy(guildID: guild)
                 try? await store.set(true, key: "moderation.deleted." + message)
