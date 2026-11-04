@@ -95,8 +95,8 @@ actor ModerationEngine {
         guard ["timeout", "kick", "ban", "delete"].contains(value.sanction) else {
             throw KimiError.configuration("Sanction must be timeout, kick, ban or delete.")
         }
-        policies[guildID] = value
         try await store.setGuild(value, key: "moderation." + guildID, guildID: guildID)
+        policies[guildID] = value
     }
     private func normalized(_ input: String) -> String {
         let folded = input.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
