@@ -420,9 +420,14 @@ extension KimiRuntime {
                 let closed = try await SupportService(store: store, rest: rest, logger: logger).close(
                     guild: guild, ticketID: ticketID)
                 await AnalyticsService(store: store).record(guild: guild, event: "ticket_close")
+                let transcriptRetained = await store.get(
+                    "support.transcript." + guild + "." + ticketID, as: String.self) != nil
+                let transcriptStatus = transcriptRetained
+                    ? "Transcript retained in Kimi storage."
+                    : "The ticket was closed, but local transcript retention failed."
                 try await rest.editKimiInteraction(
                     app, token,
-                    "Ticket closed. Transcript retained in Kimi storage. Channel: <#" + closed.channelID + ">")
+                    "Ticket closed. " + transcriptStatus + " Channel: <#" + closed.channelID + ">")
             } else if custom == "ticket:cancel-close" {
                 try await rest.editKimiInteraction(app, token, "Ticket remains open.")
             } else if custom == "verify:start" {
