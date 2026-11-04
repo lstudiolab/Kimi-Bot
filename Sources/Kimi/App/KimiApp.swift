@@ -397,9 +397,11 @@ actor DiscordREST {
 actor GatewayEventDispatcher {
     private let handler: @Sendable ([String: Any]) async -> Void
     private let logger: Logger
-    private let maximumConcurrent = 16
+    private let maximumConcurrentInteractions = 8
+    private let maximumConcurrentEvents = 16
     private let maximumQueued = 2048
-    private var active = 0
+    private var activeInteractions = 0
+    private var activeEvents = 0
     private var interactions: [[String: Any]] = []
     private var events: [[String: Any]] = []
     private var lastOverflowLog = Date.distantPast
@@ -430,19 +432,32 @@ actor GatewayEventDispatcher {
     }
 
     private func schedule() {
-        while active < maximumConcurrent && (!interactions.isEmpty || !events.isEmpty) {
-            let event = interactions.isEmpty ? events.removeFirst() : interactions.removeFirst()
-            active += 1
+        while activeInteractions < maximumConcurrentInteractions && !interactions.isEmpty {
+            let event = interactions.removeFirst()
+            activeInteractions += 1
             let handler = self.handler
             Task {
                 await handler(event)
-                await self.completed()
+                await self.completed(isInteraction: true)
+            }
+        }
+        while activeEvents < maximumConcurrentEvents && !events.isEmpty {
+            let event = events.removeFirst()
+            activeEvents += 1
+            let handler = self.handler
+            Task {
+                await handler(event)
+                await self.completed(isInteraction: false)
             }
         }
     }
 
-    private func completed() {
-        active = max(0, active - 1)
+    private func completed(isInteraction: Bool) {
+        if isInteraction {
+            activeInteractions = max(0, activeInteractions - 1)
+        } else {
+            activeEvents = max(0, activeEvents - 1)
+        }
         schedule()
     }
 }
