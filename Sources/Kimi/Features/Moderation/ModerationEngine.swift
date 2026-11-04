@@ -67,6 +67,7 @@ actor ModerationEngine {
     private var duplicateHistory: [String: [DuplicateEvent]] = [:]
     private var evaluationInProgress = false
     private var evaluationWaiters: [CheckedContinuation<Void, Never>] = []
+    private var evaluationWaiterHead = 0
 
     private func acquireEvaluation() async {
         if !evaluationInProgress {
@@ -79,11 +80,19 @@ actor ModerationEngine {
     }
 
     private func releaseEvaluation() {
-        if evaluationWaiters.isEmpty {
+        guard evaluationWaiterHead < evaluationWaiters.count else {
+            evaluationWaiters.removeAll(keepingCapacity: true)
+            evaluationWaiterHead = 0
             evaluationInProgress = false
-        } else {
-            evaluationWaiters.removeFirst().resume()
+            return
         }
+        let continuation = evaluationWaiters[evaluationWaiterHead]
+        evaluationWaiterHead += 1
+        if evaluationWaiterHead >= 128 && evaluationWaiterHead * 2 >= evaluationWaiters.count {
+            evaluationWaiters.removeFirst(evaluationWaiterHead)
+            evaluationWaiterHead = 0
+        }
+        continuation.resume()
     }
 
     init(store: PersistentStore) { self.store = store }
