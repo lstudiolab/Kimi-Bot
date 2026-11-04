@@ -11,11 +11,12 @@ actor ModerationEngine {
         var blockInvites: Bool = true
         var blockMassMentions: Bool = true
         var blockExcessiveCaps: Bool = true
+        var blockSelfAdvertising: Bool = true
         var logChannelID: String?
         init() {}
         enum CodingKeys: String, CodingKey {
             case enabled, messagesPerMinute, timeoutMinutes, blockedPhrases, sanction, actionDurationSeconds,
-                blockInvites, blockMassMentions, blockExcessiveCaps, logChannelID
+                blockInvites, blockMassMentions, blockExcessiveCaps, blockSelfAdvertising, logChannelID
         }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -28,6 +29,7 @@ actor ModerationEngine {
             blockInvites = try c.decodeIfPresent(Bool.self, forKey: .blockInvites) ?? true
             blockMassMentions = try c.decodeIfPresent(Bool.self, forKey: .blockMassMentions) ?? true
             blockExcessiveCaps = try c.decodeIfPresent(Bool.self, forKey: .blockExcessiveCaps) ?? true
+            blockSelfAdvertising = try c.decodeIfPresent(Bool.self, forKey: .blockSelfAdvertising) ?? true
             logChannelID = try c.decodeIfPresent(String.self, forKey: .logChannelID)
         }
     }
@@ -221,6 +223,15 @@ actor ModerationEngine {
         let invite = value.blockInvites && content.range(
             of: #"(?i)(?:discord\.gg/|discord(?:app)?\.com/invite/)"#, options: .regularExpression) != nil
         let suspiciousLink = containsSuspiciousURL(content)
+        let lowerContent = content.lowercased()
+        let promotionPhrases = [
+            "subscribe to my", "follow my", "join my server", "join my discord",
+            "check out my channel", "check out my server", "use my referral",
+            "use my code", "buy from my", "visit my shop", "commissions open",
+        ]
+        let selfAdvertising = value.blockSelfAdvertising
+            && (content.contains("http://") || content.contains("https://") || content.contains("www."))
+            && promotionPhrases.contains { lowerContent.contains($0) }
         let attachmentsBlocked = attachments.contains { item in
             let filename = item["filename"] as? String ?? ""
             let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
@@ -242,7 +253,7 @@ actor ModerationEngine {
         try? await store.setGuild(repeated, key: duplicateKey, guildID: guildID)
         let duplicate = repeated.filter { $0.content == normalizedContent }.count >= 3 && normalizedContent.count > 3
         let triggered = customTerm != nil || profanity || spam || excessive || caps || formattingWall
-            || emojiSpam || massMention || invite || suspiciousLink || attachmentsBlocked || duplicate
+            || emojiSpam || massMention || invite || suspiciousLink || selfAdvertising || attachmentsBlocked || duplicate
         guard triggered else { return nil }
 
         var reasons: [String] = []
@@ -258,6 +269,7 @@ actor ModerationEngine {
         if massMention { add("Mass mention abuse", 80) }
         if invite { add("Unsolicited Discord invite", 65) }
         if suspiciousLink { add("Suspicious or tracking URL", 90) }
+        if selfAdvertising { add("Unsolicited self-advertising", 55) }
         if attachmentsBlocked { add("Executable or script attachment", 95) }
         if duplicate { add("Repeated message burst", 55) }
 
