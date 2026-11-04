@@ -22,6 +22,9 @@ final class CoreTests: XCTestCase {
         ] {
             XCTAssertTrue(names.contains(required), "Missing global command: " + required)
         }
+        for removed in ["apps", "app-store", "install", "uninstall"] {
+            XCTAssertFalse(names.contains(removed), "Legacy app command is still registered: " + removed)
+        }
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Kimi Lock"))
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Support"))
     }
