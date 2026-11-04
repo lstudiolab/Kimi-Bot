@@ -466,4 +466,43 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(finding?.reason.contains("Unsolicited Discord invite") == true)
     }
 
+    func testSecurityPolicyRejectsPrivilegedChannelAndEventRoles() {
+        XCTAssertFalse(
+            SecurityPolicy.isSafeRole(
+                roleID: "223456789012345678", guildID: "123456789012345678",
+                managed: false, permissions: 1 << 4),
+            "Manage Channels must not be assignable through automated role menus."
+        )
+        XCTAssertFalse(
+            SecurityPolicy.isSafeRole(
+                roleID: "223456789012345679", guildID: "123456789012345678",
+                managed: false, permissions: 1 << 33),
+            "Manage Events must not be assignable through automated role menus."
+        )
+        XCTAssertTrue(
+            SecurityPolicy.isSafeRole(
+                roleID: "223456789012345680", guildID: "123456789012345678",
+                managed: false, permissions: 1 << 11)
+        )
+    }
+
+    func testModerationCacheChangesOnlyAfterSuccessfulPersistence() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "kimi-moderation-cache-" + UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: directory.appendingPathComponent("timi.json"), withIntermediateDirectories: true)
+        let store = try PersistentStore(directory: directory)
+        let engine = ModerationEngine(store: store)
+        var changed = ModerationEngine.Policy()
+        changed.messagesPerMinute = 77
+        do {
+            try await engine.configure(changed, guildID: "123456789012345678")
+            XCTFail("Configuration should fail when the store path is not writable.")
+        } catch {}
+        let current = await engine.policy(guildID: "123456789012345678")
+        XCTAssertEqual(current.messagesPerMinute, 20)
+    }
+
 }
