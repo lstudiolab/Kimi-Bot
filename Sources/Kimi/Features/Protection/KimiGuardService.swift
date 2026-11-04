@@ -71,9 +71,15 @@ actor KimiGuardService {
             id: UUID().uuidString, guildID: guild, actorID: actor, action: action, reason: reason,
             originalRoles: roleIDs, removedRoles: removed, createdAt: Date(), timeoutUntil: timeoutUntil,
             status: removed.isEmpty && timeoutUntil == nil ? "review_required" : "restricted")
-        var all = await store.get("guard.incidents", as: [String: Incident].self) ?? [:]
-        all[guild + ":" + actor] = incident
-        try await store.set(all, key: "guard.incidents")
+        _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
+            var all = stored ?? [:]
+            all[guild + ":" + actor] = incident
+            if all.count > 1000 {
+                let stale = all.sorted { $0.value.createdAt < $1.value.createdAt }
+                for entry in stale.prefix(all.count - 1000) { all.removeValue(forKey: entry.key) }
+            }
+            return (all, ())
+        }
         await logger.log(
             "WARN",
             "Kimi Guard " + incident.status + " actor " + actor + " in " + guild + "; removed " + String(removed.count)
@@ -94,9 +100,16 @@ actor KimiGuardService {
         }
 
         if decision == "keep" {
-            incident.status = "kept"
-            all[key] = incident
-            try await store.set(all, key: "guard.incidents")
+            var kept = incident
+            kept.status = "kept"
+            _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
+                var values = stored ?? [:]
+                guard values[key]?.id == incident.id else {
+                    throw KimiError.configuration("This incident changed during review. Reload the review panel.")
+                }
+                values[key] = kept
+                return (values, ())
+            }
             return "The account remains restricted."
         }
         guard decision == "restore" else {
@@ -145,8 +158,14 @@ actor KimiGuardService {
         }
 
         incident.status = failures.isEmpty ? "released" : "partial_release"
-        all[key] = incident
-        try await store.set(all, key: "guard.incidents")
+        _ = try await store.modify("guard.incidents", as: [String: Incident].self) { stored in
+            var values = stored ?? [:]
+            guard values[key]?.id == incident.id else {
+                throw KimiError.configuration("This incident changed during review. Reload the review panel.")
+            }
+            values[key] = incident
+            return (values, ())
+        }
 
         if failures.isEmpty {
             return "Incident reviewed. Restored \\(safe.count) safe roles. Elevated roles were not restored."
