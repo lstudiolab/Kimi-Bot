@@ -28,7 +28,11 @@ extension KimiRuntime {
     func cachedGuildOwnerID(_ guild: String) async -> String? {
         let key = "runtime.guild-owner." + guild
         if let cached = await store.get(key, as: String.self) { return cached }
-        guard let owner = await cachedGuildOwnerID(guild) else { return nil }
+
+        guard let owner = try? await rest.ownerID(guild), !owner.isEmpty else {
+            return nil
+        }
+
         try? await store.set(owner, key: key)
         return owner
     }
