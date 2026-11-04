@@ -20,7 +20,14 @@ actor AuditProtection {
         var events = (activity[key] ?? []).filter { now.timeIntervalSince($0) < 20 }
         events.append(now)
         activity[key] = events
-        guard events.count > max(1, threshold) else { return nil }
+        let sensitiveThreshold: Int
+        switch action {
+        case "12", "13", "14", "15", "32", "50": sensitiveThreshold = 2
+        case "20", "22", "25", "30": sensitiveThreshold = 3
+        case "1", "10", "11": sensitiveThreshold = 4
+        default: sensitiveThreshold = threshold
+        }
+        guard events.count > max(1, min(threshold, sensitiveThreshold)) else { return nil }
         let item = Incident(
             id: UUID().uuidString, guildID: guildID, actorID: actorID, action: action, count: events.count,
             reason: "Repeated privileged audit action exceeded the rolling threshold.", createdAt: now)
