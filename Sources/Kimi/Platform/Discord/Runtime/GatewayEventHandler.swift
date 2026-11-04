@@ -479,8 +479,12 @@ extension KimiRuntime {
             guard installed.contains("Kimi Lock"), await migratedModuleEnabled("protection", guild: guild) else {
                 return
             }
-            guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
+            if action == 30 || action == 31 {
+                let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
+                for role in roles { await recovery.captureRole(guild, role) }
+            }
+            guard let owner = try? await rest.ownerID(guild), actor != owner else { return }
             let target = data["target_id"] as? String
             if action == 12, let target, await migratedModuleEnabled("recovery", guild: guild) {
                 await recovery.queueDeletedChannel(guild, target)
@@ -580,10 +584,6 @@ extension KimiRuntime {
             }
             if action == 32, let target {
                 await recovery.queueDeletedRole(guild, target)
-            }
-            if action == 30 || action == 31 {
-                let roles = (try? await rest.call("GET", "guilds/" + guild + "/roles") as? [[String: Any]]) ?? []
-                for role in roles { await recovery.captureRole(guild, role) }
             }
             do {
                 if let incident = try await AuditProtection(store: store).record(
