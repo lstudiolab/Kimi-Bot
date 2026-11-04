@@ -577,6 +577,7 @@ extension KimiRuntime {
                 let oldAllow = permissionValue(changes.first(where: { ($0["key"] as? String) == "allow" })?["old_value"])
                 let oldDeny = permissionValue(changes.first(where: { ($0["key"] as? String) == "deny" })?["old_value"])
                 let newAllow = permissionValue(changes.first(where: { ($0["key"] as? String) == "allow" })?["new_value"])
+                let newDeny = permissionValue(changes.first(where: { ($0["key"] as? String) == "deny" })?["new_value"])
                 if let channelID, let overwriteID {
                     do {
                         if action == 13, let newAllow, newAllow & privilegedMask != 0 {
@@ -585,8 +586,8 @@ extension KimiRuntime {
                                 auditReason: "Kimi Lock reverted an unauthorized privileged permission overwrite"
                             )
                             await logger.log("WARN", "Kimi Lock removed an unauthorized privileged channel overwrite.")
-                        } else if action == 14, let oldAllow, let oldDeny, let newAllow,
-                            newAllow & ~oldAllow & privilegedMask != 0
+                        } else if action == 14, let oldAllow, let oldDeny, let newAllow, let newDeny,
+                            (newAllow & ~oldAllow & privilegedMask != 0 || oldDeny & ~newDeny & privilegedMask != 0)
                         {
                             _ = try await rest.call(
                                 "PUT", "channels/" + channelID + "/permissions/" + overwriteID,
