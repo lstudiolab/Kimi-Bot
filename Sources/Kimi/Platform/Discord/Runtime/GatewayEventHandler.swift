@@ -489,7 +489,9 @@ extension KimiRuntime {
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
-            if installed.contains("Kimi Lock"), recoveryEnabled {
+            if installed.contains("Kimi Lock"), recoveryEnabled,
+                let editedContent = data["content"] as? String
+            {
                 let attachments = (data["attachments"] as? [[String: Any]] ?? []).compactMap {
                     item -> RecoveryService.Attachment? in
                     guard let url = item["url"] as? String else { return nil }
@@ -498,7 +500,7 @@ extension KimiRuntime {
                         contentType: item["content_type"] as? String, size: item["size"] as? Int)
                 }
                 await RecoveryService(store: store, logger: logger, rest: rest).captureMessage(
-                    guild, channel, message, user, data["content"] as? String ?? "",
+                    guild, channel, message, user, editedContent,
                     attachments: attachments, authorName: author["username"] as? String)
             }
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
