@@ -523,7 +523,6 @@ actor DiscordGateway {
         while !Task.isCancelled {
             do {
                 try await connect()
-                reconnectDelay = 2_000_000_000
             } catch { await logger.log("ERROR", "Discord Gateway: " + error.localizedDescription) }
             heartbeat?.cancel()
             heartbeat = nil
@@ -551,7 +550,18 @@ actor DiscordGateway {
         await logger.log("INFO", "Discord Gateway socket connected.")
         var incomingBuffer = Data()
         while true {
-            let message = try await ws.receive()
+            let message: URLSessionWebSocketTask.Message
+            do {
+                message = try await ws.receive()
+            } catch {
+                if [4006, 4007, 4009].contains(ws.closeCode.rawValue) {
+                    sessionID = nil
+                    sequence = nil
+                    resumeURL = nil
+                    await logger.log("WARN", "Discord Gateway session expired; the next connection will identify again.")
+                }
+                throw error
+            }
             let chunk: Data
             switch message {
             case .data(let value): chunk = value
@@ -639,8 +649,12 @@ actor DiscordGateway {
                     if name == "READY" {
                         sessionID = payload["session_id"] as? String
                         resumeURL = payload["resume_gateway_url"] as? String
+                        reconnectDelay = 2_000_000_000
                     }
-                    if name == "RESUMED" { await logger.log("INFO", "Discord Gateway session resumed.") }
+                    if name == "RESUMED" {
+                        reconnectDelay = 2_000_000_000
+                        await logger.log("INFO", "Discord Gateway session resumed.")
+                    }
                     // Keep application work off the receive loop while bounding queued and active work.
                     await dispatcher.enqueue(
                         ["name": name, "data": payload], isInteraction: name == "INTERACTION_CREATE")
