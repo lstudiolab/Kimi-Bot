@@ -303,7 +303,10 @@ actor DiscordREST {
     }
     func createChannel(guild: String, name: String, type: Int = 0) async throws -> String {
         let value = try await call("POST", "guilds/\(guild)/channels", body: ["name": name, "type": type])
-        return (value as? [String: Any])?["id"] as? String ?? ""
+        guard let id = (value as? [String: Any])?["id"] as? String, !id.isEmpty else {
+            throw KimiError.invalidResponse
+        }
+        return id
     }
 }
 actor DiscordGateway {
