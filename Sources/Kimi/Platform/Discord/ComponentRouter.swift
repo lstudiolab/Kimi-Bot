@@ -14,6 +14,12 @@ enum ComponentRouter {
             String), verifyReject(String), roleSelect, botApprove(String), botReject(String), settings(String), unknown
     }
     static func plugin(for id: String) -> Plugin? {
+        if id.hasPrefix("screen:ticket:") { return .support }
+        if id.hasPrefix("screen:lock:") { return .kimiLock }
+        if id.hasPrefix("screen:welcome:") { return .welcome }
+        if id.hasPrefix("screen:auto-role:") { return .autoRole }
+        if id.hasPrefix("screen:role-picker:") { return .rolePicker }
+        if id.hasPrefix("screen:embeds:") { return .embeds }
         if id.hasPrefix("ticket:") { return .support }
         if id.hasPrefix("modpanel:") || id.hasPrefix("botguard:") || id.hasPrefix("verify:") { return .kimiLock }
         if id.hasPrefix("rolepicker:") { return .rolePicker }
