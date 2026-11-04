@@ -413,6 +413,7 @@ actor KimiRuntime {
     let clientID: String
     let dashboardURL: String?
     let performance: PerformanceMonitor
+    let moderation: ModerationEngine
     init(
         rest: DiscordREST, store: PersistentStore, logger: Logger, clientID: String, dashboardURL: String? = nil,
         performance: PerformanceMonitor = PerformanceMonitor()
@@ -423,6 +424,7 @@ actor KimiRuntime {
         self.clientID = clientID
         self.dashboardURL = dashboardURL
         self.performance = performance
+        self.moderation = ModerationEngine(store: store)
     }
     func handle(_ event: [String: Any]) async { _ = await handleMigratedCommand(event) }
 
