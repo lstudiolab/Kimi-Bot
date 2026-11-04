@@ -196,12 +196,25 @@ actor SupportService {
         return ticket
     }
     func setPriority(guild: String, ticketID: String, priority: String) async throws -> SupportTickets.Ticket {
-        let ticket = try await SupportTickets(store: store).setPriority(
-            id: ticketID, guildID: guild, priority: priority)
-        _ = try await rest.call(
-            "PATCH", "channels/\(ticket.channelID)",
-            body: ["name": SecurityPolicy.channelName(priority + "-ticket-" + String(ticket.id.prefix(8)))])
-        return ticket
+        let tickets = SupportTickets(store: store)
+        guard let previous = await tickets.all().first(where: { $0.id == ticketID && $0.guildID == guild }) else {
+            throw TicketError.notFound
+        }
+        guard previous.isOpen else { throw TicketError.alreadyClosed }
+        let updated = try await tickets.setPriority(id: ticketID, guildID: guild, priority: priority)
+        do {
+            _ = try await rest.call(
+                "PATCH", "channels/\(updated.channelID)",
+                body: ["name": SecurityPolicy.channelName(priority + "-ticket-" + String(updated.id.prefix(8)))])
+            return updated
+        } catch {
+            do {
+                _ = try await tickets.setPriority(id: ticketID, guildID: guild, priority: previous.priority)
+            } catch {
+                await logger.log("ERROR", "Ticket priority rollback failed: " + error.localizedDescription)
+            }
+            throw error
+        }
     }
     func close(guild: String, ticketID: String) async throws -> SupportTickets.Ticket {
         let tickets = SupportTickets(store: store)
