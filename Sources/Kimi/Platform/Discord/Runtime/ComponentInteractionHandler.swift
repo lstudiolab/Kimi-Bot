@@ -202,6 +202,11 @@ extension KimiRuntime {
                         throw KimiError.configuration("Select a ticket panel channel first.")
                     }
                     try await SupportService(store: store, rest: rest, logger: logger).publishPanel(guild: guild, channel: target)
+                } else if ["screen:lock:verification", "screen:lock:protection", "screen:lock:recovery"].contains(custom) {
+                    let module = String(custom.dropFirst("screen:lock:".count))
+                    var modules = await store.get("plugins.modules." + guild, as: [String: Bool].self) ?? [:]
+                    modules[module] = !(await migratedModuleEnabled(module, guild: guild))
+                    try await store.setGuild(modules, key: "plugins.modules." + guild, guildID: guild)
                 } else if custom.hasPrefix("screen:lock:") {
                     let engine = moderation
                     var policy = await engine.policy(guildID: guild)
