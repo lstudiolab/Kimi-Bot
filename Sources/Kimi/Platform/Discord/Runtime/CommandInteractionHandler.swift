@@ -2,7 +2,7 @@ import Foundation
 
 extension KimiRuntime {
     func handleMigratedCommand(_ event: [String: Any]) async -> Bool {
-        guard let interactionType = event["type"] as? Int, interactionType == 2 || interactionType == 3 else {
+        guard let interactionType = event["type"] as? Int, interactionType == 2 || interactionType == 3 || interactionType == 5 else {
             return false
         }
         let started = Date()
@@ -26,7 +26,7 @@ extension KimiRuntime {
             }
             return nil
         }
-        if interactionType == 3 { return await handleMigratedComponent(event, data: data) }
+        if interactionType == 3 || interactionType == 5 { return await handleMigratedComponent(event, data: data) }
         do { try await rest.deferKimiInteraction(id, token) } catch {
             await logger.log("WARN", "Interaction acknowledgement failed: " + error.localizedDescription)
             return true
