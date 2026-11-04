@@ -24,25 +24,33 @@ actor AnalyticsService {
     private let store: PersistentStore
     init(store: PersistentStore) { self.store = store }
     func record(guild: String, event: String, at date: Date = Date()) async {
-        var all = await store.get("analytics.daily", as: [String: [Day]].self) ?? [:]
-        let parts = Calendar(identifier: .gregorian).dateComponents(in: TimeZone(secondsFromGMT: 0)!, from: date)
-        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
-        var rows = all[guild] ?? []
-        var value = rows.first(where: { $0.date == day }) ?? Day(date: day)
-        switch event {
-        case "message": value.messages += 1
-        case "join": value.joins += 1
-        case "leave": value.leaves += 1
-        case "command": value.commands += 1
-        case "moderation": value.moderation += 1
-        case "ticket_open": value.ticketsOpened += 1
-        case "ticket_close": value.ticketsClosed += 1
-        default: break
+        do {
+            try await store.update("analytics.daily", as: [String: [Day]].self) { stored in
+                var all = stored ?? [:]
+                let parts = Calendar(identifier: .gregorian).dateComponents(
+                    in: TimeZone(secondsFromGMT: 0)!, from: date)
+                let day = String(
+                    format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+                var rows = all[guild] ?? []
+                var value = rows.first(where: { $0.date == day }) ?? Day(date: day)
+                switch event {
+                case "message": value.messages += 1
+                case "join": value.joins += 1
+                case "leave": value.leaves += 1
+                case "command": value.commands += 1
+                case "moderation": value.moderation += 1
+                case "ticket_open": value.ticketsOpened += 1
+                case "ticket_close": value.ticketsClosed += 1
+                default: break
+                }
+                rows.removeAll { $0.date == day }
+                rows.append(value)
+                all[guild] = Array(rows.sorted { $0.date < $1.date }.suffix(30))
+                return all
+            }
+        } catch {
+            // Analytics must never interrupt moderation or command handling.
         }
-        rows.removeAll { $0.date == day }
-        rows.append(value)
-        all[guild] = Array(rows.sorted { $0.date < $1.date }.suffix(30))
-        try? await store.set(all, key: "analytics.daily")
     }
     func report(guild: String) async -> Summary {
         let rows = (await store.get("analytics.daily", as: [String: [Day]].self) ?? [:])[guild] ?? []
