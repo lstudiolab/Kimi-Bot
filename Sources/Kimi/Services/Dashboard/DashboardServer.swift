@@ -343,7 +343,14 @@ final class DashboardServer: @unchecked Sendable {
     private func beginOAuth(fd: Int32) {
         let state = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         lock.lock()
-        states[state] = Date().addingTimeInterval(600)
+        let now = Date()
+        states = states.filter { $0.value > now }
+        if states.count >= 1000 {
+            for entry in states.sorted(by: { $0.value < $1.value }).prefix(states.count - 999) {
+                states.removeValue(forKey: entry.key)
+            }
+        }
+        states[state] = now.addingTimeInterval(600)
         lock.unlock()
         var c = URLComponents(string: "https://discord.com/oauth2/authorize")!
         c.queryItems = [
@@ -560,6 +567,13 @@ final class DashboardServer: @unchecked Sendable {
     }
     private func saveSession(_ token: String, _ session: Session) {
         lock.lock()
+        let now = Date()
+        sessions = sessions.filter { $0.value.expiresAt > now }
+        if sessions.count >= 500,
+            let oldest = sessions.min(by: { $0.value.expiresAt < $1.value.expiresAt })?.key
+        {
+            sessions.removeValue(forKey: oldest)
+        }
         sessions[token] = session
         lock.unlock()
     }
@@ -626,7 +640,19 @@ final class DashboardServer: @unchecked Sendable {
         for (key, value) in headers { head += key + ": " + value + "\r\n" }
         head += "\r\n"
         let data = Data((head + body).utf8)
-        data.withUnsafeBytes { buffer in if let base = buffer.baseAddress { _ = send(fd, base, buffer.count, 0) } }
+        data.withUnsafeBytes { buffer in
+            guard let base = buffer.baseAddress else { return }
+            var offset = 0
+            while offset < buffer.count {
+                let sent = send(fd, base.advanced(by: offset), buffer.count - offset, 0)
+                if sent < 0 {
+                    if errno == EINTR { continue }
+                    break
+                }
+                if sent == 0 { break }
+                offset += sent
+            }
+        }
     }
     private func closeSocket(_ fd: Int32) {
         #if canImport(Glibc)
