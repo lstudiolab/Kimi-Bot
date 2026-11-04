@@ -12,43 +12,57 @@ actor VerificationRecords {
     }
     private let store: PersistentStore
     init(store: PersistentStore) { self.store = store }
+
     func record(guildID: String, userID: String) async -> Record {
         let all = await store.get("verification.records", as: [String: Record].self) ?? [:]
         return all[guildID + ":" + userID] ?? Record(guildID: guildID, userID: userID)
     }
+
     func attempt(guildID: String, userID: String) async throws -> Record {
-        var all = await store.get("verification.records", as: [String: Record].self) ?? [:]
         let key = guildID + ":" + userID
-        var value = all[key] ?? Record(guildID: guildID, userID: userID)
-        value.attempts += 1
-        all[key] = value
-        try await store.set(all, key: "verification.records")
+        let all = try await store.update("verification.records", as: [String: Record].self) { stored in
+            var values = stored ?? [:]
+            var value = values[key] ?? Record(guildID: guildID, userID: userID)
+            value.attempts += 1
+            values[key] = value
+            return values
+        }
+        guard let value = all[key] else { throw KimiError.invalidResponse }
         return value
     }
+
     func markFailed(guildID: String, userID: String, reason: String) async throws {
-        var all = await store.get("verification.records", as: [String: Record].self) ?? [:]
         let key = guildID + ":" + userID
-        var value = all[key] ?? Record(guildID: guildID, userID: userID)
-        value.failures += 1
-        value.lastReason = String(reason.prefix(300))
-        all[key] = value
-        try await store.set(all, key: "verification.records")
+        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+            var values = stored ?? [:]
+            var value = values[key] ?? Record(guildID: guildID, userID: userID)
+            value.failures += 1
+            value.lastReason = String(reason.prefix(300))
+            values[key] = value
+            return values
+        }
     }
+
     func setReviewMessage(guildID: String, userID: String, messageID: String) async throws {
-        var all = await store.get("verification.records", as: [String: Record].self) ?? [:]
         let key = guildID + ":" + userID
-        var value = all[key] ?? Record(guildID: guildID, userID: userID)
-        value.reviewMessageID = messageID
-        all[key] = value
-        try await store.set(all, key: "verification.records")
+        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+            var values = stored ?? [:]
+            var value = values[key] ?? Record(guildID: guildID, userID: userID)
+            value.reviewMessageID = messageID
+            values[key] = value
+            return values
+        }
     }
+
     func markVerified(guildID: String, userID: String) async throws {
-        var all = await store.get("verification.records", as: [String: Record].self) ?? [:]
         let key = guildID + ":" + userID
-        var value = all[key] ?? Record(guildID: guildID, userID: userID)
-        value.verifiedAt = Date()
-        value.reviewMessageID = nil
-        all[key] = value
-        try await store.set(all, key: "verification.records")
+        _ = try await store.update("verification.records", as: [String: Record].self) { stored in
+            var values = stored ?? [:]
+            var value = values[key] ?? Record(guildID: guildID, userID: userID)
+            value.verifiedAt = Date()
+            value.reviewMessageID = nil
+            values[key] = value
+            return values
+        }
     }
 }
