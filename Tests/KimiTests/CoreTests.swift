@@ -135,7 +135,7 @@ final class CoreTests: XCTestCase {
     }
 
     func testDiscordTextUsesUTF16Boundaries() {
-        XCTAssertEqual(DiscordText.prefixUTF16("😀😀A", limit: 3), "😀A")
+        XCTAssertEqual(DiscordText.prefixUTF16("😀😀A", limit: 3), "😀")
         XCTAssertEqual(DiscordText.prefixUTF16("😀A", limit: 1), "")
         XCTAssertEqual(DiscordText.prefixUTF16("abc", limit: 2), "ab")
     }
