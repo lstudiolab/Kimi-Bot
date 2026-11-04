@@ -31,14 +31,31 @@ enum KimiUI {
             if items.contains(where: { ($0["type"] as? Int) != 2 }) && items.count != 1 {
                 throw KimiError.configuration("Select menus and text inputs must occupy their own action row.")
             }
+            if let menu = items.first, let type = menu["type"] as? Int, [3, 5, 6, 7, 8].contains(type) {
+                let minimum = menu["min_values"] as? Int ?? 0
+                let maximum = menu["max_values"] as? Int ?? 1
+                guard minimum >= 0, maximum >= 1, minimum <= maximum, maximum <= 25 else {
+                    throw KimiError.configuration("A select menu has invalid minimum or maximum selections.")
+                }
+                if type == 3 {
+                    let options = menu["options"] as? [[String: Any]] ?? []
+                    guard !options.isEmpty, options.count <= 25, maximum <= options.count else {
+                        throw KimiError.configuration("A string select menu must have 1–25 options and a valid selection limit.")
+                    }
+                }
+            }
         }
     }
     static func stringSelect(
         id: String, placeholder: String, options: [[String: Any]], minimum: Int = 0, maximum: Int = 1
     ) -> [String: Any] {
-        [
-            "type": 3, "custom_id": id, "placeholder": String(placeholder.prefix(150)), "min_values": max(0, minimum),
-            "max_values": max(1, min(25, maximum)), "options": Array(options.prefix(25)),
+        let safeOptions = Array(options.prefix(25))
+        let maximumValues = max(1, min(safeOptions.count, maximum, 25))
+        let minimumValues = max(0, min(minimum, maximumValues))
+        return [
+            "type": 3, "custom_id": String(id.prefix(100)),
+            "placeholder": String(placeholder.prefix(150)), "min_values": minimumValues,
+            "max_values": maximumValues, "options": safeOptions,
         ]
     }
     static func channelSelect(id: String, placeholder: String, channelTypes: [Int] = [0]) -> [String: Any] {
