@@ -179,7 +179,7 @@ actor PersistentStore {
             return nil
         }
         for (key, data) in source {
-            if key.hasSuffix("." + guild) {
+            if key.hasSuffix("." + guild) || key.contains("." + guild + ".") || key.contains("." + guild + ":") {
                 if let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
                     snapshot[key] = object
                 }
