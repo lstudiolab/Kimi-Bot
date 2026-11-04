@@ -90,7 +90,9 @@ actor RolePickerService {
         let botRoleIDs = Set(bot["roles"] as? [String] ?? [])
         let botRoles = roles.filter { botRoleIDs.contains($0["id"] as? String ?? "") }
         let highest = botRoles.map { $0["position"] as? Int ?? 0 }.max() ?? 0
-        let canManage = botRoles.contains { (UInt64($0["permissions"] as? String ?? "") ?? 0) & (1 << 28) != 0 }
+        let canManage = botRoles.contains {
+            (UInt64($0["permissions"] as? String ?? "") ?? 0) & ((1 << 28) | (1 << 3)) != 0
+        }
         guard canManage else {
             throw KimiError.configuration("Kimi needs Manage Roles permission to update role selections.")
         }
