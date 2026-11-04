@@ -2,7 +2,8 @@ import Foundation
 
 enum CommandCatalog {
     static let core = [
-        "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove", "automations", "guard-review",
+        "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove",
+        "automations", "guard-review",
         "web-token", "analytics", "performance", "configure-foundation", "configure-welcome", "configure-roles",
         "configure-auto-role", "configure-embeds", "configure-kimi-lock", "configure-support",
     ]
@@ -42,10 +43,13 @@ enum CommandCatalog {
         return [
             "kimi": command("kimi", "Open Kimi server settings"),
             "setup": command("setup", "Prepare private Kimi channels"),
-            "plan": command("plan", "View Kimi storage usage"), "plugins": command("plugins", "Browse installed and available plugins"),
+            "plan": command("plan", "View Kimi storage usage"),
+            "plugins": command("plugins", "Browse installed and available plugins"),
             "plugin-store": command("plugin-store", "Manage Kimi plugins"),
-            "plugin-install": command("plugin-install", "Install a Kimi plugin", [text("plugin", "Plugin to install", true, plugins)]),
-            "plugin-remove": command("plugin-remove", "Remove a Kimi plugin", [text("plugin", "Plugin to remove", true, plugins)]),
+            "plugin-install": command(
+                "plugin-install", "Install a Kimi plugin", [text("plugin", "Plugin to install", true, plugins)]),
+            "plugin-remove": command(
+                "plugin-remove", "Remove a Kimi plugin", [text("plugin", "Plugin to remove", true, plugins)]),
             "automations": command(
                 "automations", "Manage server automations",
                 [
