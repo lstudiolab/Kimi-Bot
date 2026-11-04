@@ -84,48 +84,73 @@ actor KimiGuardService {
         guard try await rest.ownerID(guild) == reviewer else {
             throw KimiError.configuration("Only the server owner can review a Kimi Guard incident.")
         }
+
         var all = await store.get("guard.incidents", as: [String: Incident].self) ?? [:]
         let key = guild + ":" + actor
-        guard var incident = all[key], ["restricted", "review_required", "kept"].contains(incident.status) else {
+        guard var incident = all[key],
+            ["restricted", "review_required", "kept", "partial_release"].contains(incident.status)
+        else {
             throw KimiError.configuration("No active Kimi Guard incident exists for this account.")
         }
+
         if decision == "keep" {
             incident.status = "kept"
             all[key] = incident
             try await store.set(all, key: "guard.incidents")
             return "The account remains restricted."
         }
-        guard decision == "restore" else { throw KimiError.configuration("Choose restore or keep.") }
-        let roles = try await rest.call("GET", "guilds/\(guild)/roles") as? [[String: Any]] ?? []
-        let botMember = try await rest.call("GET", "guilds/\(guild)/members/@me") as? [String: Any] ?? [:]
+        guard decision == "restore" else {
+            throw KimiError.configuration("Choose restore or keep.")
+        }
+
+        let roles = try await rest.call("GET", "guilds/\\(guild)/roles") as? [[String: Any]] ?? []
+        let botMember = try await rest.call("GET", "guilds/\\(guild)/members/@me") as? [String: Any] ?? [:]
         let botRoles = Set(botMember["roles"] as? [String] ?? [])
-        let highest =
-            roles.filter { botRoles.contains($0["id"] as? String ?? "") }.map { $0["position"] as? Int ?? 0 }.max() ?? 0
+        let highest = roles.filter { botRoles.contains($0["id"] as? String ?? "") }
+            .map { $0["position"] as? Int ?? 0 }.max() ?? 0
         let safe = incident.removedRoles.filter { id in
             guard let role = roles.first(where: { ($0["id"] as? String) == id }) else { return false }
             let permissions = UInt64(role["permissions"] as? String ?? "") ?? 0
             return (role["position"] as? Int ?? 0) < highest
                 && SecurityPolicy.isSafeRole(
-                    roleID: id, guildID: guild, managed: role["managed"] as? Bool ?? false, permissions: permissions)
+                    roleID: id, guildID: guild, managed: role["managed"] as? Bool ?? false,
+                    permissions: permissions)
         }
-        for role in safe { _ = try? await rest.call("PUT", "guilds/\(guild)/members/\(actor)/roles/\(role)") }
-        if incident.timeoutUntil != nil {
-            let current = try? await rest.call("GET", "guilds/\(guild)/members/\(actor)") as? [String: Any]
-            if let current, let raw = current["communication_disabled_until"] as? String,
-                let date = ISO8601DateFormatter().date(from: raw),
-                abs(date.timeIntervalSince(incident.timeoutUntil!)) < 120
-            {
-                _ = try? await rest.call(
-                    "PATCH", "guilds/\(guild)/members/\(actor)",
-                    body: [
-                        "communication_disabled_until": NSNull(),
-                        "reason": "Released after server owner Kimi Guard review",
-                    ])
+
+        var failures: [String] = []
+        for role in safe {
+            do {
+                _ = try await rest.call("PUT", "guilds/\\(guild)/members/\\(actor)/roles/\\(role)")
+            } catch {
+                failures.append("role \\(role): \\(error.localizedDescription)")
             }
         }
-        incident.status = "released"
+
+        if let expectedTimeout = incident.timeoutUntil {
+            do {
+                let current = try await rest.call(
+                    "GET", "guilds/\\(guild)/members/\\(actor)") as? [String: Any] ?? [:]
+                if let raw = current["communication_disabled_until"] as? String,
+                    let actualTimeout = ISO8601DateFormatter().date(from: raw),
+                    abs(actualTimeout.timeIntervalSince(expectedTimeout)) < 120
+                {
+                    _ = try await rest.call(
+                        "PATCH", "guilds/\\(guild)/members/\\(actor)",
+                        body: ["communication_disabled_until": NSNull()],
+                        auditReason: "Released after server owner Kimi Guard review")
+                }
+            } catch {
+                failures.append("timeout release: \\(error.localizedDescription)")
+            }
+        }
+
+        incident.status = failures.isEmpty ? "released" : "partial_release"
         all[key] = incident
         try await store.set(all, key: "guard.incidents")
-        return "Incident reviewed. Restored " + String(safe.count) + " safe roles. Elevated roles were not restored."
-    }
-}
+
+        if failures.isEmpty {
+            return "Incident reviewed. Restored \\(safe.count) safe roles. Elevated roles were not restored."
+        }
+        return "Some restrictions could not be released. Restored \\(safe.count - failures.filter { $0.hasPrefix("role ") }.count) safe roles. Retry the review after resolving: "
+            + failures.joined(separator: "; ")
+    }\n}\n
