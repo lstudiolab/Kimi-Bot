@@ -553,6 +553,16 @@ extension KimiRuntime {
                     if incident.action == "32" {
                         await RecoveryService(store: store, logger: logger, rest: rest).restorePendingRoles(guild)
                     }
+                    if (incident.action == "50" || incident.action == "51"),
+                        let webhook = data["target_id"] as? String
+                    {
+                        do {
+                            _ = try await rest.call("DELETE", "webhooks/" + webhook)
+                            await logger.log("WARN", "Kimi Lock removed a webhook involved in repeated suspicious changes.")
+                        } catch {
+                            await logger.log("ERROR", "Webhook containment failed: " + error.localizedDescription)
+                        }
+                    }
                 }
             } catch { await logger.log("ERROR", "Audit incident containment failed: " + error.localizedDescription) }
         default: break
