@@ -6,7 +6,7 @@ enum CommandCatalog {
         "web-token", "analytics", "performance", "configure-foundation", "configure-welcome", "configure-roles",
         "configure-auto-role", "configure-embeds", "configure-kimi-lock", "configure-support",
     ]
-    static let groups: [String: [String]] = [
+    static let pluginCommands: [String: [String]] = [
         "Welcome": ["welcome"], "Auto Role": ["autorole"], "Role Picker": ["roles"],
         "Embeds": ["embed-new", "embed-edit", "embed-post"],
         "Kimi Lock": ["moderation", "verify", "verify-config", "filter", "security"],
@@ -204,7 +204,7 @@ enum CommandCatalog {
     }()
     static func globalCommands() -> [[String: Any]] { core.compactMap { all[$0] } }
     static func guildCommands(installed: [String]) -> [[String: Any]] {
-        installed.flatMap { groups[$0] ?? [] }.compactMap { all[$0] }
+        installed.flatMap { pluginCommands[$0] ?? [] }.compactMap { all[$0] }
     }
     static func pluginNames() -> [String] { groups.keys.sorted() }
 }
