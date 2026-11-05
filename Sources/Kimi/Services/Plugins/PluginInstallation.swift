@@ -62,11 +62,14 @@ enum PluginStoreUI {
                 "description": installed.contains(plugin.name) ? "Installed · View details" : plugin.description,
             ]
         }
-        return [KimiUI.row([
-            KimiUI.stringSelect(
-                id: "store:select", placeholder: "Choose a plugin",
-                options: options, minimum: 1, maximum: 1)
-        ])]
+        return [
+            KimiUI.row([
+                KimiUI.stringSelect(
+                    id: "store:select", placeholder: "Choose a module",
+                    options: options, minimum: 1, maximum: 1)
+            ]),
+            KimiUI.row([KimiUI.button(id: "settings:home", label: "Back to Control Center")]),
+        ]
     }
 
     static func detailRows(_ plugin: KimiPluginDefinition, installed: Bool) -> [[String: Any]] {
@@ -74,8 +77,13 @@ enum PluginStoreUI {
             KimiUI.button(
                 id: "store:install:" + slug(plugin.name),
                 label: installed ? "Installed" : "Install",
-                disabled: installed)
+                disabled: installed),
+            KimiUI.button(id: "store:back", label: "Back"),
         ])]
+    }
+
+    static func installedRows() -> [[String: Any]] {
+        [KimiUI.row([KimiUI.button(id: "store:back", label: "Back to modules")])]
     }
 
     static func installingRows(_ slug: String) -> [[String: Any]] {
@@ -96,11 +104,11 @@ extension KimiRuntime {
         interactionToken: String
     ) async {
         do {
-            if customID == "settings:plugins" || customID == "settings:apps" {
+            if customID == "settings:plugins" || customID == "settings:apps" || customID == "store:back" {
                 let installed = await PluginManager(store: store).installed(guildID: guildID)
                 try await rest.editKimiInteraction(
                     applicationID, interactionToken,
-                    "Plugin Store\nChoose a plugin to view its features and installation requirements.",
+                    "Module Store\nChoose a module to review its features and install it in this server.",
                     PluginStoreUI.catalogRows(installed: installed))
                 return
             }
@@ -270,7 +278,8 @@ extension KimiRuntime {
             }
             try? await rest.editKimiInteraction(
                 applicationID, interactionToken,
-                "\(plugin.name) is installed.\nIts commands and systems are now available in this server.", [])
+                "\(plugin.name) is installed and activated.\nIts available systems can now run in this server.",
+                PluginStoreUI.installedRows())
             await logger.log("INFO", "Installed plugin \(plugin.name) in guild \(guildID) by owner \(actorID).")
         } catch is CancellationError {
             let timedOut = await pluginInstallJobs.wasTimedOut(key: jobKey)
