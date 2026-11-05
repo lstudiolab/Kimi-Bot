@@ -142,7 +142,7 @@ actor AutomationEngine {
                             of: "{server}", with: server)
                     _ = try await rest.call(
                         "POST", "channels/\(parts[1])/messages",
-                        body: KimiUI.message("Automation\n" + text)
+                        body: KimiUI.message("Automation\n" + text))
                 case "delete_message":
                     guard let messageID, !channel.isEmpty else {
                         throw KimiError.configuration("No triggering message is available to delete.")
