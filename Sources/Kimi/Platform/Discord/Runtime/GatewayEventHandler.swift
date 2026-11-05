@@ -1,7 +1,7 @@
 import Foundation
 
 extension KimiRuntime {
-    private func markModerationDeleted(_ messageID: String) async {
+    func markModerationDeleted(_ messageID: String) async {
         let now = Date()
         moderationDeletedMessageIDs[messageID] = now
         if moderationDeletedMessageIDs.count > 5000 {
@@ -27,7 +27,7 @@ extension KimiRuntime {
         }
     }
 
-    private func wasModerationDeleted(_ messageID: String) async -> Bool {
+    func wasModerationDeleted(_ messageID: String) async -> Bool {
         if let date = moderationDeletedMessageIDs[messageID] {
             return Date().timeIntervalSince(date) >= 0 && Date().timeIntervalSince(date) < 7 * 86400
         }
