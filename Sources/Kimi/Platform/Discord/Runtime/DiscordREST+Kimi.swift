@@ -36,8 +36,10 @@ extension DiscordREST {
             body: ["type": 9, "data": KimiUI.modal(id: customID, title: title, inputs: inputs)]
         )
     }
-    func deferKimiInteraction(_ id: String, _ token: String) async throws {
-        _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 5])
+    func deferKimiInteraction(_ id: String, _ token: String, ephemeral: Bool = false) async throws {
+        var body: [String: Any] = ["type": 5]
+        if ephemeral { body["data"] = ["flags": 64] }
+        _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: body)
     }
     /// Acknowledges a component without creating a second response message.
     /// The interaction webhook can then edit the original (including ephemeral) panel.
