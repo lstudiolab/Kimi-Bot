@@ -211,11 +211,11 @@ extension KimiRuntime {
                                         "type": 1,
                                         "components": [
                                             [
-                                                "type": 2, "style": 2,
+                                                "type": 2, "style": 2, "label": "Approve",
                                                 "custom_id": "botguard:yes:" + guild + ":" + id,
                                             ],
                                             [
-                                                "type": 2, "style": 2,
+                                                "type": 2, "style": 2, "label": "Reject",
                                                 "custom_id": "botguard:no:" + guild + ":" + id,
                                             ],
                                         ],
