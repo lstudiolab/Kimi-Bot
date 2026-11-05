@@ -43,12 +43,7 @@ extension RolePickerService {
                         ],
                     ]
                 ] as [[String: Any]]
-            let body: [String: Any] = [
-                "content": DiscordText.prefixUTF16(
-                    "**" + name + "**\nChoose the roles you want to have. You can update your selection at any time.",
-                    limit: 1900),
-                "components": components, "allowed_mentions": ["parse": []],
-            ]
+            let body = KimiUI.panel(title: name, description: "Choose the roles you want to have. You can update your selection at any time.", components: components)
             var messageID: String?
             if let oldMessage = previous?.messageID, previous?.channelID == channel {
                 do {
