@@ -97,7 +97,7 @@ actor RaidProtectionService {
                 + "\nNewest account age: " + String(age) + " days\nAutomatic action: " + action
             _ = try? await rest.call(
                 "POST", "channels/" + channel + "/messages",
-                body: KimiUI.message("Raid protection report\n" + report)
+                body: KimiUI.message("Raid protection report\n" + report))
         }
     }
 }
