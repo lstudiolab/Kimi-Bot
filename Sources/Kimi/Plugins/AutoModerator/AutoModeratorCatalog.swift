@@ -64,7 +64,7 @@ enum AutoModeratorCatalog {
     ]
 
     static var availableCount: Int {
-        sections.reduce(0) { total, section in total + section.features.filter(\.available).count }
+        sections.reduce(0) { total, section in total + section.features.filter { $0.available }.count }
     }
 
     static var plannedCount: Int {
