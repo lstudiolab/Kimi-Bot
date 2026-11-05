@@ -121,7 +121,7 @@ final class CoreTests: XCTestCase {
     }
 
     func testMessageResponsesAlwaysUseGreyEmbedsAndSecondaryButtons() {
-        let response = KimiUI.message("Settings updated.\\nAll changes are saved.", components: [
+        let response = KimiUI.message("Settings updated.\nAll changes are saved.", components: [
             KimiUI.row([KimiUI.button(id: "settings:home", label: "Home", style: 4)])
         ])
         let embed = (response["embeds"] as? [[String: Any]])?.first
