@@ -205,19 +205,13 @@ actor ImageAnalysisService {
         let response = String(body.prefix(1750))
         _ = try? await rest.call(
             "POST", "channels/" + channel + "/messages",
-            body: [
-                "content": response, "message_reference": ["message_id": messageID, "fail_if_not_exists": false],
-                "allowed_mentions": ["parse": []],
-            ])
+            body: KimiUI.message(response).merging(["message_reference": ["message_id": messageID, "fail_if_not_exists": false]]) { _, new in new })
         await logger.log("INFO", "Image check completed for message " + messageID + " in guild " + guild)
         let setup = await store.getLegacy("timi_setup", as: [String: [String: String]].self)
         if let log = setup?[guild]?["log_channel_id"], !unique.isEmpty {
             _ = try? await rest.call(
                 "POST", "channels/" + log + "/messages",
-                body: [
-                    "content": "Kimi Lock image/link risk in <#" + channel + "> for message " + messageID + ": "
-                        + unique.joined(separator: "; "), "allowed_mentions": ["parse": []],
-                ])
+                body: KimiUI.message("Image and link risk\nKimi Lock detected a risk in <#" + channel + "> for message " + messageID + ": " + unique.joined(separator: "; ")))
         }
     }
     private func shouldAnalyze(channel: String, mentionedUserIDs: [String], referenceMessageID: String?) async -> Bool {
