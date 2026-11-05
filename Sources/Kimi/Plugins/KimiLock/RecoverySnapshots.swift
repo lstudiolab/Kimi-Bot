@@ -6,7 +6,7 @@ extension RecoveryService {
                 let data = try? JSONSerialization.data(withJSONObject: channel, options: [.fragmentsAllowed])
             else { return }
             do {
-                try await store.updateGuild("recovery.channels", guildID: guild, as: [String: [String: Data]].self) { stored in
+                _ = try await store.updateGuild("recovery.channels", guildID: guild, as: [String: [String: Data]].self) { stored in
                     var all = stored ?? [:]
                     all[guild, default: [:]][id] = data
                     if all[guild, default: [:]].count > 1000 {
