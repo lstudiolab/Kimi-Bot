@@ -403,7 +403,7 @@ extension KimiRuntime {
                             "type": 1,
                             "components": [
                                 [
-                                    "type": 2, "style": 4, "label": "Yes, close it",
+                                    "type": 2, "style": 2,
                                     "custom_id": "ticket:confirm-close:" + ticketID,
                                 ], ["type": 2, "style": 2, "label": "Cancel", "custom_id": "ticket:cancel-close"],
                             ],
@@ -412,7 +412,7 @@ extension KimiRuntime {
                 _ = try await rest.call(
                     "PATCH", "webhooks/\(app)/\(token)/messages/@original",
                     body: [
-                        "content": "Close this support ticket?", "components": controls,
+                        "embeds": [KimiUI.embed(title: "Close support ticket", description: "Are you sure you want to close this ticket?")], "content": NSNull(), "components": controls,
                         "allowed_mentions": ["parse": []],
                     ])
             } else if custom.hasPrefix("ticket:confirm-close:") {
