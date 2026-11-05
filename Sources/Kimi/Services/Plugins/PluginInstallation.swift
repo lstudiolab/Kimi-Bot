@@ -373,8 +373,8 @@ extension KimiRuntime {
             required = [("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40)]
         case "Auto-Moderator":
             required = [
-                ("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40),
-                ("Kick Members", 1 << 1), ("Ban Members", 1 << 2),
+                ("Manage Channels", 1 << 4), ("Manage Messages", 1 << 13),
+                ("Moderate Members", 1 << 40), ("Kick Members", 1 << 1), ("Ban Members", 1 << 2),
             ]
         case "Support":
             required = [("Manage Channels", 1 << 4), ("View Channels", 1 << 10), ("Send Messages", 1 << 11)]
