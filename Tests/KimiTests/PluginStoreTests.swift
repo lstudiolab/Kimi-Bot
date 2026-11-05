@@ -16,7 +16,7 @@ final class PluginStoreTests: XCTestCase {
         XCTAssertTrue(CommandCatalog.guildCommands(installed: names).isEmpty)
     }
 
-    func testAutoModeratorIsListedAsItsOwnSixLevelModule() {
+    func testKimiGuardIsListedAsItsOwnSixLevelModule() {
         let plugin = PluginRegistry.plugins.first { $0.name == "Kimi Guard" }
         XCTAssertNotNil(plugin)
         XCTAssertNotNil(CommandCatalog.pluginCommands["Kimi Guard"])
