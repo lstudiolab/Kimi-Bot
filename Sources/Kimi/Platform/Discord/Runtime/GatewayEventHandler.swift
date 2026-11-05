@@ -115,6 +115,11 @@ extension KimiRuntime {
         try? await store.setGuild(Date(), key: "security.role-permissions-updated." + guild, guildID: guild)
     }
     func dispatchMigratedEvent(_ name: String, _ data: [String: Any]) async {
+        if let guild = data["guild_id"] as? String,
+            await store.get("control.enabled." + guild, as: Bool.self) == false
+        {
+            return
+        }
         switch name {
         case "READY":
             if let bot = (data["user"] as? [String: Any])?["id"] as? String {

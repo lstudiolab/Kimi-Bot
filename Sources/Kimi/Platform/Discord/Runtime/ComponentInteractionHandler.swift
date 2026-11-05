@@ -102,7 +102,39 @@ extension KimiRuntime {
             return true
         }
         do {
-            if let pluginName = ComponentRouter.plugin(for: custom) {
+            if custom == "control:memory" || custom == "control:toggle" {
+                let owner = try await rest.ownerID(guild)
+                let permissions = UInt64(member["permissions"] as? String ?? "") ?? 0
+                guard owner == actorID || permissions & (1 << 5) != 0 else {
+                    throw KimiError.configuration("Only the server owner or a member with Manage Server can use the control center.")
+                }
+                if custom == "control:memory" {
+                    let report = await store.storageReport(guildID: guild)
+                    let installed = await PluginManager(store: store).installed(guildID: guild)
+                    let usedMB = Double(report.used) / 1_048_576
+                    let limitMB = Double(report.limit) / 1_048_576
+                    let message = "Kimi Memory\nStorage: " + String(format: "%.2f MB of %.2f MB", usedMB, limitMB)
+                        + " (" + String(report.percent) + "%)"
+                        + "\nInstalled modules: " + String(installed.count)
+                        + "\n\nMemory stores server configuration, module settings and bounded activity records. Data remains on the bot host."
+                    let rows = [KimiUI.row([KimiUI.button(id: "settings:home", label: "Back to Control Center")])]
+                    try await rest.editKimiInteraction(app, token, message, rows)
+                } else {
+                    let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
+                    let next = !enabled
+                    try await store.setGuild(next, key: "control.enabled." + guild, guildID: guild)
+                    let installed = await PluginManager(store: store).installed(guildID: guild)
+                    let rows = [KimiUI.row([
+                        KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                        KimiUI.button(id: "control:memory", label: "Memory"),
+                        KimiUI.button(id: "control:toggle", label: next ? "Turn Off" : "Turn On"),
+                    ])]
+                    let message = "Kimi Control Center\nStatus: " + (next ? "On" : "Off")
+                        + "\nInstalled modules: " + String(installed.count)
+                        + (next ? "\nKimi event processing is active." : "\nKimi event processing is paused. Use Turn On to resume.")
+                    try await rest.editKimiInteraction(app, token, message, rows)
+                }
+            } else if let pluginName = ComponentRouter.plugin(for: custom) {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 guard installed.contains(pluginName.rawValue) else {
                     throw KimiError.configuration(pluginName.rawValue + " is not installed in this server.")
@@ -331,17 +363,16 @@ extension KimiRuntime {
                 try await rest.editKimiInteraction(
                     app, token, body.isEmpty ? "No recent activity recorded." : String(body.prefix(1800)))
             } else if custom == "settings:home" {
-                let rows = [
-                    KimiUI.row([
-                        KimiUI.button(id: "settings:plugins", label: "Plugin Store"),
-                        KimiUI.button(id: "settings:status", label: "System Status"),
-                    ]),
-                    KimiUI.row([
-                        KimiUI.button(id: "settings:preferences", label: "Preferences"),
-                        KimiUI.button(id: "settings:activity", label: "Activity"),
-                    ]),
-                ]
-                try await rest.editKimiInteraction(app, token, "Kimi server control centre.", rows)
+                let installed = await PluginManager(store: store).installed(guildID: guild)
+                let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
+                let rows = [KimiUI.row([
+                    KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                    KimiUI.button(id: "control:memory", label: "Memory"),
+                    KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
+                ])]
+                let message = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
+                    + "\nInstalled modules: " + String(installed.count)
+                try await rest.editKimiInteraction(app, token, message, rows)
             } else if custom == "ticket:open" {
                 let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
                 guard settings.panelChannelID == channel else {

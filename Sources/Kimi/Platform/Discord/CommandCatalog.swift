@@ -1,17 +1,14 @@
 import Foundation
 
 enum CommandCatalog {
-    static let core = [
-        "kimi", "setup", "plan", "plugins", "plugin-store", "plugin-install", "plugin-remove",
-        "automations", "guard-review", "analytics", "performance",
-    ]
+    static let core = ["control-center"]
     static let pluginCommands: [String: [String]] = [
-        "Welcome": ["welcome-screen"],
-        "Auto Role": ["auto-role-screen"],
-        "Role Picker": ["role-picker-screen"],
-        "Embeds": ["embeds-screen"],
-        "Kimi Lock": ["kimi-lock-screen"],
-        "Support": ["ticket-screen"],
+        "Welcome": [],
+        "Auto Role": [],
+        "Role Picker": [],
+        "Embeds": [],
+        "Kimi Lock": [],
+        "Support": [],
     ]
     static let all: [String: [String: Any]] = {
         let admin = "32"
@@ -41,6 +38,7 @@ enum CommandCatalog {
             ["name": $0, "value": $0]
         }
         return [
+            "control-center": command("control-center", "Open Kimi control center"),
             "kimi": command("kimi", "Open Kimi server settings"),
             "setup": command("setup", "Prepare private Kimi channels"),
             "plan": command("plan", "View Kimi storage usage"),
@@ -213,8 +211,6 @@ enum CommandCatalog {
         ]
     }()
     static func globalCommands() -> [[String: Any]] { core.compactMap { all[$0] } }
-    static func guildCommands(installed: [String]) -> [[String: Any]] {
-        installed.flatMap { pluginCommands[$0] ?? [] }.compactMap { all[$0] }
-    }
+    static func guildCommands(installed: [String]) -> [[String: Any]] { [] }
     static func pluginNames() -> [String] { pluginCommands.keys.sorted() }
 }
