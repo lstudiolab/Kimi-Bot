@@ -102,6 +102,7 @@ extension KimiRuntime {
             let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
             let moderationEnabled = await migratedModuleEnabled("moderation", guild: guild)
             let editedContent = data["content"] as? String
+            let recovery = RecoveryService(store: store, logger: logger, rest: rest)
             if installed.contains("Kimi Lock"), recoveryEnabled, let editedContent {
                 let attachments = (data["attachments"] as? [[String: Any]] ?? []).compactMap {
                     item -> RecoveryService.Attachment? in
@@ -113,7 +114,7 @@ extension KimiRuntime {
                 let messageCreatedAt = (data["timestamp"] as? String).flatMap {
                     ISO8601DateFormatter().date(from: $0)
                 }
-                await RecoveryService(store: store, logger: logger, rest: rest).captureMessage(
+                await recovery.captureMessage(
                     guild, channel, message, user, editedContent,
                     attachments: attachments, authorName: author["username"] as? String,
                     createdAt: messageCreatedAt)
@@ -199,7 +200,8 @@ extension KimiRuntime {
                 return
             }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            for id in ids where !(await wasModerationDeleted(id)) {
+            for id in ids {
+                if await wasModerationDeleted(id) { continue }
                 await recovery.restoreMessage(guild, channel, id)
             }
         }
