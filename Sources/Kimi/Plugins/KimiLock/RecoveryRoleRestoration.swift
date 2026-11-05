@@ -4,7 +4,7 @@ extension RecoveryService {
         func queueDeletedRole(_ guild: String, _ role: String) async {
             guard role != guild else { return }
             do {
-                try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
+                _ = try await store.updateGuild("recovery.pending-roles", guildID: guild, as: [String: [String]].self) { stored in
                     var all = stored ?? [:]
                     var pending = all[guild] ?? []
                     if !pending.contains(role) { pending.append(role) }
