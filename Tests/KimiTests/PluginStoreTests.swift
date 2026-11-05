@@ -3,7 +3,7 @@ import XCTest
 
 final class PluginStoreTests: XCTestCase {
     func testPluginCatalogueHasUniqueDefinitionsAndUsesControlCenterInsteadOfPluginCommands() {
-        let names = PluginRegistry.plugins.map(\\.name)
+        let names = PluginRegistry.plugins.map(\.name)
         XCTAssertFalse(names.isEmpty)
         XCTAssertEqual(Set(names).count, names.count)
         for plugin in PluginRegistry.plugins {
