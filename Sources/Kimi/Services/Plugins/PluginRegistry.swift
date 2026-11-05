@@ -5,7 +5,16 @@ struct KimiPluginDefinition: Sendable, Identifiable {
     let description: String
     let systems: [String]
     let helpers: [String]
+    let dependencies: [String]
     var id: String { name }
+
+    init(name: String, description: String, systems: [String], helpers: [String], dependencies: [String] = []) {
+        self.name = name
+        self.description = description
+        self.systems = systems
+        self.helpers = helpers
+        self.dependencies = dependencies
+    }
 }
 enum PluginRegistry {
     static let plugins: [KimiPluginDefinition] = [
