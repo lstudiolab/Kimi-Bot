@@ -14,9 +14,12 @@ extension KimiRuntime {
                 guild: guild, trigger: "message_create", userID: user, channelID: channel, messageID: message,
                 content: content, username: author["username"] as? String ?? "member")
             let installed = await PluginManager(store: store).installed(guildID: guild)
-            let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
-            let moderationEnabled = await migratedModuleEnabled("moderation", guild: guild)
-            guard installed.contains("Kimi Lock"), recoveryEnabled || moderationEnabled else { return }
+            let hasKimiLock = installed.contains("Kimi Lock")
+            let hasAutoModerator = installed.contains("Auto-Moderator")
+            let recoveryEnabled = hasKimiLock && await migratedModuleEnabled("recovery", guild: guild)
+            let moderationEnabled = (hasKimiLock || hasAutoModerator)
+                && await migratedModuleEnabled("moderation", guild: guild)
+            guard recoveryEnabled || moderationEnabled else { return }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
             let attachments = data["attachments"] as? [[String: Any]] ?? []
             let attachmentRecords = attachments.compactMap { item -> RecoveryService.Attachment? in
@@ -99,11 +102,14 @@ extension KimiRuntime {
                 let user = author["id"] as? String, author["bot"] as? Bool != true
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
-            let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
-            let moderationEnabled = await migratedModuleEnabled("moderation", guild: guild)
+            let hasKimiLock = installed.contains("Kimi Lock")
+            let hasAutoModerator = installed.contains("Auto-Moderator")
+            let recoveryEnabled = hasKimiLock && await migratedModuleEnabled("recovery", guild: guild)
+            let moderationEnabled = (hasKimiLock || hasAutoModerator)
+                && await migratedModuleEnabled("moderation", guild: guild)
             let editedContent = data["content"] as? String
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
-            if installed.contains("Kimi Lock"), recoveryEnabled, let editedContent {
+            if recoveryEnabled, let editedContent {
                 let attachments = (data["attachments"] as? [[String: Any]] ?? []).compactMap {
                     item -> RecoveryService.Attachment? in
                     guard let url = item["url"] as? String else { return nil }
@@ -119,7 +125,7 @@ extension KimiRuntime {
                     attachments: attachments, authorName: author["username"] as? String,
                     createdAt: messageCreatedAt)
             }
-            if installed.contains("Kimi Lock"), moderationEnabled, let editedContent {
+            if moderationEnabled, let editedContent {
                 let member = data["member"] as? [String: Any] ?? [:]
                 let memberRoles = Set(member["roles"] as? [String] ?? [])
                 let rolePermissions = await cachedRolePermissions(guild)
