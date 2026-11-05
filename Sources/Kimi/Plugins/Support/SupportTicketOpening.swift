@@ -44,14 +44,14 @@ extension SupportService {
                                 "custom_id": "ticket:priority:" + ticket.id + ":normal",
                             ],
                             [
-                                "type": 2, "style": 2,
+                                "type": 2, "style": 2, "label": "High",
                                 "custom_id": "ticket:priority:" + ticket.id + ":high",
                             ],
                             [
-                                "type": 2, "style": 2,
+                                "type": 2, "style": 2, "label": "Urgent",
                                 "custom_id": "ticket:priority:" + ticket.id + ":urgent",
                             ],
-                            ["type": 2, "style": 2, "custom_id": "ticket:close:" + ticket.id],
+                            ["type": 2, "style": 2, "label": "Close", "custom_id": "ticket:close:" + ticket.id],
                         ],
                     ]
                 ] as [[String: Any]]
