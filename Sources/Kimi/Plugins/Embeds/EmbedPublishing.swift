@@ -4,7 +4,7 @@ extension EmbedService {
         func publish(guild: String, name: String, channel: String) async throws {
             guard let item = await all(guild: guild).first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })
             else { throw KimiError.configuration("Saved embed not found.") }
-            var embed: [String: Any] = ["title": item.title, "description": item.description, "color": item.color]
+            var embed: [String: Any] = ["title": item.title, "description": item.description, "color": KimiUI.grey]
             if let footer = item.footer { embed["footer"] = ["text": footer] }
             if let author = item.author { embed["author"] = ["name": author] }
             if let url = item.url { embed["url"] = url }
