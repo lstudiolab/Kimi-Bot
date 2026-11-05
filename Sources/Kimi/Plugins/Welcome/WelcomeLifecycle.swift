@@ -18,7 +18,7 @@ extension FoundationEngine {
                 do {
                     _ = try await rest.call(
                         "POST", "channels/\(channel)/messages",
-                        body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["users": [userID], "parse": []]])
+                        body: KimiUI.panel(title: "Welcome", description: body).merging(["allowed_mentions": ["users": [userID], "parse": []]]) { _, new in new })
                 } catch { await logger.log("WARN", "Welcome message failed: \(error.localizedDescription)") }
             }
         }
@@ -31,7 +31,7 @@ extension FoundationEngine {
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(channel)/messages",
-                    body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["parse": []]])
+                    body: KimiUI.panel(title: "Goodbye", description: body))
             } catch { await logger.log("WARN", "Goodbye message failed: \(error.localizedDescription)") }
         }
 }
