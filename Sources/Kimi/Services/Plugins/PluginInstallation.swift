@@ -299,7 +299,7 @@ extension KimiRuntime {
 
     private func validatePluginDefinition(_ plugin: KimiPluginDefinition, installed: [String]) throws {
         guard !plugin.systems.isEmpty, !plugin.helpers.isEmpty,
-            let commands = CommandCatalog.pluginCommands[plugin.name], !commands.isEmpty
+            let commands = CommandCatalog.pluginCommands[plugin.name]
         else { throw KimiError.configuration("The plugin manifest is incomplete or unavailable.") }
         guard Set(commands).count == commands.count,
             commands.allSatisfy({ $0.range(of: #"^[-a-z0-9]{1,32}$"#, options: .regularExpression) != nil })
@@ -357,6 +357,11 @@ extension KimiRuntime {
             required = [("View Channels", 1 << 10), ("Send Messages", 1 << 11), ("Embed Links", 1 << 14)]
         case "Kimi Lock":
             required = [("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40)]
+        case "Auto-Moderator":
+            required = [
+                ("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40),
+                ("Kick Members", 1 << 1), ("Ban Members", 1 << 2),
+            ]
         case "Support":
             required = [("Manage Channels", 1 << 4), ("View Channels", 1 << 10), ("Send Messages", 1 << 11)]
         default:
