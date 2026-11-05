@@ -8,7 +8,7 @@ enum CommandCatalog {
         "Role Picker": [],
         "Embeds": [],
         "Kimi Lock": [],
-        "Auto-Moderator": [],
+        "Kimi Guard": [],
         "Support": [],
     ]
     static let all: [String: [String: Any]] = {
@@ -35,7 +35,7 @@ enum CommandCatalog {
             ["type": 4, "name": n, "description": d, "min_value": min, "max_value": max]
         }
         func boolean(_ n: String, _ d: String) -> [String: Any] { ["type": 5, "name": n, "description": d] }
-        let plugins = ["Welcome", "Auto Role", "Role Picker", "Embeds", "Kimi Lock", "Auto-Moderator", "Support"].map {
+        let plugins = ["Welcome", "Auto Role", "Role Picker", "Embeds", "Kimi Lock", "Kimi Guard", "Support"].map {
             ["name": $0, "value": $0]
         }
         return [
