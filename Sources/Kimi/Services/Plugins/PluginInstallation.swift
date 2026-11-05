@@ -167,6 +167,10 @@ extension KimiRuntime {
                 }
                 let key = installKey(guildID: guildID, actorID: actorID, slug: slug)
                 await pluginInstallJobs.cancel(key: key)
+                try await rest.editKimiInteraction(
+                    applicationID, interactionToken,
+                    "Cancellation requested. The installation result will appear in its original status message.",
+                    PluginStoreUI.installedRows())
                 return
             }
 
