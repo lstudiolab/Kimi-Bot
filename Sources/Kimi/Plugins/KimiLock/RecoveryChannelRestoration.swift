@@ -3,7 +3,7 @@ import Foundation
 extension RecoveryService {
         func queueDeletedChannel(_ guild: String, _ channel: String) async {
             do {
-                try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
+                _ = try await store.updateGuild("recovery.pending-channels", guildID: guild, as: [String: [String]].self) { stored in
                     var all = stored ?? [:]
                     var values = all[guild] ?? []
                     if !values.contains(channel) { values.append(channel) }
