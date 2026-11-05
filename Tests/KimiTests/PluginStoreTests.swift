@@ -2,15 +2,18 @@ import XCTest
 @testable import Kimi
 
 final class PluginStoreTests: XCTestCase {
-    func testPluginCatalogueHasUniqueDefinitionsAndCommandBindings() {
-        let names = PluginRegistry.plugins.map(\.name)
+    func testPluginCatalogueHasUniqueDefinitionsAndUsesControlCenterInsteadOfPluginCommands() {
+        let names = PluginRegistry.plugins.map(\\.name)
         XCTAssertFalse(names.isEmpty)
         XCTAssertEqual(Set(names).count, names.count)
         for plugin in PluginRegistry.plugins {
             XCTAssertFalse(plugin.systems.isEmpty)
             XCTAssertFalse(plugin.helpers.isEmpty)
-            XCTAssertFalse(CommandCatalog.pluginCommands[plugin.name]?.isEmpty ?? true)
+            XCTAssertNotNil(CommandCatalog.pluginCommands[plugin.name])
+            XCTAssertTrue(CommandCatalog.pluginCommands[plugin.name]?.isEmpty ?? false)
         }
+        XCTAssertEqual(CommandCatalog.globalCommands().compactMap { $0["name"] as? String }, ["control-center"])
+        XCTAssertTrue(CommandCatalog.guildCommands(installed: names).isEmpty)
     }
 
     func testPluginStoreMenuAndDetailComponentsRespectDiscordLimits() throws {
