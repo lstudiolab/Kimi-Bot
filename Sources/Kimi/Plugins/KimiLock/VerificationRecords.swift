@@ -2,8 +2,7 @@ import Foundation
 
 actor VerificationRecords {
     struct Record: Codable, Sendable {
-        let guildID: String
-        let userID: String
+        let guildID, userID: String
         var attempts: Int = 0
         var verifiedAt: Date?
         var reviewMessageID: String?

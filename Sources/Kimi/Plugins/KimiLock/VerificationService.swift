@@ -2,17 +2,13 @@ import Foundation
 
 actor VerificationService {
     struct Settings: Codable, Sendable {
-        var channelID: String?
-        var roleID: String?
-        var requiredRoleID: String?
-        var reviewChannelID: String?
+        var channelID, roleID: String?
+        var requiredRoleID, reviewChannelID: String?
         var minimumAgeDays: Int = 0
     }
     struct LegacySettings: Decodable {
-        var channel_id: String?
-        var role_id: String?
-        var required_role_id: String?
-        var review_channel_id: String?
+        var channel_id, role_id: String?
+        var required_role_id, review_channel_id: String?
         var min_age_days: Int?
     }
     let store: PersistentStore

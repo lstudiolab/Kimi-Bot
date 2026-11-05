@@ -2,16 +2,13 @@ import Foundation
 
 actor RecoveryService {
     struct Attachment: Codable, Sendable {
-        let name: String
-        let url: String
+        let name, url: String
         let contentType: String?
         let size: Int?
     }
     struct Message: Codable, Sendable {
-        let id: String
-        let channelID: String
-        let authorID: String
-        let content: String
+        let id, channelID: String
+        let authorID, content: String
         let createdAt: Date
         var authorName: String?
         var attachments: [Attachment]?

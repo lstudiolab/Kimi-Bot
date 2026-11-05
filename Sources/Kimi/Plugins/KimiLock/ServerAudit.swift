@@ -2,8 +2,7 @@ import Foundation
 
 struct ServerAudit {
     struct Finding: Sendable {
-        let severity: String
-        let title: String
+        let severity, title: String
         let detail: String
     }
 
