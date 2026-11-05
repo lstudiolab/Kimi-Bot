@@ -246,7 +246,16 @@ extension KimiRuntime {
                 throw error
             }
 
-            try await rest.editKimiInteraction(
+            // This is the commit point: stop the watchdog and make Cancel inert.
+            // A failure to refresh the Discord status message must not claim that
+            // a successfully activated plugin was rolled back.
+            await pluginInstallJobs.finish(key: jobKey)
+            if Task.isCancelled {
+                _ = try? await manager.uninstall(plugin.name, guildID: guildID)
+                try? await rest.registerGuildCommands(applicationID, guildID: guildID, installed: previous)
+                throw CancellationError()
+            }
+            try? await rest.editKimiInteraction(
                 applicationID, interactionToken,
                 "\(plugin.name) is installed.\nIts commands and systems are now available in this server.", [])
             await logger.log("INFO", "Installed plugin \(plugin.name) in guild \(guildID) by owner \(actorID).")
