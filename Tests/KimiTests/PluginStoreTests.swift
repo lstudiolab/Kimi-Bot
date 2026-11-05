@@ -35,6 +35,9 @@ final class PluginStoreTests: XCTestCase {
         XCTAssertEqual(
             (menu.first?["components"] as? [[String: Any]])?.first?["custom_id"] as? String,
             "store:select")
+        XCTAssertEqual(
+            (menu.last?["components"] as? [[String: Any]])?.first?["custom_id"] as? String,
+            "settings:home")
 
         for plugin in PluginRegistry.plugins {
             let detail = PluginStoreUI.detailRows(plugin, installed: false)
@@ -42,6 +45,9 @@ final class PluginStoreTests: XCTestCase {
             let button = (detail.first?["components"] as? [[String: Any]])?.first
             XCTAssertEqual(button?["label"] as? String, "Install")
             XCTAssertEqual(button?["custom_id"] as? String, "store:install:" + PluginStoreUI.slug(plugin.name))
+            XCTAssertEqual(
+                (detail.first?["components"] as? [[String: Any]])?.last?["custom_id"] as? String,
+                "store:back")
         }
     }
 
@@ -52,6 +58,14 @@ final class PluginStoreTests: XCTestCase {
             let buttons = rows.first?["components"] as? [[String: Any]] ?? []
             XCTAssertEqual(buttons.compactMap { $0["label"] as? String }, ["Installing", "Cancel"])
         }
+    }
+
+    func testInstalledModuleScreenHasBackNavigation() throws {
+        let rows = PluginStoreUI.installedRows()
+        XCTAssertNoThrow(try KimiUI.validateMessageComponents(rows))
+        XCTAssertEqual(
+            (rows.first?["components"] as? [[String: Any]])?.first?["custom_id"] as? String,
+            "store:back")
     }
 
     func testPluginSlugResolutionIsStable() {
