@@ -16,7 +16,7 @@ extension RecoveryService {
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(channel)/messages",
-                    body: ["content": DiscordText.prefixUTF16(body, limit: 1900), "allowed_mentions": ["parse": []]])
+                    body: KimiUI.message("Recovered message\n" + body)
             } catch {
                 await logger.log("ERROR", "Message recovery failed for " + message + ": " + error.localizedDescription)
             }
