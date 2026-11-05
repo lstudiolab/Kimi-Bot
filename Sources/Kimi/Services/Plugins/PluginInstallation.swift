@@ -114,7 +114,21 @@ extension KimiRuntime {
                 let systems = plugin.systems.map { "• " + $0 }.joined(separator: "\n")
                 let helpers = plugin.helpers.map { "• " + $0 }.joined(separator: "\n")
                 let status = isInstalled ? "Installed" : "Available"
-                let description = "\(plugin.name) · \(status)\n\n\(plugin.description)\n\nIncluded systems\n\(systems)\n\nCompatibility and safeguards\n\(helpers)"
+                let description: String
+                if plugin.name == "Auto-Moderator" {
+                    let tiers = AutoModeratorCatalog.sections.map { section in
+                        let features = section.features.map {
+                            ($0.available ? "Ready" : "Planned") + " · " + $0.name
+                        }.joined(separator: "\n")
+                        return section.level + " · " + section.title + "\n" + features
+                    }.joined(separator: "\n\n")
+                    description = "Auto-Moderator · \(status)\n\n"
+                        + "A six-level moderation suite. Ready features use Kimi's existing moderation engine; planned features are not active yet.\n\n"
+                        + tiers + "\n\nReady: " + String(AutoModeratorCatalog.availableCount)
+                        + " · Planned: " + String(AutoModeratorCatalog.plannedCount)
+                } else {
+                    description = "\(plugin.name) · \(status)\n\n\(plugin.description)\n\nIncluded systems\n\(systems)\n\nCompatibility and safeguards\n\(helpers)"
+                }
                 try await rest.editKimiInteraction(
                     applicationID, interactionToken, description,
                     PluginStoreUI.detailRows(plugin, installed: isInstalled))
