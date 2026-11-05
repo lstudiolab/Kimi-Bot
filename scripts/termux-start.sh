@@ -1,4 +1,4 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-start sys
+swift run -c release
