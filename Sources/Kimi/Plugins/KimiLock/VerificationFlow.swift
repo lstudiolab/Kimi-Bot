@@ -83,15 +83,15 @@ extension VerificationService {
                             [
                                 "type": 1,
                                 "components": [
-                                    ["type": 2, "style": 3, "label": "Approve", "custom_id": "verify:approve:" + userID],
-                                    ["type": 2, "style": 4, "label": "Reject", "custom_id": "verify:reject:" + userID],
+                                    ["type": 2, "style": 2, "custom_id": "verify:approve:" + userID],
+                                    ["type": 2, "style": 2, "custom_id": "verify:reject:" + userID],
                                 ],
                             ]
                         ] as [[String: Any]]
                     do {
                         let posted = try await rest.call(
                             "POST", "channels/\(review)/messages",
-                            body: ["content": body, "components": components, "allowed_mentions": ["parse": []]])
+                            body: KimiUI.panel(title: "Verification review", description: body, components: components))
                         guard let messageID = (posted as? [String: Any])?["id"] as? String, !messageID.isEmpty else {
                             throw KimiError.invalidResponse
                         }
