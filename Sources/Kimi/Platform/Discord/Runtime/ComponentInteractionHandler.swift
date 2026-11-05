@@ -102,13 +102,33 @@ extension KimiRuntime {
             return true
         }
         do {
-            if custom == "control:memory" || custom == "control:toggle" {
-                let owner = try await rest.ownerID(guild)
-                let permissions = UInt64(member["permissions"] as? String ?? "") ?? 0
-                guard owner == actorID || permissions & (1 << 5) != 0 else {
-                    throw KimiError.configuration("Only the server owner or a member with Manage Server can use the control center.")
-                }
-                if custom == "control:memory" {
+            if custom == "control:customize" || custom.hasPrefix("control:appearance:")
+                || custom == "control:memory" || custom == "control:toggle" {
+                try await authorizeControlCenter(actorID, member: member, guildID: guild)
+                if custom == "control:customize" {
+                    let appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    try await showAppearancePanel(app, token, guildID: guild, appearance: appearance)
+                } else if custom == "control:appearance:button-style" {
+                    guard let raw = (data["values"] as? [String])?.first, let style = Int(raw),
+                        KimiAppearance.buttonStyles.contains(where: { $0.value == style })
+                    else { throw KimiError.configuration("Choose a supported button style.") }
+                    var appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    appearance.buttonStyle = style
+                    try await store.setGuild(
+                        appearance, key: "control.appearance." + guild, guildID: guild)
+                    try await showAppearancePanel(
+                        app, token, guildID: guild, appearance: appearance, notice: "Button style saved.")
+                } else if custom == "control:appearance:embed-color" {
+                    guard let raw = (data["values"] as? [String])?.first, let color = Int(raw),
+                        KimiAppearance.embedColors.contains(where: { $0.value == color })
+                    else { throw KimiError.configuration("Choose a supported embed color.") }
+                    var appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    appearance.embedColor = color
+                    try await store.setGuild(
+                        appearance, key: "control.appearance." + guild, guildID: guild)
+                    try await showAppearancePanel(
+                        app, token, guildID: guild, appearance: appearance, notice: "Embed color saved.")
+                } else if custom == "control:memory" {
                     let report = await store.storageReport(guildID: guild)
                     let installed = await PluginManager(store: store).installed(guildID: guild)
                     let usedMB = Double(report.used) / 1_048_576
@@ -118,7 +138,7 @@ extension KimiRuntime {
                         + "\nInstalled modules: " + String(installed.count)
                         + "\n\nMemory stores server configuration, module settings and bounded activity records. Data remains on the bot host."
                     let rows = [KimiUI.row([KimiUI.button(id: "settings:home", label: "Back to Control Center")])]
-                    try await rest.editKimiInteraction(app, token, message, rows)
+                    try await editThemedInteraction(app, token, message, rows, guildID: guild)
                 } else {
                     let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
                     let next = !enabled
@@ -127,12 +147,13 @@ extension KimiRuntime {
                     let rows = [KimiUI.row([
                         KimiUI.button(id: "settings:plugins", label: "Module Store"),
                         KimiUI.button(id: "control:memory", label: "Memory"),
+                        KimiUI.button(id: "control:customize", label: "Customize"),
                         KimiUI.button(id: "control:toggle", label: next ? "Turn Off" : "Turn On"),
                     ])]
                     let message = "Kimi Control Center\nStatus: " + (next ? "On" : "Off")
                         + "\nInstalled modules: " + String(installed.count)
                         + (next ? "\nKimi event processing is active." : "\nKimi event processing is paused. Use Turn On to resume.")
-                    try await rest.editKimiInteraction(app, token, message, rows)
+                    try await editThemedInteraction(app, token, message, rows, guildID: guild)
                 }
             } else if let pluginName = ComponentRouter.plugin(for: custom) {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
@@ -140,7 +161,9 @@ extension KimiRuntime {
                     throw KimiError.configuration(pluginName.rawValue + " is not installed in this server.")
                 }
             }
-            if custom == "settings:plugins" || custom == "settings:apps" {
+            if custom.hasPrefix("control:") {
+                // Control-center actions were handled above.
+            } else if custom == "settings:plugins" || custom == "settings:apps" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 let buttons = CommandCatalog.pluginNames().map { pluginName in
                     KimiUI.button(
@@ -368,11 +391,12 @@ extension KimiRuntime {
                 let rows = [KimiUI.row([
                     KimiUI.button(id: "settings:plugins", label: "Module Store"),
                     KimiUI.button(id: "control:memory", label: "Memory"),
+                    KimiUI.button(id: "control:customize", label: "Customize"),
                     KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
                 ])]
                 let message = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
                     + "\nInstalled modules: " + String(installed.count)
-                try await rest.editKimiInteraction(app, token, message, rows)
+                try await editThemedInteraction(app, token, message, rows, guildID: guild)
             } else if custom == "ticket:open" {
                 let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
                 guard settings.panelChannelID == channel else {

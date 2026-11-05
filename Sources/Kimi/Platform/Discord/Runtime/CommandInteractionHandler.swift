@@ -45,6 +45,7 @@ extension KimiRuntime {
                     KimiUI.row([
                         KimiUI.button(id: "settings:plugins", label: "Module Store"),
                         KimiUI.button(id: "control:memory", label: "Memory"),
+                        KimiUI.button(id: "control:customize", label: "Customize"),
                         KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
                     ]),
                 ]
@@ -511,9 +512,9 @@ extension KimiRuntime {
         }
         do {
             if responseComponents.isEmpty {
-                try await rest.editKimiInteraction(app, token, reply)
+                try await editThemedInteraction(app, token, reply, guildID: guild)
             } else {
-                try await rest.editKimiInteraction(app, token, reply, responseComponents)
+                try await editThemedInteraction(app, token, reply, responseComponents, guildID: guild)
             }
         } catch { await logger.log("ERROR", "Interaction response update failed: " + error.localizedDescription) }
         await AnalyticsService(store: store).record(guild: guild, event: "command")

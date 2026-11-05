@@ -133,6 +133,21 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(buttons.allSatisfy { ($0["style"] as? Int) == 1 })
     }
 
+    func testAppearanceOverridesButtonStyleAndEmbedColor() {
+        let button = KimiUI.button(id: "custom", label: "Custom", style: 4)
+        XCTAssertEqual(button["style"] as? Int, 4)
+        let response = KimiUI.message(
+            "Kimi Appearance\\nSaved.",
+            components: [KimiUI.row([KimiUI.button(id: "home", label: "Home")])],
+            embedColor: 0x5865F2,
+            buttonStyle: 3)
+        let embed = (response["embeds"] as? [[String: Any]])?.first
+        XCTAssertEqual(embed?["color"] as? Int, 0x5865F2)
+        let rows = response["components"] as? [[String: Any]] ?? []
+        let buttons = rows.flatMap { $0["components"] as? [[String: Any]] ?? [] }
+        XCTAssertEqual(buttons.first?["style"] as? Int, 3)
+    }
+
     func testDiscordComponentRowsRespectFiveRowAndFiveButtonLimits() throws {
         let buttons = (0..<6).map { index in
             KimiUI.button(id: "test:\(index)", label: "Button \(index)")
