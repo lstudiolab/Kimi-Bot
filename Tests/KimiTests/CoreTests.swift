@@ -120,7 +120,7 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(buffer.isEmpty)
     }
 
-    func testMessageResponsesAlwaysUseGreyEmbedsAndSecondaryButtons() {
+    func testMessageResponsesUseGreyEmbedsAndPrimaryButtons() {
         let response = KimiUI.message("Settings updated.\nAll changes are saved.", components: [
             KimiUI.row([KimiUI.button(id: "settings:home", label: "Home", style: 4)])
         ])
@@ -130,7 +130,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(embed?["description"] as? String, "All changes are saved.")
         let rows = response["components"] as? [[String: Any]] ?? []
         let buttons = rows.flatMap { $0["components"] as? [[String: Any]] ?? [] }
-        XCTAssertTrue(buttons.allSatisfy { ($0["style"] as? Int) == 2 })
+        XCTAssertTrue(buttons.allSatisfy { ($0["style"] as? Int) == 1 })
     }
 
     func testDiscordComponentRowsRespectFiveRowAndFiveButtonLimits() throws {
