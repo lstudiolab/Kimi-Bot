@@ -50,18 +50,14 @@ actor SupportService {
             [
                 "type": 1,
                 "components": [
-                    ["type": 2, "style": 1, "label": "Open Ticket", "custom_id": "ticket:open"]
+                    KimiUI.button(id: "ticket:open", label: "Open Ticket")
                 ],
             ]
         ]
     }
 
     func panelBody(_ settings: Settings) -> [String: Any] {
-        [
-            "content": DiscordText.prefixUTF16("**\(settings.panelTitle)**\n\(settings.panelDescription)", limit: 1900),
-            "components": panelComponents(),
-            "allowed_mentions": ["parse": []],
-        ]
+        KimiUI.panel(title: settings.panelTitle, description: settings.panelDescription, components: panelComponents())
     }
 
 
