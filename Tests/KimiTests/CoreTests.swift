@@ -15,36 +15,17 @@ final class CoreTests: XCTestCase {
         let commands = CommandCatalog.globalCommands()
         let names = commands.compactMap { $0["name"] as? String }
         XCTAssertEqual(names.count, Set(names).count, "Global slash-command names must be unique.")
-        for required in [
-            "setup", "plugin-install", "plugin-remove", "automations", "guard-review",
-            "plan", "plugins", "plugin-store",
-            "analytics", "performance",
-        ] {
-            XCTAssertTrue(names.contains(required), "Missing global command: " + required)
-        }
-        for removed in ["apps", "app-store", "install", "uninstall", "web-token"] {
-            XCTAssertFalse(names.contains(removed), "Legacy app command is still registered: " + removed)
-        }
+        XCTAssertEqual(names, ["control-center"], "Kimi exposes one primary command.")
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Kimi Lock"))
         XCTAssertTrue(CommandCatalog.pluginNames().contains("Support"))
     }
     func testPluginStoreNamingAndCommandRegistration() {
         let names = Set(CommandCatalog.globalCommands().compactMap { $0["name"] as? String })
-        XCTAssertTrue(names.contains("plugin-store"))
-        XCTAssertTrue(names.contains("plugin-install"))
-        XCTAssertTrue(names.contains("plugin-remove"))
-        XCTAssertFalse(names.contains("app-store"))
-        XCTAssertFalse(names.contains("install"))
-        XCTAssertFalse(names.contains("uninstall"))
+        XCTAssertEqual(names, Set(["control-center"]))
         XCTAssertEqual(PluginRegistry.resolve("Kimi Lock")?.name, "Kimi Lock")
         XCTAssertEqual(PluginRegistry.resolve("tickets")?.name, "Support")
-        let support = Set(CommandCatalog.guildCommands(installed: ["Support"]).compactMap { $0["name"] as? String })
-        XCTAssertEqual(support, Set(["ticket-screen"]))
-        XCTAssertTrue(CommandCatalog.guildCommands(installed: []).isEmpty)
-        XCTAssertEqual(
-            Set(CommandCatalog.guildCommands(installed: ["Kimi Lock"]).compactMap { $0["name"] as? String }),
-            Set(["kimi-lock-screen"])
-        )
+        XCTAssertTrue(CommandCatalog.guildCommands(installed: ["Support"]).isEmpty)
+        XCTAssertTrue(CommandCatalog.guildCommands(installed: ["Kimi Lock"]).isEmpty)
     }
 
     func testPluginManagerPersistsInstallationsAndMigratesLegacyData() async throws {
