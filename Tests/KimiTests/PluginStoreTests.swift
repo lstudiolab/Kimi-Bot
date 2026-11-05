@@ -16,6 +16,19 @@ final class PluginStoreTests: XCTestCase {
         XCTAssertTrue(CommandCatalog.guildCommands(installed: names).isEmpty)
     }
 
+    func testAutoModeratorIsListedAsItsOwnSixLevelModule() {
+        let plugin = PluginRegistry.plugins.first { $0.name == "Auto-Moderator" }
+        XCTAssertNotNil(plugin)
+        XCTAssertNotNil(CommandCatalog.pluginCommands["Auto-Moderator"])
+        XCTAssertTrue(CommandCatalog.pluginCommands["Auto-Moderator"]?.isEmpty ?? false)
+        XCTAssertEqual(AutoModeratorCatalog.sections.count, 6)
+        XCTAssertTrue(AutoModeratorCatalog.sections.contains { $0.title == "Micro / Tiny Essentials" })
+        XCTAssertTrue(AutoModeratorCatalog.sections.contains { $0.title == "Massive / Cutting-Edge Systems" })
+        XCTAssertTrue(AutoModeratorCatalog.sections.flatMap(\.features).contains { $0.name.contains("phishing") })
+        XCTAssertGreaterThan(AutoModeratorCatalog.availableCount, 0)
+        XCTAssertGreaterThan(AutoModeratorCatalog.plannedCount, 0)
+    }
+
     func testPluginStoreMenuAndDetailComponentsRespectDiscordLimits() throws {
         let menu = PluginStoreUI.catalogRows(installed: [])
         XCTAssertNoThrow(try KimiUI.validateMessageComponents(menu))
