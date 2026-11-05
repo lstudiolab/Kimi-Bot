@@ -8,8 +8,10 @@ actor ModerationEngine {
         var blockedPhrases: [String] = []
         var sanction: String = "timeout"
         var actionDurationSeconds: Int = 10
-        var blockInvites, blockMassMentions: Bool = true
-        var blockExcessiveCaps, blockSelfAdvertising: Bool = true
+        var blockInvites: Bool = true
+        var blockMassMentions: Bool = true
+        var blockExcessiveCaps: Bool = true
+        var blockSelfAdvertising: Bool = true
         var logChannelID: String?
         init() {}
         enum CodingKeys: String, CodingKey {
