@@ -16,7 +16,7 @@ extension RecoveryService {
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(channel)/messages",
-                    body: KimiUI.message("Recovered message\n" + body)
+                    body: KimiUI.message("Recovered message\n" + body))
             } catch {
                 await logger.log("ERROR", "Message recovery failed for " + message + ": " + error.localizedDescription)
             }
