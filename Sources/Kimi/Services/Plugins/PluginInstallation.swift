@@ -115,17 +115,17 @@ extension KimiRuntime {
                 let helpers = plugin.helpers.map { "• " + $0 }.joined(separator: "\n")
                 let status = isInstalled ? "Installed" : "Available"
                 let description: String
-                if plugin.name == "Auto-Moderator" {
-                    let tiers = AutoModeratorCatalog.sections.map { section in
+                if plugin.name == "Kimi Guard" {
+                    let tiers = KimiGuardCatalog.sections.map { section in
                         let features = section.features.map {
                             ($0.available ? "Ready" : "Planned") + " · " + $0.name
                         }.joined(separator: "\n")
                         return section.level + " · " + section.title + "\n" + features
                     }.joined(separator: "\n\n")
-                    description = "Auto-Moderator · \(status)\n\n"
+                    description = "Kimi Guard · \(status)\n\n"
                         + "A six-level moderation suite. Ready features use Kimi's existing moderation engine; planned features are not active yet.\n\n"
-                        + tiers + "\n\nReady: " + String(AutoModeratorCatalog.availableCount)
-                        + " · Planned: " + String(AutoModeratorCatalog.plannedCount)
+                        + tiers + "\n\nReady: " + String(KimiGuardCatalog.availableCount)
+                        + " · Planned: " + String(KimiGuardCatalog.plannedCount)
                 } else {
                     description = "\(plugin.name) · \(status)\n\n\(plugin.description)\n\nIncluded systems\n\(systems)\n\nCompatibility and safeguards\n\(helpers)"
                 }
@@ -371,7 +371,7 @@ extension KimiRuntime {
             required = [("View Channels", 1 << 10), ("Send Messages", 1 << 11), ("Embed Links", 1 << 14)]
         case "Kimi Lock":
             required = [("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40)]
-        case "Auto-Moderator":
+        case "Kimi Guard":
             required = [
                 ("Manage Channels", 1 << 4), ("Manage Messages", 1 << 13),
                 ("Moderate Members", 1 << 40), ("Kick Members", 1 << 1), ("Ban Members", 1 << 2),
