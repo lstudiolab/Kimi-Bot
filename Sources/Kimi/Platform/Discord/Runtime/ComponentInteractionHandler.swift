@@ -79,11 +79,11 @@ extension KimiRuntime {
             await logger.log("ERROR", "Could not open plugin settings editor: " + error.localizedDescription)
             return true
         }
-        // Plugin Store navigation updates the existing ephemeral panel instead of
-        // creating a second ephemeral response for every button/select interaction.
+        // Each Module Store action gets its own ephemeral response. The previous
+        // screen remains available, so Back navigation never destroys the prior view.
         if custom == "settings:plugins" || custom == "settings:apps" || custom.hasPrefix("store:") {
             do {
-                try await rest.deferKimiComponentUpdate(id, token)
+                try await rest.deferKimiInteraction(id, token, ephemeral: true)
             } catch {
                 await logger.log("WARN", "Plugin Store acknowledgement failed: " + error.localizedDescription)
                 return true
