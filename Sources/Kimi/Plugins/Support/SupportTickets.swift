@@ -2,10 +2,8 @@ import Foundation
 
 actor SupportTickets {
     struct Ticket: Codable, Sendable, Identifiable {
-        let id: String
-        let guildID: String
-        let userID: String
-        let channelID: String
+        let id, guildID: String
+        let userID, channelID: String
         let openedAt: Date
         var closedAt: Date?
         var priority: String

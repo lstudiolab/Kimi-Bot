@@ -2,10 +2,8 @@ import Foundation
 
 actor FoundationEngine {
     struct Welcome: Codable, Sendable {
-        var welcomeChannel: String?
-        var goodbyeChannel: String?
-        var welcomeMessage: String
-        var goodbyeMessage: String
+        var welcomeChannel, goodbyeChannel: String?
+        var welcomeMessage, goodbyeMessage: String
         var autoRole: String?
         init(
             welcomeChannel: String? = nil, goodbyeChannel: String? = nil,
@@ -20,10 +18,8 @@ actor FoundationEngine {
         }
     }
     struct LegacyWelcome: Decodable {
-        var welcome_channel_id: String?
-        var goodbye_channel_id: String?
-        var welcome_message: String?
-        var goodbye_message: String?
+        var welcome_channel_id, goodbye_channel_id: String?
+        var welcome_message, goodbye_message: String?
         var auto_role_id: String?
     }
     let store: PersistentStore

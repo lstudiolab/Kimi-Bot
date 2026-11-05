@@ -2,16 +2,13 @@ import Foundation
 
 actor RolePickerService {
     struct Menu: Codable, Sendable {
-        let id: String
-        let name: String
-        let guildID: String
-        let channelID: String
+        let id, name: String
+        let guildID, channelID: String
         var messageID: String?
         let roles: [Role]
     }
     struct Role: Codable, Sendable {
-        let id: String
-        let name: String
+        let id, name: String
     }
     let store: PersistentStore
     let rest: DiscordREST

@@ -2,10 +2,8 @@ import Foundation
 
 actor SupportService {
     struct Settings: Codable, Sendable {
-        var categoryID: String?
-        var supportRoleID: String?
-        var transcriptChannelID: String?
-        var panelChannelID: String?
+        var categoryID, supportRoleID: String?
+        var transcriptChannelID, panelChannelID: String?
         var panelMessageID: String?
         var panelTitle: String = "Contact Support"
         var panelDescription: String = "Open a private ticket with the support team."

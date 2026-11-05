@@ -42,8 +42,7 @@ extension RolePickerService {
             let currentRoles = Set(member["roles"] as? [String] ?? [])
             let removed = currentRoles.intersection(allowed).subtracting(chosen).sorted()
             let added = chosen.subtracting(currentRoles).sorted()
-            var appliedRemovals: [String] = []
-            var appliedAdditions: [String] = []
+            var appliedRemovals, appliedAdditions: [String] = []
             do {
                 for role in removed {
                     _ = try await rest.call("DELETE", "guilds/\(guild)/members/\(user)/roles/\(role)")
