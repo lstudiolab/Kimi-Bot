@@ -14,7 +14,7 @@ actor PluginInstallJobs {
         watchdogs[key] = Task {
             do {
                 try await Task.sleep(nanoseconds: 90_000_000_000)
-                await self.expire(key: key)
+                self.expire(key: key)
             } catch {
                 // The installation completed or was cancelled before its deadline.
             }
