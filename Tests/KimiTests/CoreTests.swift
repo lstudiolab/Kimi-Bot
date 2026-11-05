@@ -137,7 +137,7 @@ final class CoreTests: XCTestCase {
         let button = KimiUI.button(id: "custom", label: "Custom", style: 4)
         XCTAssertEqual(button["style"] as? Int, 4)
         let response = KimiUI.message(
-            "Kimi Appearance\\nSaved.",
+            "Kimi Appearance\nSaved.",
             components: [KimiUI.row([KimiUI.button(id: "home", label: "Home")])],
             embedColor: 0x5865F2,
             buttonStyle: 3)
@@ -154,7 +154,7 @@ final class CoreTests: XCTestCase {
         }
         let rows = KimiUI.buttonRows(buttons)
         XCTAssertEqual(rows.count, 2)
-        XCTAssertEqual((buttons.first?["style"] as? Int), 2, "All Kimi buttons must use Discord secondary styling.")
+        XCTAssertEqual((buttons.first?["style"] as? Int), 1, "Kimi defaults to primary buttons.")
         XCTAssertEqual((rows[0]["components"] as? [[String: Any]])?.count, 5)
         XCTAssertEqual((rows[1]["components"] as? [[String: Any]])?.count, 1)
         try KimiUI.validateMessageComponents(rows)
