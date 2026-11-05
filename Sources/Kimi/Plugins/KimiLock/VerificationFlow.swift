@@ -83,8 +83,8 @@ extension VerificationService {
                             [
                                 "type": 1,
                                 "components": [
-                                    ["type": 2, "style": 2, "custom_id": "verify:approve:" + userID],
-                                    ["type": 2, "style": 2, "custom_id": "verify:reject:" + userID],
+                                    ["type": 2, "style": 2, "label": "Approve", "custom_id": "verify:approve:" + userID],
+                                    ["type": 2, "style": 2, "label": "Reject", "custom_id": "verify:reject:" + userID],
                                 ],
                             ]
                         ] as [[String: Any]]
