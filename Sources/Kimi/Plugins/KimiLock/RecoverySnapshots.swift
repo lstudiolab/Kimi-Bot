@@ -47,7 +47,7 @@ extension RecoveryService {
             let cutoff = now.addingTimeInterval(-week)
             let snapshotDate = createdAt ?? now
             do {
-                try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
+                _ = try await store.updateGuild("recovery.messages", guildID: guild, as: [String: [Message]].self) { stored in
                     var all = stored ?? [:]
                     let previousRows = all[guild] ?? []
                     let previousIndex = previousRows.firstIndex(where: { $0.id == message })
