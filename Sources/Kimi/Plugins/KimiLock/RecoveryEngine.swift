@@ -2,8 +2,7 @@ import Foundation
 
 actor RecoveryEngine {
     struct Snapshot: Codable, Sendable, Identifiable {
-        let id: String
-        let guildID: String
+        let id, guildID: String
         let createdAt: Date
         let payload: [String: Data]
     }

@@ -2,8 +2,7 @@ import Foundation
 
 struct MessagePolicy {
     struct Result: Sendable {
-        let shouldDelete: Bool
-        let shouldTimeout: Bool
+        let shouldDelete, shouldTimeout: Bool
         let timeoutSeconds: Int
         let reason: String
         let score: Int

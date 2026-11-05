@@ -8,10 +8,8 @@ actor ModerationEngine {
         var blockedPhrases: [String] = []
         var sanction: String = "timeout"
         var actionDurationSeconds: Int = 10
-        var blockInvites: Bool = true
-        var blockMassMentions: Bool = true
-        var blockExcessiveCaps: Bool = true
-        var blockSelfAdvertising: Bool = true
+        var blockInvites, blockMassMentions: Bool = true
+        var blockExcessiveCaps, blockSelfAdvertising: Bool = true
         var logChannelID: String?
         init() {}
         enum CodingKeys: String, CodingKey {
@@ -34,20 +32,16 @@ actor ModerationEngine {
         }
     }
     struct Finding: Sendable {
-        let guildID: String
-        let userID: String
-        let messageID: String
-        let reason: String
+        let guildID, userID: String
+        let messageID, reason: String
         let score: Int
     }
     struct Legacy: Decodable {
         var enabled: Bool?
-        var timeout_minutes: Int?
-        var max_message_count: Int?
+        var timeout_minutes, max_message_count: Int?
         var sanction: String?
         var action_duration_seconds: Int?
-        var block_invites: Bool?
-        var block_mass_mentions: Bool?
+        var block_invites, block_mass_mentions: Bool?
         var block_excessive_caps: Bool?
         var log_channel_id: String?
     }
