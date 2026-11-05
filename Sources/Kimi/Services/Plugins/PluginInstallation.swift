@@ -4,11 +4,21 @@ import Foundation
 /// Actor isolation makes the duplicate-install guard and cancellation lookup atomic.
 actor PluginInstallJobs {
     private var jobs: [String: Task<Void, Never>] = [:]
+    private var watchdogs: [String: Task<Void, Never>] = [:]
+    private var expired: Set<String> = []
 
     func start(key: String, operation: @escaping @Sendable () async -> Void) -> Bool {
         guard jobs[key] == nil else { return false }
         let task = Task { await operation() }
         jobs[key] = task
+        watchdogs[key] = Task {
+            do {
+                try await Task.sleep(nanoseconds: 90_000_000_000)
+                await self.expire(key: key)
+            } catch {
+                // The installation completed or was cancelled before its deadline.
+            }
+        }
         return true
     }
 
@@ -16,7 +26,21 @@ actor PluginInstallJobs {
         jobs[key]?.cancel()
     }
 
+    func wasTimedOut(key: String) -> Bool {
+        let value = expired.contains(key)
+        expired.remove(key)
+        return value
+    }
+
+    private func expire(key: String) {
+        guard jobs[key] != nil else { return }
+        expired.insert(key)
+        jobs[key]?.cancel()
+    }
+
     func finish(key: String) {
+        watchdogs[key]?.cancel()
+        watchdogs[key] = nil
         jobs[key] = nil
     }
 }
@@ -118,6 +142,12 @@ extension KimiRuntime {
                     throw KimiError.configuration("Only the server owner can install plugins.")
                 }
                 let key = installKey(guildID: guildID, actorID: actorID, slug: slug)
+                // Update the deferred component response before starting background work,
+                // preventing the first progress edit from being overwritten by this view.
+                try await rest.editKimiInteraction(
+                    applicationID, interactionToken,
+                    "Installing \(plugin.name)…\nPreparing system checks.",
+                    PluginStoreUI.installingRows(slug))
                 let started = await pluginInstallJobs.start(key: key) {
                     await self.performPluginInstallation(
                         plugin, guildID: guildID, actorID: actorID,
@@ -131,10 +161,6 @@ extension KimiRuntime {
                         PluginStoreUI.installingRows(slug))
                     return
                 }
-                try await rest.editKimiInteraction(
-                    applicationID, interactionToken,
-                    "Installing \(plugin.name)…\nPreparing system checks.",
-                    PluginStoreUI.installingRows(slug))
                 return
             }
 
@@ -225,10 +251,15 @@ extension KimiRuntime {
                 "\(plugin.name) is installed.\nIts commands and systems are now available in this server.", [])
             await logger.log("INFO", "Installed plugin \(plugin.name) in guild \(guildID) by owner \(actorID).")
         } catch is CancellationError {
-            try? await rest.editKimiInteraction(
-                applicationID, interactionToken,
-                "Installation cancelled.\nNo partial plugin changes were kept.", [])
-            await logger.log("INFO", "Plugin installation cancelled: \(plugin.name) in guild \(guildID).")
+            let timedOut = await pluginInstallJobs.wasTimedOut(key: jobKey)
+            let message = timedOut
+                ? "Installation timed out after 90 seconds.\nThe previous plugin state was restored."
+                : "Installation cancelled.\nNo partial plugin changes were kept."
+            try? await rest.editKimiInteraction(applicationID, interactionToken, message, [])
+            await logger.log(
+                timedOut ? "WARN" : "INFO",
+                (timedOut ? "Plugin installation timed out: " : "Plugin installation cancelled: ")
+                    + "\(plugin.name) in guild \(guildID).")
         } catch {
             try? await rest.editKimiInteraction(
                 applicationID, interactionToken,
