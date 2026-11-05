@@ -2,18 +2,14 @@ import Foundation
 
 struct EmbedValidator {
     struct Field: Sendable {
-        let name: String
-        let value: String
+        let name, value: String
     }
     struct Definition: Sendable {
-        let title: String
-        let description: String
+        let title, description: String
         let fields: [Field]
         let color: Int
-        let author: String?
-        let footer: String?
-        let url: String?
-        let imageURL: String?
+        let author, footer: String?
+        let url, imageURL: String?
 
         init(
             title: String, description: String, fields: [Field], color: Int,

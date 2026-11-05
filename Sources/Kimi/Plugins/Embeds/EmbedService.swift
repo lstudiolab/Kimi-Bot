@@ -2,20 +2,15 @@ import Foundation
 
 actor EmbedService {
     struct Field: Codable, Sendable {
-        var name: String
-        var value: String
+        var name, value: String
         var inline: Bool = false
     }
     struct Saved: Codable, Sendable, Identifiable {
-        let id: String
-        let name: String
-        var title: String
-        var description: String
+        let id, name: String
+        var title, description: String
         var color: Int
-        var footer: String?
-        var author: String?
-        var thumbnailURL: String?
-        var imageURL: String?
+        var footer, author: String?
+        var thumbnailURL, imageURL: String?
         var url: String?
         var fields: [Field]?
     }

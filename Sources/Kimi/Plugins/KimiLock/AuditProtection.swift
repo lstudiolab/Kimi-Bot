@@ -2,10 +2,8 @@ import Foundation
 
 actor AuditProtection {
     struct Incident: Codable, Sendable {
-        let id: String
-        let guildID: String
-        let actorID: String
-        let action: String
+        let id, guildID: String
+        let actorID, action: String
         let count: Int
         let reason: String
         let createdAt: Date

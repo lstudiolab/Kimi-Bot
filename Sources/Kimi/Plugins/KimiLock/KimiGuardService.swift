@@ -2,13 +2,10 @@ import Foundation
 
 actor KimiGuardService {
     struct Incident: Codable, Sendable {
-        let id: String
-        let guildID: String
-        let actorID: String
-        let action: String
+        let id, guildID: String
+        let actorID, action: String
         let reason: String
-        let originalRoles: [String]
-        let removedRoles: [String]
+        let originalRoles, removedRoles: [String]
         let createdAt: Date
         let timeoutUntil: Date?
         var status: String
