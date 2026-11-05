@@ -105,9 +105,10 @@ extension KimiRuntime {
             let installed = await PluginManager(store: store).installed(guildID: guild)
             let hasKimiLock = installed.contains("Kimi Lock")
             let hasKimiGuard = installed.contains("Kimi Guard")
-            let recoveryEnabled = hasKimiLock && await migratedModuleEnabled("recovery", guild: guild)
-            let moderationEnabled = (hasKimiLock || hasKimiGuard)
-                && await migratedModuleEnabled("moderation", guild: guild)
+            let recoveryConfigured = await migratedModuleEnabled("recovery", guild: guild)
+            let moderationConfigured = await migratedModuleEnabled("moderation", guild: guild)
+            let recoveryEnabled = hasKimiLock && recoveryConfigured
+            let moderationEnabled = (hasKimiLock || hasKimiGuard) && moderationConfigured
             let editedContent = data["content"] as? String
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
             if recoveryEnabled, let editedContent {
@@ -211,6 +212,7 @@ extension KimiRuntime {
                 if await wasModerationDeleted(id) { continue }
                 await recovery.restoreMessage(guild, channel, id)
             }
+        default: return
         }
     }
 }
