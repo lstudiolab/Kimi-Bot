@@ -449,7 +449,8 @@ actor GatewayEventDispatcher {
     private let maximumQueued = 2048
     private var activeInteractions = 0
     private var activeEvents = 0
-    private var interactions, events: [[String: Any]] = []
+    private var interactions: [[String: Any]] = []
+    private var events: [[String: Any]] = []
     private var interactionHead = 0
     private var eventHead = 0
     private var lastOverflowLog = Date.distantPast
