@@ -261,10 +261,22 @@ extension KimiRuntime {
                 (timedOut ? "Plugin installation timed out: " : "Plugin installation cancelled: ")
                     + "\(plugin.name) in guild \(guildID).")
         } catch {
-            try? await rest.editKimiInteraction(
-                applicationID, interactionToken,
-                "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", [])
-            await logger.log("WARN", "Plugin installation failed for \(plugin.name): " + error.localizedDescription)
+            if Task.isCancelled {
+                let timedOut = await pluginInstallJobs.wasTimedOut(key: jobKey)
+                let message = timedOut
+                    ? "Installation timed out after 90 seconds.\nThe previous plugin state was restored."
+                    : "Installation cancelled.\nNo partial plugin changes were kept."
+                try? await rest.editKimiInteraction(applicationID, interactionToken, message, [])
+                await logger.log(
+                    timedOut ? "WARN" : "INFO",
+                    (timedOut ? "Plugin installation timed out: " : "Plugin installation cancelled: ")
+                        + "\(plugin.name) in guild \(guildID).")
+            } else {
+                try? await rest.editKimiInteraction(
+                    applicationID, interactionToken,
+                    "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", [])
+                await logger.log("WARN", "Plugin installation failed for \(plugin.name): " + error.localizedDescription)
+            }
         }
         await pluginInstallJobs.finish(key: jobKey)
     }
