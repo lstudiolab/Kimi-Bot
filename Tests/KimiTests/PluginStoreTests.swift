@@ -37,7 +37,7 @@ final class PluginStoreTests: XCTestCase {
             "store:select")
         XCTAssertEqual(
             (menu.last?["components"] as? [[String: Any]])?.first?["custom_id"] as? String,
-            "settings:home")
+            "store:home")
 
         for plugin in PluginRegistry.plugins {
             let detail = PluginStoreUI.detailRows(plugin, installed: false)
