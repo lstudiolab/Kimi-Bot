@@ -126,9 +126,14 @@ final class CoreTests: XCTestCase {
         }
         let rows = KimiUI.buttonRows(buttons)
         XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual((buttons.first?["style"] as? Int), 2, "All Kimi buttons must use Discord secondary styling.")
         XCTAssertEqual((rows[0]["components"] as? [[String: Any]])?.count, 5)
         XCTAssertEqual((rows[1]["components"] as? [[String: Any]])?.count, 1)
         try KimiUI.validateMessageComponents(rows)
+        let panel = KimiUI.panel(title: "Settings", description: "Current configuration.")
+        let embeds = panel["embeds"] as? [[String: Any]]
+        XCTAssertEqual(embeds?.first?["color"] as? Int, 0x808080)
+        XCTAssertEqual(embeds?.first?["title"] as? String, "Settings")
 
         let oversized = Array(repeating: KimiUI.row([KimiUI.button(id: "x", label: "X")]), count: 6)
         XCTAssertThrowsError(try KimiUI.validateMessageComponents(oversized))
