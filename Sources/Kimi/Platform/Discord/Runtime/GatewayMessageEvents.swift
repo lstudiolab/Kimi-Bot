@@ -100,9 +100,9 @@ extension KimiRuntime {
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
             let recoveryEnabled = await migratedModuleEnabled("recovery", guild: guild)
-            if installed.contains("Kimi Lock"), recoveryEnabled,
-                let editedContent = data["content"] as? String
-            {
+            let moderationEnabled = await migratedModuleEnabled("moderation", guild: guild)
+            let editedContent = data["content"] as? String
+            if installed.contains("Kimi Lock"), recoveryEnabled, let editedContent {
                 let attachments = (data["attachments"] as? [[String: Any]] ?? []).compactMap {
                     item -> RecoveryService.Attachment? in
                     guard let url = item["url"] as? String else { return nil }
@@ -118,9 +118,7 @@ extension KimiRuntime {
                     attachments: attachments, authorName: author["username"] as? String,
                     createdAt: messageCreatedAt)
             }
-            if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild),
-                let editedContent = data["content"] as? String
-            {
+            if installed.contains("Kimi Lock"), moderationEnabled, let editedContent {
                 let member = data["member"] as? [String: Any] ?? [:]
                 let memberRoles = Set(member["roles"] as? [String] ?? [])
                 let rolePermissions = await cachedRolePermissions(guild)
@@ -162,8 +160,7 @@ extension KimiRuntime {
                     await logger.log("WARN", "Kimi Lock removed edited content: " + finding.reason + "; sanction: " + sanction)
                 }
             }
-            if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
-                let recovery = RecoveryService(store: store, logger: logger, rest: rest)
+            if installed.contains("Kimi Lock"), recoveryEnabled {
                 let previous = await recovery.savedMessage(guild, channel, message)
                 let updated = data["content"] as? String ?? ""
                 if let previous, previous.content != updated {
@@ -198,13 +195,12 @@ extension KimiRuntime {
                 let ids = data["ids"] as? [String]
             else { return }
             let installed = await PluginManager(store: store).installed(guildID: guild)
-            if installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) {
-                for id in ids {
-                    if await store.get("moderation.deleted." + id, as: Bool.self) != true {
-                        await RecoveryService(store: store, logger: logger, rest: rest).restoreMessage(
-                            guild, channel, id)
-                    }
-                }
+            guard installed.contains("Kimi Lock"), await migratedModuleEnabled("recovery", guild: guild) else {
+                return
+            }
+            let recovery = RecoveryService(store: store, logger: logger, rest: rest)
+            for id in ids where !(await wasModerationDeleted(id)) {
+                await recovery.restoreMessage(guild, channel, id)
             }
         }
     }
