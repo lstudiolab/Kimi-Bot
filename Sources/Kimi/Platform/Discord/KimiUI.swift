@@ -5,8 +5,8 @@ enum KimiUI {
     static func embed(title: String, description: String) -> [String: Any] {
         ["color": grey, "title": DiscordText.prefixUTF16(title, limit: 256), "description": DiscordText.prefixUTF16(description, limit: 4096)]
     }
-    static func button(id: String, label: String, style: Int = 2, disabled: Bool = false) -> [String: Any] {
-        ["type": 2, "style": max(1, min(5, style)), "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled]
+    static func button(id: String, label: String, style _: Int = 2, disabled: Bool = false) -> [String: Any] {
+        ["type": 2, "style": 2, "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled]
     }
     static func row(_ components: [[String: Any]]) -> [String: Any] {
         ["type": 1, "components": Array(components.prefix(5))]
@@ -105,7 +105,14 @@ enum KimiUI {
         ["custom_id": DiscordText.prefixUTF16(id, limit: 100), "title": DiscordText.prefixUTF16(title, limit: 45), "components": inputs.prefix(5).map { row([$0]) }]
     }
     static func safeMentions() -> [String: Any] { ["parse": []] }
+    static func panel(title: String, description: String, components: [[String: Any]] = []) -> [String: Any] {
+        ["embeds": [embed(title: title, description: description)], "components": components, "allowed_mentions": safeMentions()]
+    }
     static func message(_ content: String, components: [[String: Any]] = []) -> [String: Any] {
-        ["content": DiscordText.prefixUTF16(content, limit: 1900), "components": components, "allowed_mentions": safeMentions()]
+        let lines = content.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        let hasTitle = lines.count > 1
+        let title = hasTitle ? String(lines[0]) : "Kimi"
+        let description = hasTitle ? String(lines[1]) : content
+        return panel(title: title.isEmpty ? "Kimi" : title, description: description, components: components)
     }
 }
