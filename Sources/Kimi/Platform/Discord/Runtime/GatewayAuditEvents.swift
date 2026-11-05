@@ -196,6 +196,7 @@ extension KimiRuntime {
                     }
                 }
             } catch { await logger.log("ERROR", "Audit incident containment failed: " + error.localizedDescription) }
+        default: return
         }
     }
 }
