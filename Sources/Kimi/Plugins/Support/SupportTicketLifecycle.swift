@@ -62,7 +62,7 @@ extension SupportService {
             _ = try await rest.call(
                 "PATCH", "channels/\(ticket.channelID)",
                 body: ["name": SecurityPolicy.channelName("closed-" + String(ticket.id.prefix(8)))])
-            try await rest.call(
+            _ = try await rest.call(
                 "PUT", "channels/\(ticket.channelID)/permissions/\(ticket.userID)",
                 body: ["type": 1, "deny": "1024", "allow": "0"])
             if let thread = ticket.staffThreadID {
