@@ -44,24 +44,21 @@ extension SupportService {
                                 "custom_id": "ticket:priority:" + ticket.id + ":normal",
                             ],
                             [
-                                "type": 2, "style": 1, "label": "High",
+                                "type": 2, "style": 2,
                                 "custom_id": "ticket:priority:" + ticket.id + ":high",
                             ],
                             [
-                                "type": 2, "style": 4, "label": "Urgent",
+                                "type": 2, "style": 2,
                                 "custom_id": "ticket:priority:" + ticket.id + ":urgent",
                             ],
-                            ["type": 2, "style": 4, "label": "Close", "custom_id": "ticket:close:" + ticket.id],
+                            ["type": 2, "style": 2, "custom_id": "ticket:close:" + ticket.id],
                         ],
                     ]
                 ] as [[String: Any]]
             do {
                 _ = try await rest.call(
                     "POST", "channels/\(channel)/messages",
-                    body: [
-                        "content": "Support ticket opened for <@\(user)>. A staff member will respond here.\nPriority: normal",
-                        "components": controls, "allowed_mentions": ["users": [user], "parse": []],
-                    ])
+                    body: KimiUI.panel(title: "Support ticket", description: "Opened for <@\(user)>. A staff member will respond here.\nPriority: normal", components: controls).merging(["allowed_mentions": ["users": [user], "parse": []]]) { _, new in new })
             } catch {
                 var recordClosed = false
                 do {
@@ -97,11 +94,7 @@ extension SupportService {
                 let staffNotice = value.supportRoleID.map { "<@&" + $0 + "> " } ?? ""
                 _ = try? await rest.call(
                     "POST", "channels/" + threadID + "/messages",
-                    body: [
-                        "content": staffNotice + "Staff handoff for ticket " + ticket.id
-                            + ". Coordinate the response here; the ticket channel remains visible to its opener and support staff.",
-                        "allowed_mentions": ["roles": value.supportRoleID.map { [$0] } ?? [], "parse": []],
-                    ])
+                    body: KimiUI.panel(title: "Staff handoff", description: staffNotice + "Ticket " + ticket.id + ". Coordinate the response here; the ticket channel remains visible to its opener and support staff.").merging(["allowed_mentions": ["roles": value.supportRoleID.map { [$0] } ?? [], "parse": []]]) { _, new in new })
             } else {
                 await logger.log(
                     "WARN",
