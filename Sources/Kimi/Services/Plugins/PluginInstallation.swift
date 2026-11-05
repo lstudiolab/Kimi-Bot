@@ -3,7 +3,8 @@ import Foundation
 /// Tracks one installation task per server, user and plugin.
 /// Actor isolation makes the duplicate-install guard and cancellation lookup atomic.
 actor PluginInstallJobs {
-    private var jobs, watchdogs: [String: Task<Void, Never>] = [:]
+    private var jobs: [String: Task<Void, Never>] = [:]
+    private var watchdogs: [String: Task<Void, Never>] = [:]
     private var expired: Set<String> = []
 
     func start(key: String, operation: @escaping @Sendable () async -> Void) -> Bool {
