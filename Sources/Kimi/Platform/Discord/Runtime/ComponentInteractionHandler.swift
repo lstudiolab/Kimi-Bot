@@ -114,7 +114,7 @@ extension KimiRuntime {
                     KimiUI.button(
                         id: "settings:plugin:" + pluginName,
                         label: pluginName + " · " + (installed.contains(pluginName) ? "Remove" : "Install"),
-                        style: installed.contains(pluginName) ? 2 : 1)
+                        )
                 }
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(
@@ -139,7 +139,7 @@ extension KimiRuntime {
                     KimiUI.button(
                         id: "settings:plugin:" + value,
                         label: value + " · " + (updated.contains(value) ? "Remove" : "Install"),
-                        style: updated.contains(value) ? 2 : 1)
+                        )
                 }
                 let rows = KimiUI.buttonRows(buttons)
                 try await rest.editKimiInteraction(app, token, pluginName + " updated.", rows)

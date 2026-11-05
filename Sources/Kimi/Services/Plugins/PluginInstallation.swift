@@ -74,7 +74,6 @@ enum PluginStoreUI {
             KimiUI.button(
                 id: "store:install:" + slug(plugin.name),
                 label: installed ? "Installed" : "Install",
-                style: installed ? 2 : 3,
                 disabled: installed)
         ])]
     }
@@ -82,7 +81,7 @@ enum PluginStoreUI {
     static func installingRows(_ slug: String) -> [[String: Any]] {
         [KimiUI.row([
             KimiUI.button(id: "store:installing:" + slug, label: "Installing", disabled: true),
-            KimiUI.button(id: "store:cancel:" + slug, label: "Cancel", style: 4),
+            KimiUI.button(id: "store:cancel:" + slug, label: "Cancel"),
         ])]
     }
 }
