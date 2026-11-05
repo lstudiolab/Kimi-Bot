@@ -16,8 +16,7 @@ enum KimiError: Error, LocalizedError {
 }
 struct LogEntry: Sendable {
     let date: Date
-    let level: String
-    let message: String
+    let level, message: String
 }
 enum DiscordText {
     static func prefixUTF16(_ value: String, limit: Int) -> String {
@@ -58,8 +57,7 @@ actor Logger {
     }
 }
 struct Configuration {
-    let token: String
-    let clientID: String
+    let token, clientID: String
     let dataDirectory: URL
     static func load() throws -> Configuration {
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -451,8 +449,7 @@ actor GatewayEventDispatcher {
     private let maximumQueued = 2048
     private var activeInteractions = 0
     private var activeEvents = 0
-    private var interactions: [[String: Any]] = []
-    private var events: [[String: Any]] = []
+    private var interactions, events: [[String: Any]] = []
     private var interactionHead = 0
     private var eventHead = 0
     private var lastOverflowLog = Date.distantPast
@@ -564,8 +561,7 @@ actor DiscordGateway {
     private let dispatcher: GatewayEventDispatcher
     private var socket: URLSessionWebSocketTask?
     private var sequence: Int?
-    private var sessionID: String?
-    private var resumeURL: String?
+    private var sessionID, resumeURL: String?
     private var heartbeat: Task<Void, Never>?
     private var heartbeatInterval: Double = 41.25
     private var awaitingHeartbeatAck = false

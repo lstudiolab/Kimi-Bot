@@ -2,18 +2,15 @@ import Foundation
 
 actor AutomationEngine {
     struct Rule: Codable, Sendable, Identifiable {
-        let id: String
-        let guildID: String
-        var name: String
-        var trigger: String
+        let id, guildID: String
+        var name, trigger: String
         var condition: String?
         var action: String
         var enabled: Bool
         let createdAt: Date
     }
     struct Execution: Codable, Sendable {
-        let ruleID: String
-        let guildID: String
+        let ruleID, guildID: String
         let trigger: String
         let success: Bool
         let detail: String

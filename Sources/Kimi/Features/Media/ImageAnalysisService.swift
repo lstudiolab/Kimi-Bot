@@ -61,8 +61,7 @@ private enum ImageProcess {
 actor ImageAnalysisService {
     struct Metadata: Sendable {
         let type: String
-        let width: Int?
-        let height: Int?
+        let width, height: Int?
         let bytes: Int
     }
     private struct Seen: Sendable {
@@ -302,8 +301,7 @@ actor ImageAnalysisService {
     private func metadata(_ data: Data) -> Metadata? {
         guard let type = signature(data) else { return nil }
         let b = [UInt8](data)
-        var width: Int? = nil
-        var height: Int? = nil
+        var width, height: Int? = nil
         if type == "png", b.count >= 24 {
             let w = Int(b[16]) << 24 | Int(b[17]) << 16 | Int(b[18]) << 8 | Int(b[19])
             let h = Int(b[20]) << 24 | Int(b[21]) << 16 | Int(b[22]) << 8 | Int(b[23])
