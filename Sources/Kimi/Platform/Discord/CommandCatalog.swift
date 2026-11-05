@@ -113,7 +113,7 @@ enum CommandCatalog {
                     text("name", "Saved embed name", true), text("title", "Embed title", true),
                     text("description", "Embed description", true), text("author", "Author"), text("footer", "Footer"),
                     text("thumbnail", "Thumbnail HTTPS URL"), text("image", "Image HTTPS URL"),
-                    text("url", "Title HTTPS URL"), integer("color", "Embed color as decimal RGB", 0, 16_777_215),
+                    text("url", "Title HTTPS URL"),
                     text("field-name", "Optional field name"), text("field-value", "Optional field value"),
                     boolean("field-inline", "Display the new field inline"),
                     integer("remove-field", "Remove a field by its 1-based number", 1, 25),

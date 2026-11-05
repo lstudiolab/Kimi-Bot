@@ -2,7 +2,7 @@ import Foundation
 
 extension EmbedService {
         func save(
-            guild: String, name: String, title: String, description: String, color: Int = 8_421_504, footer: String? = nil,
+            guild: String, name: String, title: String, description: String, color _: Int = KimiUI.grey, footer: String? = nil,
             author: String? = nil, thumbnailURL: String? = nil, imageURL: String? = nil, url: String? = nil,
             fields: [Field]? = nil
         ) async throws -> Saved {
@@ -17,7 +17,7 @@ extension EmbedService {
             let validator = EmbedValidator()
             let errors = validator.validate(
                 .init(
-                    title: title, description: description, fields: validationFields, color: color,
+                    title: title, description: description, fields: validationFields, color: KimiUI.grey,
                     author: author ?? existing?.author, footer: footer ?? existing?.footer,
                     url: url ?? existing?.url, imageURL: imageURL ?? existing?.imageURL))
             guard errors.isEmpty else { throw KimiError.configuration(errors.joined(separator: " ")) }
@@ -36,7 +36,7 @@ extension EmbedService {
             }
             let id = existing?.id ?? UUID().uuidString
             let value = Saved(
-                id: id, name: name, title: title, description: description, color: color,
+                id: id, name: name, title: title, description: description, color: KimiUI.grey,
                 footer: footer ?? existing?.footer, author: author ?? existing?.author,
                 thumbnailURL: thumbnailURL ?? existing?.thumbnailURL, imageURL: imageURL ?? existing?.imageURL,
                 url: url ?? existing?.url, fields: nextFields)

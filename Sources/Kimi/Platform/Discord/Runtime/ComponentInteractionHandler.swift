@@ -70,7 +70,6 @@ extension KimiRuntime {
                         KimiUI.textInput(id: "embed-name", label: "Name", maximum: 24),
                         KimiUI.textInput(id: "embed-title", label: "Title", maximum: 256),
                         KimiUI.textInput(id: "embed-description", label: "Description", style: 2, maximum: 4000),
-                        KimiUI.textInput(id: "embed-color", label: "Color (decimal)", value: "8421504", required: false),
                     ])
                 return true
             default:
@@ -191,12 +190,8 @@ extension KimiRuntime {
                     guard let name = modalValue("embed-name"), let title = modalValue("embed-title"),
                         let description = modalValue("embed-description")
                     else { throw KimiError.configuration("Complete the embed name, title and description.") }
-                    let color = Int(modalValue("embed-color") ?? "8421504") ?? 8421504
-                    guard (0...16_777_215).contains(color) else {
-                        throw KimiError.configuration("Embed color must be a decimal value from 0 to 16777215.")
-                    }
                     let saved = try await EmbedService(store: store, rest: rest).save(
-                        guild: guild, name: name, title: title, description: description, color: color)
+                        guild: guild, name: name, title: title, description: description, color: KimiUI.grey)
                     try await store.setGuild(saved.name, key: "screen.embeds.selected." + guild, guildID: guild)
                 } else if custom == "screen:ticket:category" {
                     var settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)

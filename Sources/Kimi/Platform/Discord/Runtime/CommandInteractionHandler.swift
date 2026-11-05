@@ -90,7 +90,7 @@ extension KimiRuntime {
                     KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:panel", placeholder: "Ticket panel channel")]),
                     KimiUI.row([KimiUI.channelSelect(id: "screen:ticket:transcript", placeholder: "Transcript channel")]),
                     KimiUI.row([
-                        KimiUI.button(id: "screen:ticket:publish", label: "Publish panel", style: 1),
+                        KimiUI.button(id: "screen:ticket:publish", label: "Publish panel"),
                         KimiUI.button(id: "screen:ticket:edit-panel", label: "Edit panel text"),
                     ]),
                 ]
@@ -111,7 +111,7 @@ extension KimiRuntime {
                     + "\nRecovery: " + (recoveryEnabled ? "On" : "Off")
                 responseComponents = [
                     KimiUI.row([
-                        KimiUI.button(id: "screen:lock:toggle", label: policy.enabled ? "Disable" : "Enable", style: policy.enabled ? 4 : 3),
+                        KimiUI.button(id: "screen:lock:toggle", label: policy.enabled ? "Disable" : "Enable"),
                         KimiUI.button(id: "screen:lock:invites", label: "Toggle invite filter"),
                         KimiUI.button(id: "screen:lock:mentions", label: "Toggle mention filter"),
                         KimiUI.button(id: "screen:lock:caps", label: "Toggle caps filter"),
@@ -142,9 +142,9 @@ extension KimiRuntime {
                         ]),
                     ]),
                     KimiUI.row([
-                        KimiUI.button(id: "screen:lock:verification", label: verificationEnabled ? "Disable verification" : "Enable verification", style: verificationEnabled ? 4 : 3),
-                        KimiUI.button(id: "screen:lock:protection", label: protectionEnabled ? "Disable anti-nuke" : "Enable anti-nuke", style: protectionEnabled ? 4 : 3),
-                        KimiUI.button(id: "screen:lock:recovery", label: recoveryEnabled ? "Disable recovery" : "Enable recovery", style: recoveryEnabled ? 4 : 3),
+                        KimiUI.button(id: "screen:lock:verification", label: verificationEnabled ? "Disable verification" : "Enable verification"),
+                        KimiUI.button(id: "screen:lock:protection", label: protectionEnabled ? "Disable anti-nuke" : "Enable anti-nuke"),
+                        KimiUI.button(id: "screen:lock:recovery", label: recoveryEnabled ? "Disable recovery" : "Enable recovery"),
                     ]),
                 ]
             case "welcome-screen":
@@ -164,7 +164,7 @@ extension KimiRuntime {
                     + (settings.autoRole.map { "<@&" + $0 + ">" } ?? "Disabled")
                 responseComponents = [
                     KimiUI.row([KimiUI.roleSelect(id: "screen:auto-role:role", placeholder: "Select automatic role")]),
-                    KimiUI.row([KimiUI.button(id: "screen:auto-role:disable", label: "Disable automatic role", style: 4)]),
+                    KimiUI.row([KimiUI.button(id: "screen:auto-role:disable", label: "Disable automatic role")]),
                 ]
             case "role-picker-screen":
                 let menus = await store.get("rolepicker.menus." + guild, as: [String: RolePickerService.Menu].self) ?? [:]
@@ -194,7 +194,7 @@ extension KimiRuntime {
                     KimiUI.channelSelect(id: "screen:embeds:channel", placeholder: "Embed destination"),
                 ]))
                 responseComponents.append(KimiUI.row([
-                    KimiUI.button(id: "screen:embeds:publish", label: "Publish selected embed", style: 1, disabled: options.isEmpty),
+                    KimiUI.button(id: "screen:embeds:publish", label: "Publish selected embed", disabled: options.isEmpty),
                     KimiUI.button(id: "screen:embeds:create", label: "Create or edit embed"),
                 ]))
             case "setup":
@@ -471,8 +471,7 @@ extension KimiRuntime {
                     }
                     let saved = try await service.save(
                         guild: guild, name: embedName, title: title, description: description,
-                        color: options.first(where: { ($0["name"] as? String) == "color" })?["value"] as? Int
-                            ?? existing?.color ?? 8_421_504, footer: value("footer") ?? existing?.footer,
+                        color: KimiUI.grey, footer: value("footer") ?? existing?.footer,
                         author: value("author"), thumbnailURL: value("thumbnail"), imageURL: value("image"),
                         url: value("url"), fields: fields)
                     reply = "Embed **" + saved.name + "** saved."
