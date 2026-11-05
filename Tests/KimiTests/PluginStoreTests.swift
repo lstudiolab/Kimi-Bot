@@ -17,16 +17,16 @@ final class PluginStoreTests: XCTestCase {
     }
 
     func testAutoModeratorIsListedAsItsOwnSixLevelModule() {
-        let plugin = PluginRegistry.plugins.first { $0.name == "Auto-Moderator" }
+        let plugin = PluginRegistry.plugins.first { $0.name == "Kimi Guard" }
         XCTAssertNotNil(plugin)
-        XCTAssertNotNil(CommandCatalog.pluginCommands["Auto-Moderator"])
-        XCTAssertTrue(CommandCatalog.pluginCommands["Auto-Moderator"]?.isEmpty ?? false)
-        XCTAssertEqual(AutoModeratorCatalog.sections.count, 6)
-        XCTAssertTrue(AutoModeratorCatalog.sections.contains { $0.title == "Micro / Tiny Essentials" })
-        XCTAssertTrue(AutoModeratorCatalog.sections.contains { $0.title == "Massive / Cutting-Edge Systems" })
-        XCTAssertTrue(AutoModeratorCatalog.sections.flatMap(\.features).contains { $0.name.contains("phishing") })
-        XCTAssertGreaterThan(AutoModeratorCatalog.availableCount, 0)
-        XCTAssertGreaterThan(AutoModeratorCatalog.plannedCount, 0)
+        XCTAssertNotNil(CommandCatalog.pluginCommands["Kimi Guard"])
+        XCTAssertTrue(CommandCatalog.pluginCommands["Kimi Guard"]?.isEmpty ?? false)
+        XCTAssertEqual(KimiGuardCatalog.sections.count, 6)
+        XCTAssertTrue(KimiGuardCatalog.sections.contains { $0.title == "Micro / Tiny Essentials" })
+        XCTAssertTrue(KimiGuardCatalog.sections.contains { $0.title == "Massive / Cutting-Edge Systems" })
+        XCTAssertTrue(KimiGuardCatalog.sections.flatMap(\.features).contains { $0.name.contains("phishing") })
+        XCTAssertGreaterThan(KimiGuardCatalog.availableCount, 0)
+        XCTAssertGreaterThan(KimiGuardCatalog.plannedCount, 0)
     }
 
     func testPluginStoreMenuAndDetailComponentsRespectDiscordLimits() throws {
