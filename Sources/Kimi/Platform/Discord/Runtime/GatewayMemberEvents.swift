@@ -145,7 +145,7 @@ extension KimiRuntime {
             if installed.contains("Kimi Lock"), await migratedModuleEnabled("moderation", guild: guild) {
                 await logger.log(
                     "INFO",
-                    (name == "GUILD_BAN_ADD" ? "Ban recorded for " : "Unban recorded for ") + user + " in guild "
+                    (eventName == "GUILD_BAN_ADD" ? "Ban recorded for " : "Unban recorded for ") + user + " in guild "
                         + guild)
             }
         }
