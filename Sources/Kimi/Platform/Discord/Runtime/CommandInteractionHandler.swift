@@ -27,7 +27,7 @@ extension KimiRuntime {
             return nil
         }
         if interactionType == 3 || interactionType == 5 { return await handleMigratedComponent(event, data: data) }
-        do { try await rest.deferKimiInteraction(id, token) } catch {
+        do { try await rest.deferKimiInteraction(id, token, ephemeral: name == "control-center") } catch {
             await logger.log("WARN", "Interaction acknowledgement failed: " + error.localizedDescription)
             return true
         }
