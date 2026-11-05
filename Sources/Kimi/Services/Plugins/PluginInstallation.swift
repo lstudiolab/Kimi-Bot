@@ -286,7 +286,7 @@ extension KimiRuntime {
             let message = timedOut
                 ? "Installation timed out after 90 seconds.\nThe previous plugin state was restored."
                 : "Installation cancelled.\nNo partial plugin changes were kept."
-            try? await rest.editKimiInteraction(applicationID, interactionToken, message, [])
+            try? await rest.editKimiInteraction(applicationID, interactionToken, message, PluginStoreUI.installedRows())
             await logger.log(
                 timedOut ? "WARN" : "INFO",
                 (timedOut ? "Plugin installation timed out: " : "Plugin installation cancelled: ")
@@ -305,7 +305,7 @@ extension KimiRuntime {
             } else {
                 try? await rest.editKimiInteraction(
                     applicationID, interactionToken,
-                    "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", [])
+                    "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", PluginStoreUI.installedRows())
                 await logger.log("WARN", "Plugin installation failed for \(plugin.name): " + error.localizedDescription)
             }
         }
