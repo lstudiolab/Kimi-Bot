@@ -211,11 +211,11 @@ extension KimiRuntime {
                                         "type": 1,
                                         "components": [
                                             [
-                                                "type": 2, "style": 3, "label": "Approve",
+                                                "type": 2, "style": 2,
                                                 "custom_id": "botguard:yes:" + guild + ":" + id,
                                             ],
                                             [
-                                                "type": 2, "style": 4, "label": "Reject",
+                                                "type": 2, "style": 2,
                                                 "custom_id": "botguard:no:" + guild + ":" + id,
                                             ],
                                         ],
@@ -223,12 +223,7 @@ extension KimiRuntime {
                                 ] as [[String: Any]]
                             _ = try await rest.call(
                                 "POST", "channels/" + confirmation + "/messages",
-                                body: [
-                                    "content": "**New bot approval required**\\nBot: <@" + id + ">\\n" + warning
-                                        + "\\nContainment: " + String(containment?.removedCount ?? 0)
-                                        + " role(s) removed.", "components": controls,
-                                    "allowed_mentions": ["parse": []],
-                                ])
+                                body: KimiUI.panel(title: "New bot approval required", description: "Bot: <@" + id + ">\n" + warning + "\nContainment: " + String(containment?.removedCount ?? 0) + " role(s) removed.", components: controls))
                         } catch {
                             await logger.log("ERROR", "Kimi Guard bot approval failed: " + error.localizedDescription)
                         }
@@ -494,11 +489,7 @@ extension KimiRuntime {
                 if let logChannel {
                     _ = try? await rest.call(
                         "POST", "channels/" + logChannel + "/messages",
-                        body: [
-                            "content": "Kimi Lock removed a message from <@" + user + "> in <#" + channel
-                                + ">. Reason: " + finding.reason + ". Sanction: " + effectiveSanction + ".",
-                            "allowed_mentions": ["parse": []],
-                        ])
+                        body: KimiUI.panel(title: "Moderation action", description: "Kimi Lock removed a message from <@" + user + "> in <#" + channel + ">. Reason: " + finding.reason + ". Sanction: " + effectiveSanction + "."))
                 }
                 await AnalyticsService(store: store).record(guild: guild, event: "moderation")
                 await logger.log("WARN", "Kimi Lock moderation: " + finding.reason + "; sanction: " + effectiveSanction)
