@@ -742,6 +742,7 @@ actor KimiRuntime {
     let performance: PerformanceMonitor
     let moderation: ModerationEngine
     let imageAnalysis: ImageAnalysisService
+    let pluginInstallJobs = PluginInstallJobs()
     var moderationDeletedMessageIDs: [String: Date] = [:]
     init(
         rest: DiscordREST, store: PersistentStore, logger: Logger, clientID: String,
