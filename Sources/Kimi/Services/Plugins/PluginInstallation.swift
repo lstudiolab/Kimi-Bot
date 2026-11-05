@@ -68,7 +68,7 @@ enum PluginStoreUI {
                     id: "store:select", placeholder: "Choose a module",
                     options: options, minimum: 1, maximum: 1)
             ]),
-            KimiUI.row([KimiUI.button(id: "settings:home", label: "Back to Control Center")]),
+            KimiUI.row([KimiUI.button(id: "store:home", label: "Back to Control Center")]),
         ]
     }
 
@@ -104,6 +104,23 @@ extension KimiRuntime {
         interactionToken: String
     ) async {
         do {
+            if customID == "store:home" {
+                let installed = await PluginManager(store: store).installed(guildID: guildID)
+                let enabled = await store.get("control.enabled." + guildID, as: Bool.self) ?? true
+                let rows = [KimiUI.row([
+                    KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                    KimiUI.button(id: "control:memory", label: "Memory"),
+                    KimiUI.button(id: "control:customize", label: "Customize"),
+                    KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
+                ])]
+                let message = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
+                    + "\nInstalled modules: " + String(installed.count)
+                    + "\nManage your server modules, memory and Kimi availability below."
+                try await self.editThemedInteraction(
+                    applicationID, interactionToken, message, rows, guildID: guildID)
+                return
+            }
+
             if customID == "settings:plugins" || customID == "settings:apps" || customID == "store:back" {
                 let installed = await PluginManager(store: store).installed(guildID: guildID)
                 try await rest.editKimiInteraction(
