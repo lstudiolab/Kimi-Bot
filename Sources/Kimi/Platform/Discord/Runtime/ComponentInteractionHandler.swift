@@ -79,11 +79,11 @@ extension KimiRuntime {
             await logger.log("ERROR", "Could not open plugin settings editor: " + error.localizedDescription)
             return true
         }
-        // Plugin Store navigation updates the existing ephemeral panel instead of
-        // creating a second ephemeral response for every button/select interaction.
+        // Each Module Store action gets its own ephemeral response. The previous
+        // screen remains available, so Back navigation never destroys the prior view.
         if custom == "settings:plugins" || custom == "settings:apps" || custom.hasPrefix("store:") {
             do {
-                try await rest.deferKimiComponentUpdate(id, token)
+                try await rest.deferKimiInteraction(id, token, ephemeral: true)
             } catch {
                 await logger.log("WARN", "Plugin Store acknowledgement failed: " + error.localizedDescription)
                 return true
@@ -96,19 +96,74 @@ extension KimiRuntime {
         // A failed initial acknowledgement is terminal. Never try to edit an
         // interaction response after Discord has invalidated its token.
         do {
-            try await rest.deferKimiInteraction(id, token)
+            try await rest.deferKimiInteraction(id, token, ephemeral: custom.hasPrefix("control:"))
         } catch {
             await logger.log("WARN", "Component acknowledgement failed: " + error.localizedDescription)
             return true
         }
         do {
-            if let pluginName = ComponentRouter.plugin(for: custom) {
+            if custom == "control:customize" || custom.hasPrefix("control:appearance:")
+                || custom == "control:memory" || custom == "control:toggle" {
+                try await authorizeControlCenter(actorID, member: member, guildID: guild)
+                if custom == "control:customize" {
+                    let appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    try await showAppearancePanel(app, token, guildID: guild, appearance: appearance)
+                } else if custom == "control:appearance:button-style" {
+                    guard let raw = (data["values"] as? [String])?.first, let style = Int(raw),
+                        KimiAppearance.buttonStyles.contains(where: { $0.value == style })
+                    else { throw KimiError.configuration("Choose a supported button style.") }
+                    var appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    appearance.buttonStyle = style
+                    try await store.setGuild(
+                        appearance, key: "control.appearance." + guild, guildID: guild)
+                    try await showAppearancePanel(
+                        app, token, guildID: guild, appearance: appearance, notice: "Button style saved.")
+                } else if custom == "control:appearance:embed-color" {
+                    guard let raw = (data["values"] as? [String])?.first, let color = Int(raw),
+                        KimiAppearance.embedColors.contains(where: { $0.value == color })
+                    else { throw KimiError.configuration("Choose a supported embed color.") }
+                    var appearance = await KimiAppearance.load(store: store, guildID: guild)
+                    appearance.embedColor = color
+                    try await store.setGuild(
+                        appearance, key: "control.appearance." + guild, guildID: guild)
+                    try await showAppearancePanel(
+                        app, token, guildID: guild, appearance: appearance, notice: "Embed color saved.")
+                } else if custom == "control:memory" {
+                    let report = await store.storageReport(guildID: guild)
+                    let installed = await PluginManager(store: store).installed(guildID: guild)
+                    let usedMB = Double(report.used) / 1_048_576
+                    let limitMB = Double(report.limit) / 1_048_576
+                    let message = "Kimi Memory\nStorage: " + String(format: "%.2f MB of %.2f MB", usedMB, limitMB)
+                        + " (" + String(report.percent) + "%)"
+                        + "\nInstalled modules: " + String(installed.count)
+                        + "\n\nMemory stores server configuration, module settings and bounded activity records. Data remains on the bot host."
+                    let rows = [KimiUI.row([KimiUI.button(id: "settings:home", label: "Back to Control Center")])]
+                    try await editThemedInteraction(app, token, message, rows, guildID: guild)
+                } else {
+                    let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
+                    let next = !enabled
+                    try await store.setGuild(next, key: "control.enabled." + guild, guildID: guild)
+                    let installed = await PluginManager(store: store).installed(guildID: guild)
+                    let rows = [KimiUI.row([
+                        KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                        KimiUI.button(id: "control:memory", label: "Memory"),
+                        KimiUI.button(id: "control:customize", label: "Customize"),
+                        KimiUI.button(id: "control:toggle", label: next ? "Turn Off" : "Turn On"),
+                    ])]
+                    let message = "Kimi Control Center\nStatus: " + (next ? "On" : "Off")
+                        + "\nInstalled modules: " + String(installed.count)
+                        + (next ? "\nKimi event processing is active." : "\nKimi event processing is paused. Use Turn On to resume.")
+                    try await editThemedInteraction(app, token, message, rows, guildID: guild)
+                }
+            } else if let pluginName = ComponentRouter.plugin(for: custom) {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 guard installed.contains(pluginName.rawValue) else {
                     throw KimiError.configuration(pluginName.rawValue + " is not installed in this server.")
                 }
             }
-            if custom == "settings:plugins" || custom == "settings:apps" {
+            if custom.hasPrefix("control:") {
+                // Control-center actions were handled above.
+            } else if custom == "settings:plugins" || custom == "settings:apps" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 let buttons = CommandCatalog.pluginNames().map { pluginName in
                     KimiUI.button(
@@ -117,8 +172,8 @@ extension KimiRuntime {
                         )
                 }
                 let rows = KimiUI.buttonRows(buttons)
-                try await rest.editKimiInteraction(
-                    app, token, "Plugin Store · Manage Kimi plugins for this server.", rows)
+                try await editThemedInteraction(
+                    app, token, "Plugin Store · Manage Kimi plugins for this server.", rows, guildID: guild)
             } else if custom.hasPrefix("settings:plugin:") || custom.hasPrefix("settings:app:") {
                 let prefix = custom.hasPrefix("settings:plugin:") ? "settings:plugin:" : "settings:app:"
                 let pluginName = String(custom.dropFirst(prefix.count))
@@ -142,7 +197,7 @@ extension KimiRuntime {
                         )
                 }
                 let rows = KimiUI.buttonRows(buttons)
-                try await rest.editKimiInteraction(app, token, pluginName + " updated.", rows)
+                try await editThemedInteraction(app, token, pluginName + " updated.", rows, guildID: guild)
             } else if custom.hasPrefix("screen:") {
                 let owner = try await rest.ownerID(guild)
                 let permissions = UInt64(member["permissions"] as? String ?? "") ?? 0
@@ -284,7 +339,7 @@ extension KimiRuntime {
                 } else {
                     throw KimiError.configuration("This plugin setting is not supported by the current screen.")
                 }
-                try await rest.editKimiInteraction(app, token, "Plugin settings saved.")
+                try await editThemedInteraction(app, token, "Plugin settings saved.", guildID: guild)
             } else if custom == "settings:status" {
                 let installed = await PluginManager(store: store).installed(guildID: guild)
                 let policy = await moderation.policy(guildID: guild)
@@ -302,7 +357,7 @@ extension KimiRuntime {
                         KimiUI.button(id: "settings:home", label: "Home"),
                     ])
                 ]
-                try await rest.editKimiInteraction(app, token, message, rows)
+                try await editThemedInteraction(app, token, message, rows, guildID: guild)
             } else if custom == "settings:preferences" {
                 let options = KimiLocalization.locales.prefix(25).map {
                     ["label": String((KimiLocalization.names[$0] ?? $0).prefix(100)), "value": $0]
@@ -312,7 +367,7 @@ extension KimiRuntime {
                         KimiUI.stringSelect(id: "settings:language", placeholder: "Select language", options: options)
                     ])
                 ]
-                try await rest.editKimiInteraction(app, token, "Choose the server language.", rows)
+                try await editThemedInteraction(app, token, "Choose the server language.", rows, guildID: guild)
             } else if custom == "settings:language" {
                 guard let locale = (data["values"] as? [String])?.first, KimiLocalization.names[locale] != nil else {
                     throw KimiError.configuration("Choose a supported language.")
@@ -320,125 +375,32 @@ extension KimiRuntime {
                 var languages = await store.get("languages", as: [String: String].self) ?? [:]
                 languages[guild] = locale
                 try await store.set(languages, key: "languages")
-                try await rest.editKimiInteraction(
-                    app, token, "Server language set to " + (KimiLocalization.names[locale] ?? locale) + ".")
+                try await editThemedInteraction(
+                    app, token, "Server language set to " + (KimiLocalization.names[locale] ?? locale) + ".", guildID: guild)
             } else if custom == "settings:activity" {
                 let entries = await logger.recent(limit: 100)
                 let rows = entries.filter { $0.message.contains(guild) }.suffix(12)
                 let body = rows.map {
                     ISO8601DateFormatter().string(from: $0.date) + " · " + $0.level + " · " + $0.message
                 }.joined(separator: "\n")
-                try await rest.editKimiInteraction(
-                    app, token, body.isEmpty ? "No recent activity recorded." : String(body.prefix(1800)))
+                try await editThemedInteraction(
+                    app, token, body.isEmpty ? "No recent activity recorded." : String(body.prefix(1800)), guildID: guild)
             } else if custom == "settings:home" {
-                let rows = [
-                    KimiUI.row([
-                        KimiUI.button(id: "settings:plugins", label: "Plugin Store"),
-                        KimiUI.button(id: "settings:status", label: "System Status"),
-                    ]),
-                    KimiUI.row([
-                        KimiUI.button(id: "settings:preferences", label: "Preferences"),
-                        KimiUI.button(id: "settings:activity", label: "Activity"),
-                    ]),
-                ]
-                try await rest.editKimiInteraction(app, token, "Kimi server control centre.", rows)
-            } else if custom == "ticket:open" {
-                let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
-                guard settings.panelChannelID == channel else {
-                    throw KimiError.configuration("This ticket panel is no longer active.")
-                }
-                let me = try await rest.call("GET", "users/@me")
-                guard let bot = (me as? [String: Any])?["id"] as? String else { throw KimiError.invalidResponse }
-                let ticket = try await SupportService(store: store, rest: rest, logger: logger).open(
-                    guild: guild, user: actorID, username: username, bot: bot)
-                await AnalyticsService(store: store).record(guild: guild, event: "ticket_open")
-                try await rest.editKimiInteraction(
-                    app, token, "Your private ticket is ready: <#" + ticket.channelID + ">")
-            } else if custom.hasPrefix("ticket:priority:") {
-                let value = String(custom.dropFirst("ticket:priority:".count)).split(separator: ":").map(String.init)
-                guard value.count == 2 else { throw KimiError.configuration("This priority control is invalid.") }
-                let ticketID = value[0]
-                let priority = value[1]
-                let tickets = await SupportTickets(store: store).all()
-                guard
-                    let ticket = tickets.first(where: {
-                        $0.id == ticketID && $0.guildID == guild && $0.channelID == channel && $0.isOpen
-                    })
-                else { throw KimiError.configuration("This ticket is no longer open.") }
-                let owner = try await rest.ownerID(guild)
-                let settings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
-                let roles = Set((member["roles"] as? [String]) ?? [])
-                let staff = settings.supportRoleID.map { roles.contains($0) } ?? false
-                guard ticket.userID == actorID || owner == actorID || staff else {
-                    throw KimiError.configuration(
-                        "Only the ticket opener, support staff or server owner can change priority.")
-                }
-                let updated = try await SupportService(store: store, rest: rest, logger: logger).setPriority(
-                    guild: guild, ticketID: ticketID, priority: priority)
-                try await rest.editKimiInteraction(app, token, "Ticket priority changed to " + updated.priority + ".")
-            } else if custom.hasPrefix("ticket:close:") {
-                let ticketID = String(custom.dropFirst("ticket:close:".count))
-                let tickets = await SupportTickets(store: store).all()
-                guard
-                    let ticket = tickets.first(where: {
-                        $0.id == ticketID && $0.guildID == guild && $0.channelID == channel && $0.isOpen
-                    })
-                else { throw KimiError.configuration("This ticket control is no longer valid.") }
-                let owner = try await rest.ownerID(guild)
-                let supportSettings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
-                let staffRoles = Set((member["roles"] as? [String]) ?? [])
-                let isStaff = supportSettings.supportRoleID.map { staffRoles.contains($0) } ?? false
-                guard ticket.userID == actorID || owner == actorID || isStaff else {
-                    throw KimiError.configuration(
-                        "Only the ticket opener, support staff or server owner can close this ticket.")
-                }
-                let controls =
-                    [
-                        [
-                            "type": 1,
-                            "components": [
-                                [
-                                    "type": 2, "style": 2,
-                                    "custom_id": "ticket:confirm-close:" + ticketID,
-                                ], ["type": 2, "style": 2, "label": "Cancel", "custom_id": "ticket:cancel-close"],
-                            ],
-                        ]
-                    ] as [[String: Any]]
-                _ = try await rest.call(
-                    "PATCH", "webhooks/\(app)/\(token)/messages/@original",
-                    body: [
-                        "embeds": [KimiUI.embed(title: "Close support ticket", description: "Are you sure you want to close this ticket?")], "content": NSNull(), "components": controls,
-                        "allowed_mentions": ["parse": []],
-                    ])
-            } else if custom.hasPrefix("ticket:confirm-close:") {
-                let ticketID = String(custom.dropFirst("ticket:confirm-close:".count))
-                let tickets = await SupportTickets(store: store).all()
-                guard
-                    let ticket = tickets.first(where: {
-                        $0.id == ticketID && $0.guildID == guild && $0.channelID == channel && $0.isOpen
-                    })
-                else { throw KimiError.configuration("This ticket is no longer open.") }
-                let owner = try await rest.ownerID(guild)
-                let supportSettings = await SupportService(store: store, rest: rest, logger: logger).settings(guild)
-                let staffRoles = Set((member["roles"] as? [String]) ?? [])
-                let isStaff = supportSettings.supportRoleID.map { staffRoles.contains($0) } ?? false
-                guard ticket.userID == actorID || owner == actorID || isStaff else {
-                    throw KimiError.configuration(
-                        "Only the ticket opener, support staff or server owner can close this ticket.")
-                }
-                let closed = try await SupportService(store: store, rest: rest, logger: logger).close(
-                    guild: guild, ticketID: ticketID)
-                await AnalyticsService(store: store).record(guild: guild, event: "ticket_close")
-                let transcriptRetained = await store.get(
-                    "support.transcript." + guild + "." + ticketID, as: String.self) != nil
-                let transcriptStatus = transcriptRetained
-                    ? "Transcript retained in Kimi storage."
-                    : "The ticket was closed, but local transcript retention failed."
-                try await rest.editKimiInteraction(
-                    app, token,
-                    "Ticket closed. " + transcriptStatus + " Channel: <#" + closed.channelID + ">")
-            } else if custom == "ticket:cancel-close" {
-                try await rest.editKimiInteraction(app, token, "Ticket remains open.")
+                let installed = await PluginManager(store: store).installed(guildID: guild)
+                let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
+                let rows = [KimiUI.row([
+                    KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                    KimiUI.button(id: "control:memory", label: "Memory"),
+                    KimiUI.button(id: "control:customize", label: "Customize"),
+                    KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
+                ])]
+                let message = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
+                    + "\nInstalled modules: " + String(installed.count)
+                try await editThemedInteraction(app, token, message, rows, guildID: guild)
+            } else if custom.hasPrefix("ticket:") {
+                try await handleTicketComponent(
+                    custom, applicationID: app, token: token, guildID: guild, channelID: channel,
+                    actorID: actorID, username: username, member: member)
             } else if custom == "verify:start" {
                 let expected = await store.get("verification.prompt." + guild + "." + actorID, as: String.self)
                 let message = (event["message"] as? [String: Any])?["id"] as? String
@@ -471,13 +433,13 @@ extension KimiRuntime {
                 if parts[1] == "yes" {
                     let result = try await KimiGuardService(store: store, rest: rest, logger: logger).review(
                         guild: guild, actor: target, decision: "restore", reviewer: actorID)
-                    try await rest.editKimiInteraction(app, token, "Bot approved. " + result)
+                    try await editThemedInteraction(app, token, "Bot approved. " + result, guildID: guild)
                 } else if parts[1] == "no" {
                     _ = try await KimiGuardService(store: store, rest: rest, logger: logger).review(
                         guild: guild, actor: target, decision: "keep", reviewer: actorID)
                     _ = try await rest.call("DELETE", "guilds/" + guild + "/members/" + target)
-                    try await rest.editKimiInteraction(
-                        app, token, "Bot rejected and removed from the server. The incident remains documented.")
+                    try await editThemedInteraction(
+                        app, token, "Bot rejected and removed from the server. The incident remains documented.", guildID: guild)
                 } else {
                     throw KimiError.configuration("Unknown bot approval decision.")
                 }
@@ -487,15 +449,15 @@ extension KimiRuntime {
                 let menuID = parts.count > 2 ? parts[2] : nil
                 let count = try await RolePickerService(store: store, rest: rest, logger: logger).select(
                     guild: guild, user: actorID, selected: selected, menuID: menuID)
-                try await rest.editKimiInteraction(
-                    app, token, "Your role selection was updated. Active roles: " + String(count) + ".")
+                try await editThemedInteraction(
+                    app, token, "Your role selection was updated. Active roles: " + String(count) + ".", guildID: guild)
             } else {
-                try await rest.editKimiInteraction(
-                    app, token, "This Kimi control is unknown or expired. Reopen the panel to get a current control.")
+                try await editThemedInteraction(
+                    app, token, "This Kimi control is unknown or expired. Reopen the panel to get a current control.", guildID: guild)
             }
         } catch {
-            try? await rest.editKimiInteraction(
-                app, token, "Kimi could not complete this action: " + error.localizedDescription)
+            try? await editThemedInteraction(
+                app, token, "Kimi could not complete this action: " + error.localizedDescription, guildID: guild)
             await logger.log("ERROR", "Component " + custom + " failed: " + error.localizedDescription)
         }
         return true

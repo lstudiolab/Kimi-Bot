@@ -62,11 +62,14 @@ enum PluginStoreUI {
                 "description": installed.contains(plugin.name) ? "Installed · View details" : plugin.description,
             ]
         }
-        return [KimiUI.row([
-            KimiUI.stringSelect(
-                id: "store:select", placeholder: "Choose a plugin",
-                options: options, minimum: 1, maximum: 1)
-        ])]
+        return [
+            KimiUI.row([
+                KimiUI.stringSelect(
+                    id: "store:select", placeholder: "Choose a module",
+                    options: options, minimum: 1, maximum: 1)
+            ]),
+            KimiUI.row([KimiUI.button(id: "store:home", label: "Back to Control Center")]),
+        ]
     }
 
     static func detailRows(_ plugin: KimiPluginDefinition, installed: Bool) -> [[String: Any]] {
@@ -74,8 +77,13 @@ enum PluginStoreUI {
             KimiUI.button(
                 id: "store:install:" + slug(plugin.name),
                 label: installed ? "Installed" : "Install",
-                disabled: installed)
+                disabled: installed),
+            KimiUI.button(id: "store:back", label: "Back"),
         ])]
+    }
+
+    static func installedRows() -> [[String: Any]] {
+        [KimiUI.row([KimiUI.button(id: "store:back", label: "Back to modules")])]
     }
 
     static func installingRows(_ slug: String) -> [[String: Any]] {
@@ -96,11 +104,28 @@ extension KimiRuntime {
         interactionToken: String
     ) async {
         do {
-            if customID == "settings:plugins" || customID == "settings:apps" {
+            if customID == "store:home" {
+                let installed = await PluginManager(store: store).installed(guildID: guildID)
+                let enabled = await store.get("control.enabled." + guildID, as: Bool.self) ?? true
+                let rows = [KimiUI.row([
+                    KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                    KimiUI.button(id: "control:memory", label: "Memory"),
+                    KimiUI.button(id: "control:customize", label: "Customize"),
+                    KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
+                ])]
+                let message = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
+                    + "\nInstalled modules: " + String(installed.count)
+                    + "\nManage your server modules, memory and Kimi availability below."
+                try await self.editThemedInteraction(
+                    applicationID, interactionToken, message, rows, guildID: guildID)
+                return
+            }
+
+            if customID == "settings:plugins" || customID == "settings:apps" || customID == "store:back" {
                 let installed = await PluginManager(store: store).installed(guildID: guildID)
                 try await rest.editKimiInteraction(
                     applicationID, interactionToken,
-                    "Plugin Store\nChoose a plugin to view its features and installation requirements.",
+                    "Module Store\nChoose a module to review its features and install it in this server.",
                     PluginStoreUI.catalogRows(installed: installed))
                 return
             }
@@ -114,7 +139,21 @@ extension KimiRuntime {
                 let systems = plugin.systems.map { "• " + $0 }.joined(separator: "\n")
                 let helpers = plugin.helpers.map { "• " + $0 }.joined(separator: "\n")
                 let status = isInstalled ? "Installed" : "Available"
-                let description = "\(plugin.name) · \(status)\n\n\(plugin.description)\n\nIncluded systems\n\(systems)\n\nCompatibility and safeguards\n\(helpers)"
+                let description: String
+                if plugin.name == "Kimi Guard" {
+                    let tiers = KimiGuardCatalog.sections.map { section in
+                        let features = section.features.map {
+                            ($0.available ? "Ready" : "Planned") + " · " + $0.name
+                        }.joined(separator: "\n")
+                        return section.level + " · " + section.title + "\n" + features
+                    }.joined(separator: "\n\n")
+                    description = "Kimi Guard · \(status)\n\n"
+                        + "A six-level moderation suite. Ready features use Kimi's existing moderation engine; planned features are not active yet.\n\n"
+                        + tiers + "\n\nReady: " + String(KimiGuardCatalog.availableCount)
+                        + " · Planned: " + String(KimiGuardCatalog.plannedCount)
+                } else {
+                    description = "\(plugin.name) · \(status)\n\n\(plugin.description)\n\nIncluded systems\n\(systems)\n\nCompatibility and safeguards\n\(helpers)"
+                }
                 try await rest.editKimiInteraction(
                     applicationID, interactionToken, description,
                     PluginStoreUI.detailRows(plugin, installed: isInstalled))
@@ -128,6 +167,10 @@ extension KimiRuntime {
                 }
                 let key = installKey(guildID: guildID, actorID: actorID, slug: slug)
                 await pluginInstallJobs.cancel(key: key)
+                try await rest.editKimiInteraction(
+                    applicationID, interactionToken,
+                    "Cancellation requested. The installation result will appear in its original status message.",
+                    PluginStoreUI.installedRows())
                 return
             }
 
@@ -256,14 +299,15 @@ extension KimiRuntime {
             }
             try? await rest.editKimiInteraction(
                 applicationID, interactionToken,
-                "\(plugin.name) is installed.\nIts commands and systems are now available in this server.", [])
+                "\(plugin.name) is installed and activated.\nIts available systems can now run in this server.",
+                PluginStoreUI.installedRows())
             await logger.log("INFO", "Installed plugin \(plugin.name) in guild \(guildID) by owner \(actorID).")
         } catch is CancellationError {
             let timedOut = await pluginInstallJobs.wasTimedOut(key: jobKey)
             let message = timedOut
                 ? "Installation timed out after 90 seconds.\nThe previous plugin state was restored."
                 : "Installation cancelled.\nNo partial plugin changes were kept."
-            try? await rest.editKimiInteraction(applicationID, interactionToken, message, [])
+            try? await rest.editKimiInteraction(applicationID, interactionToken, message, PluginStoreUI.installedRows())
             await logger.log(
                 timedOut ? "WARN" : "INFO",
                 (timedOut ? "Plugin installation timed out: " : "Plugin installation cancelled: ")
@@ -282,7 +326,7 @@ extension KimiRuntime {
             } else {
                 try? await rest.editKimiInteraction(
                     applicationID, interactionToken,
-                    "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", [])
+                    "Could not install \(plugin.name).\n\(error.localizedDescription)\n\nThe previous plugin state was preserved.", PluginStoreUI.installedRows())
                 await logger.log("WARN", "Plugin installation failed for \(plugin.name): " + error.localizedDescription)
             }
         }
@@ -299,7 +343,7 @@ extension KimiRuntime {
 
     private func validatePluginDefinition(_ plugin: KimiPluginDefinition, installed: [String]) throws {
         guard !plugin.systems.isEmpty, !plugin.helpers.isEmpty,
-            let commands = CommandCatalog.pluginCommands[plugin.name], !commands.isEmpty
+            let commands = CommandCatalog.pluginCommands[plugin.name]
         else { throw KimiError.configuration("The plugin manifest is incomplete or unavailable.") }
         guard Set(commands).count == commands.count,
             commands.allSatisfy({ $0.range(of: #"^[-a-z0-9]{1,32}$"#, options: .regularExpression) != nil })
@@ -357,6 +401,11 @@ extension KimiRuntime {
             required = [("View Channels", 1 << 10), ("Send Messages", 1 << 11), ("Embed Links", 1 << 14)]
         case "Kimi Lock":
             required = [("Manage Messages", 1 << 13), ("Moderate Members", 1 << 40)]
+        case "Kimi Guard":
+            required = [
+                ("Manage Channels", 1 << 4), ("Manage Messages", 1 << 13),
+                ("Moderate Members", 1 << 40), ("Kick Members", 1 << 1), ("Ban Members", 1 << 2),
+            ]
         case "Support":
             required = [("Manage Channels", 1 << 4), ("View Channels", 1 << 10), ("Send Messages", 1 << 11)]
         default:

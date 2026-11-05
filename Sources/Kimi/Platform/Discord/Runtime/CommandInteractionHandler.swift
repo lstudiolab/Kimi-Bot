@@ -27,7 +27,7 @@ extension KimiRuntime {
             return nil
         }
         if interactionType == 3 || interactionType == 5 { return await handleMigratedComponent(event, data: data) }
-        do { try await rest.deferKimiInteraction(id, token) } catch {
+        do { try await rest.deferKimiInteraction(id, token, ephemeral: name == "control-center") } catch {
             await logger.log("WARN", "Interaction acknowledgement failed: " + error.localizedDescription)
             return true
         }
@@ -35,19 +35,18 @@ extension KimiRuntime {
         var responseComponents: [[String: Any]] = []
         do {
             switch name {
-            case "kimi":
+            case "control-center":
                 let installed = await PluginManager(store: store).installed(guildID: guild)
-                reply =
-                    "Kimi server control centre\nInstalled plugins: "
-                    + (installed.isEmpty ? "None" : installed.joined(separator: ", "))
+                let enabled = await store.get("control.enabled." + guild, as: Bool.self) ?? true
+                reply = "Kimi Control Center\nStatus: " + (enabled ? "On" : "Off")
+                    + "\nInstalled modules: " + String(installed.count)
+                    + "\nManage your server modules, memory and Kimi availability below."
                 responseComponents = [
                     KimiUI.row([
-                        KimiUI.button(id: "settings:plugins", label: "Plugin Store"),
-                        KimiUI.button(id: "settings:status", label: "System Status"),
-                    ]),
-                    KimiUI.row([
-                        KimiUI.button(id: "settings:preferences", label: "Preferences"),
-                        KimiUI.button(id: "settings:activity", label: "Activity"),
+                        KimiUI.button(id: "settings:plugins", label: "Module Store"),
+                        KimiUI.button(id: "control:memory", label: "Memory"),
+                        KimiUI.button(id: "control:customize", label: "Customize"),
+                        KimiUI.button(id: "control:toggle", label: enabled ? "Turn Off" : "Turn On"),
                     ]),
                 ]
             case "plugins", "plugin-store":
@@ -513,9 +512,9 @@ extension KimiRuntime {
         }
         do {
             if responseComponents.isEmpty {
-                try await rest.editKimiInteraction(app, token, reply)
+                try await editThemedInteraction(app, token, reply, guildID: guild)
             } else {
-                try await rest.editKimiInteraction(app, token, reply, responseComponents)
+                try await editThemedInteraction(app, token, reply, responseComponents, guildID: guild)
             }
         } catch { await logger.log("ERROR", "Interaction response update failed: " + error.localizedDescription) }
         await AnalyticsService(store: store).record(guild: guild, event: "command")

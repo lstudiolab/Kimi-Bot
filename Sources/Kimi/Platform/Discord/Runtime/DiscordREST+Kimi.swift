@@ -36,25 +36,32 @@ extension DiscordREST {
             body: ["type": 9, "data": KimiUI.modal(id: customID, title: title, inputs: inputs)]
         )
     }
-    func deferKimiInteraction(_ id: String, _ token: String) async throws {
-        _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 5])
+    func deferKimiInteraction(_ id: String, _ token: String, ephemeral: Bool = false) async throws {
+        var body: [String: Any] = ["type": 5]
+        if ephemeral { body["data"] = ["flags": 64] }
+        _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: body)
     }
     /// Acknowledges a component without creating a second response message.
     /// The interaction webhook can then edit the original (including ephemeral) panel.
     func deferKimiComponentUpdate(_ id: String, _ token: String) async throws {
         _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 6])
     }
-    func editKimiInteraction(_ app: String, _ token: String, _ content: String) async throws {
+    func editKimiInteraction(
+        _ app: String, _ token: String, _ content: String,
+        embedColor: Int = KimiUI.grey, buttonStyle: Int = KimiUI.buttonStyle
+    ) async throws {
         _ = try await call(
             "PATCH", "webhooks/\(app)/\(token)/messages/@original",
-            body: KimiUI.message(content))
+            body: KimiUI.message(content, embedColor: embedColor, buttonStyle: buttonStyle))
     }
-    func editKimiInteraction(_ app: String, _ token: String, _ content: String, _ components: [[String: Any]])
-        async throws
-    {
+    func editKimiInteraction(
+        _ app: String, _ token: String, _ content: String, _ components: [[String: Any]],
+        embedColor: Int = KimiUI.grey, buttonStyle: Int = KimiUI.buttonStyle
+    ) async throws {
         _ = try await call(
             "PATCH", "webhooks/\(app)/\(token)/messages/@original",
-            body: KimiUI.message(content, components: components))
+            body: KimiUI.message(
+                content, components: components, embedColor: embedColor, buttonStyle: buttonStyle))
     }
     func deleteKimiMessage(_ channel: String, _ message: String) async throws {
         _ = try await call("DELETE", "channels/\(channel)/messages/\(message)")

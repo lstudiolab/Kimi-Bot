@@ -2,12 +2,21 @@ import Foundation
 
 enum KimiUI {
     static let grey = 0x808080
-    static func embed(title: String, description: String) -> [String: Any] {
-        ["color": grey, "title": DiscordText.prefixUTF16(title, limit: 256), "description": DiscordText.prefixUTF16(description, limit: 4096)]
+    static func embed(title: String, description: String, color: Int = grey) -> [String: Any] {
+        [
+            "color": max(0, min(0xFFFFFF, color)),
+            "title": DiscordText.prefixUTF16(title, limit: 256),
+            "description": DiscordText.prefixUTF16(description, limit: 4096),
+        ]
     }
-    // The style argument remains for source compatibility; Kimi buttons always use Discord secondary styling.
-    static func button(id: String, label: String, style _: Int = 2, disabled: Bool = false) -> [String: Any] {
-        ["type": 2, "style": 2, "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled]
+    // Primary is the default Kimi style; server appearance settings can override it.
+    static let buttonStyle = 1
+    static func button(id: String, label: String, style: Int = buttonStyle, disabled: Bool = false) -> [String: Any] {
+        [
+            "type": 2, "style": max(1, min(4, style)),
+            "custom_id": DiscordText.prefixUTF16(id, limit: 100),
+            "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled,
+        ]
     }
     static func row(_ components: [[String: Any]]) -> [String: Any] {
         ["type": 1, "components": Array(components.prefix(5))]
@@ -106,14 +115,40 @@ enum KimiUI {
         ["custom_id": DiscordText.prefixUTF16(id, limit: 100), "title": DiscordText.prefixUTF16(title, limit: 45), "components": inputs.prefix(5).map { row([$0]) }]
     }
     static func safeMentions() -> [String: Any] { ["parse": []] }
-    static func panel(title: String, description: String, components: [[String: Any]] = []) -> [String: Any] {
-        ["embeds": [embed(title: title, description: description)], "components": components, "allowed_mentions": safeMentions()]
+    static func themedComponents(_ components: [[String: Any]], buttonStyle: Int) -> [[String: Any]] {
+        components.map { row in
+            var themedRow = row
+            let items = row["components"] as? [[String: Any]] ?? []
+            themedRow["components"] = items.map { component in
+                var themedComponent = component
+                if (component["type"] as? Int) == 2 {
+                    themedComponent["style"] = max(1, min(4, buttonStyle))
+                }
+                return themedComponent
+            }
+            return themedRow
+        }
     }
-    static func message(_ content: String, components: [[String: Any]] = []) -> [String: Any] {
+    static func panel(
+        title: String, description: String, components: [[String: Any]] = [],
+        embedColor: Int = grey, buttonStyle: Int = buttonStyle
+    ) -> [String: Any] {
+        [
+            "embeds": [embed(title: title, description: description, color: embedColor)],
+            "components": themedComponents(components, buttonStyle: buttonStyle),
+            "allowed_mentions": safeMentions(),
+        ]
+    }
+    static func message(
+        _ content: String, components: [[String: Any]] = [],
+        embedColor: Int = grey, buttonStyle: Int = buttonStyle
+    ) -> [String: Any] {
         let lines = content.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
         let hasTitle = lines.count > 1
         let title = hasTitle ? String(lines[0]) : "Kimi"
         let description = hasTitle ? String(lines[1]) : content
-        return panel(title: title.isEmpty ? "Kimi" : title, description: description, components: components)
+        return panel(
+            title: title.isEmpty ? "Kimi" : title, description: description, components: components,
+            embedColor: embedColor, buttonStyle: buttonStyle)
     }
 }
