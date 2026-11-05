@@ -80,6 +80,20 @@ extension KimiRuntime {
             await logger.log("ERROR", "Could not open plugin settings editor: " + error.localizedDescription)
             return true
         }
+        // Plugin Store navigation updates the existing ephemeral panel instead of
+        // creating a second ephemeral response for every button/select interaction.
+        if custom == "settings:plugins" || custom == "settings:apps" || custom.hasPrefix("store:") {
+            do {
+                try await rest.deferKimiComponentUpdate(id, token)
+            } catch {
+                await logger.log("WARN", "Plugin Store acknowledgement failed: " + error.localizedDescription)
+                return true
+            }
+            await handlePluginStoreComponent(
+                custom, data: data, guildID: guild, actorID: actorID,
+                applicationID: app, interactionToken: token)
+            return true
+        }
         // A failed initial acknowledgement is terminal. Never try to edit an
         // interaction response after Discord has invalidated its token.
         do {
