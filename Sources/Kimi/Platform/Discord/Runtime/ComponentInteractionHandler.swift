@@ -96,7 +96,7 @@ extension KimiRuntime {
         // A failed initial acknowledgement is terminal. Never try to edit an
         // interaction response after Discord has invalidated its token.
         do {
-            try await rest.deferKimiInteraction(id, token)
+            try await rest.deferKimiInteraction(id, token, ephemeral: custom.hasPrefix("control:"))
         } catch {
             await logger.log("WARN", "Component acknowledgement failed: " + error.localizedDescription)
             return true
