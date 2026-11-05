@@ -34,7 +34,7 @@ final class PluginStoreTests: XCTestCase {
             let rows = PluginStoreUI.installingRows(PluginStoreUI.slug(plugin.name))
             XCTAssertNoThrow(try KimiUI.validateMessageComponents(rows))
             let buttons = rows.first?["components"] as? [[String: Any]] ?? []
-            XCTAssertEqual(buttons.map { $0["label"] as? String }, ["Installing", "Cancel"])
+            XCTAssertEqual(buttons.compactMap { $0["label"] as? String }, ["Installing", "Cancel"])
         }
     }
 
