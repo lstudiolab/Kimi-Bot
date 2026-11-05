@@ -148,6 +148,7 @@ extension KimiRuntime {
                     (eventName == "GUILD_BAN_ADD" ? "Ban recorded for " : "Unban recorded for ") + user + " in guild "
                         + guild)
             }
+        default: return
         }
     }
 }
