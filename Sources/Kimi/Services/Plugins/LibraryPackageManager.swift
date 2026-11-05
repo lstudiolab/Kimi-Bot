@@ -3,20 +3,15 @@ import Foundation
 actor LibraryPackageManager {
     struct Manifest: Codable, Sendable {
         let schema: Int
-        let id: String
-        let name: String
-        let version: String
-        let kind: String
+        let id, name: String
+        let version, kind: String
         let system: String
-        let commands: [String]
-        let files: [String]
+        let commands, files: [String]
         let permissions: [String]
     }
     struct Installed: Codable, Sendable {
-        let id: String
-        let name: String
-        let version: String
-        let kind: String
+        let id, name: String
+        let version, kind: String
         let system: String
         let commands: [String]
         let installedAt: Date
@@ -24,8 +19,7 @@ actor LibraryPackageManager {
     }
     struct Validation: Sendable {
         let manifest: Manifest
-        let fileCount: Int
-        let unpackedBytes: Int
+        let fileCount, unpackedBytes: Int
         let warnings: [String]
     }
     private let store: PersistentStore

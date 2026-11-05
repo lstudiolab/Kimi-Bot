@@ -9,8 +9,7 @@ actor PerformanceMonitor {
     }
     struct Summary: Sendable {
         let count: Int
-        let averageMilliseconds: Double
-        let p95Milliseconds: Double
+        let averageMilliseconds, p95Milliseconds: Double
         let failures: Int
     }
     private var samples: [Sample] = []

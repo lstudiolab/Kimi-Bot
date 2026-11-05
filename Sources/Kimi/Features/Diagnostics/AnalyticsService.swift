@@ -12,14 +12,10 @@ actor AnalyticsService {
         var ticketsClosed = 0
     }
     struct Summary: Sendable {
-        let messages: Int
-        let joins: Int
-        let leaves: Int
-        let commands: Int
-        let moderation: Int
-        let ticketsOpened: Int
-        let ticketsClosed: Int
-        let activeDays: Int
+        let messages, joins: Int
+        let leaves, commands: Int
+        let moderation, ticketsOpened: Int
+        let ticketsClosed, activeDays: Int
     }
     private let store: PersistentStore
     init(store: PersistentStore) { self.store = store }
