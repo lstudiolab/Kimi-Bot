@@ -39,6 +39,11 @@ extension DiscordREST {
     func deferKimiInteraction(_ id: String, _ token: String) async throws {
         _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 5, "data": ["flags": 64]])
     }
+    /// Acknowledges a component without creating a second response message.
+    /// The interaction webhook can then edit the original (including ephemeral) panel.
+    func deferKimiComponentUpdate(_ id: String, _ token: String) async throws {
+        _ = try await call("POST", "interactions/\(id)/\(token)/callback", body: ["type": 6])
+    }
     func editKimiInteraction(_ app: String, _ token: String, _ content: String) async throws {
         _ = try await call(
             "PATCH", "webhooks/\(app)/\(token)/messages/@original",
