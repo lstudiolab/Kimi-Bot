@@ -174,7 +174,7 @@ extension KimiRuntime {
                 responseComponents = [
                     KimiUI.row([KimiUI.channelSelect(id: "screen:role-picker:channel", placeholder: "Role menu channel")]),
                     KimiUI.row([
-                        KimiUI.button(id: "screen:role-picker:publish", label: "Publish role menu", style: 1),
+                        KimiUI.button(id: "screen:role-picker:publish", label: "Publish role menu"),
                         KimiUI.button(id: "screen:role-picker:edit-name", label: "Set menu name"),
                     ]),
                 ]

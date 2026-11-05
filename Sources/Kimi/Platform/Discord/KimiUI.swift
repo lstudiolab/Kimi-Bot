@@ -5,6 +5,7 @@ enum KimiUI {
     static func embed(title: String, description: String) -> [String: Any] {
         ["color": grey, "title": DiscordText.prefixUTF16(title, limit: 256), "description": DiscordText.prefixUTF16(description, limit: 4096)]
     }
+    // The style argument remains for source compatibility; Kimi buttons always use Discord secondary styling.
     static func button(id: String, label: String, style _: Int = 2, disabled: Bool = false) -> [String: Any] {
         ["type": 2, "style": 2, "custom_id": DiscordText.prefixUTF16(id, limit: 100), "label": DiscordText.prefixUTF16(label, limit: 80), "disabled": disabled]
     }

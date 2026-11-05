@@ -430,7 +430,7 @@ actor DiscordREST {
             "POST", "interactions/\(id)/\(token)/callback",
             body: [
                 "type": 4,
-                "data": ["content": DiscordText.prefixUTF16(text, limit: 1900), "flags": 64, "allowed_mentions": ["parse": []]],
+                "data": KimiUI.message(text).merging(["flags": 64]) { _, new in new },
             ])
     }
     func createChannel(guild: String, name: String, type: Int = 0) async throws -> String {
