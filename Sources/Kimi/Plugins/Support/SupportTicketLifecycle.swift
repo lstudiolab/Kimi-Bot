@@ -84,7 +84,7 @@ extension SupportService {
                 do {
                     _ = try await rest.call(
                         "POST", "channels/\(destination)/messages",
-                        body: KimiUI.message("Ticket transcript\n" + summary)
+                        body: KimiUI.message("Ticket transcript\n" + summary))
                     let exported = String(transcript.suffix(18_000))
                     var chunks: [String] = []
                     var current = ""
