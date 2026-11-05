@@ -16,9 +16,10 @@ extension KimiRuntime {
             let installed = await PluginManager(store: store).installed(guildID: guild)
             let hasKimiLock = installed.contains("Kimi Lock")
             let hasAutoModerator = installed.contains("Auto-Moderator")
-            let recoveryEnabled = hasKimiLock && await migratedModuleEnabled("recovery", guild: guild)
-            let moderationEnabled = (hasKimiLock || hasAutoModerator)
-                && await migratedModuleEnabled("moderation", guild: guild)
+            let recoveryConfigured = await migratedModuleEnabled("recovery", guild: guild)
+            let moderationConfigured = await migratedModuleEnabled("moderation", guild: guild)
+            let recoveryEnabled = hasKimiLock && recoveryConfigured
+            let moderationEnabled = (hasKimiLock || hasAutoModerator) && moderationConfigured
             guard recoveryEnabled || moderationEnabled else { return }
             let recovery = RecoveryService(store: store, logger: logger, rest: rest)
             let attachments = data["attachments"] as? [[String: Any]] ?? []
